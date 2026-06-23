@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=392, initial-scale=1">
+<title>Pusaka — Onboarding 3/5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;background:#eceae3;display:flex;justify-content:center;padding:40px 0;}
+.screen{width:392px;min-height:844px;background:#f3f6f4;border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 30px 70px rgba(12,33,29,.18);}
+.row{display:flex;align-items:center;gap:13px;padding:13px;border-radius:14px;}
+.row-on{background:#eef6f3;border:1.5px solid #0f766e;}
+.row-off{background:#fff;border:1.5px solid #e7eeeb;}
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <div style="height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-size:14px;font-weight:600;color:#13352e;position:relative;z-index:5;">
+    <span>9:41</span>
+    <div style="position:absolute;left:50%;top:9px;transform:translateX(-50%);width:104px;height:26px;background:#0c211d;border-radius:0 0 16px 16px;"></div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:12px;letter-spacing:.5px;">5G</span>
+      <div style="width:22px;height:11px;border:1px solid #13352e;border-radius:3px;padding:1px;opacity:.85;"><div style="width:80%;height:100%;background:#13352e;border-radius:1px;"></div></div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex;flex-direction:column;">
+    <div style="padding:6px 24px 16px;flex:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:14px;font-weight:600;color:#5a726b;">‹ Back</span>
+        <span style="font-size:12.5px;font-weight:600;color:#8a9b95;">Step 3 of 5</span>
+      </div>
+      <div style="margin-top:12px;height:6px;border-radius:999px;background:#e1e9e5;overflow:hidden;"><div style="height:100%;border-radius:999px;background:#0f766e;width:60%;"></div></div>
+      <div style="margin-top:7px;font-size:12px;color:#8a9b95;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#bf9b3a;"></span>Trust ladder · share a little more at each step</div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:4px 24px 24px;">
+      <h2 style="font-family:Newsreader,serif;font-weight:500;font-size:28px;line-height:1.18;margin:8px 0 0;color:#13352e;">Which institutions are involved?</h2>
+      <p style="font-size:14.5px;line-height:1.55;color:#5a726b;margin:12px 0 0;">Names only — like telling a friend "I bank with Maybank." No account numbers.</p>
+      <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+
+        <div class="row row-on">
+          <div style="flex:none;width:36px;height:36px;border-radius:9px;background:#fff3da;color:#9a7716;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">MB</div>
+          <div style="flex:1;"><div style="font-weight:600;font-size:14.5px;color:#13352e;">Maybank</div><div style="font-size:12px;color:#8a9b95;">Domestic bank</div></div>
+          <div style="flex:none;width:22px;height:22px;border-radius:50%;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>
+        </div>
+
+        <div class="row row-off">
+          <div style="flex:none;width:36px;height:36px;border-radius:9px;background:#fde4e1;color:#b4541f;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">CI</div>
+          <div style="flex:1;"><div style="font-weight:600;font-size:14.5px;color:#13352e;">CIMB</div><div style="font-size:12px;color:#8a9b95;">Domestic bank</div></div>
+        </div>
+
+        <div class="row row-on">
+          <div style="flex:none;width:36px;height:36px;border-radius:9px;background:#dcefe9;color:#0f766e;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">EPF</div>
+          <div style="flex:1;"><div style="font-weight:600;font-size:14.5px;color:#13352e;">KWSP</div><div style="font-size:12px;color:#8a9b95;">EPF retirement</div></div>
+          <div style="flex:none;width:22px;height:22px;border-radius:50%;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>
+        </div>
+
+        <div class="row row-on">
+          <div style="flex:none;width:36px;height:36px;border-radius:9px;background:#e4eafe;color:#3a52a3;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">GE</div>
+          <div style="flex:1;"><div style="font-weight:600;font-size:14.5px;color:#13352e;">Great Eastern Takaful</div><div style="font-size:12px;color:#8a9b95;">Takaful &amp; insurance</div></div>
+          <div style="flex:none;width:22px;height:22px;border-radius:50%;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>
+        </div>
+
+        <div class="row row-off">
+          <div style="flex:none;width:36px;height:36px;border-radius:9px;background:#e8e2f6;color:#6a4ea3;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">ASB</div>
+          <div style="flex:1;"><div style="font-weight:600;font-size:14.5px;color:#13352e;">ASNB</div><div style="font-size:12px;color:#8a9b95;">Unit trust (ASB)</div></div>
+        </div>
+
+        <div class="row row-off">
+          <div style="flex:none;width:36px;height:36px;border-radius:9px;background:#fde9da;color:#9a5a16;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">RT</div>
+          <div style="flex:1;"><div style="font-weight:600;font-size:14.5px;color:#13352e;">Rakuten Trade</div><div style="font-size:12px;color:#8a9b95;">Bursa broker</div></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="flex:none;padding:14px 24px 22px;background:#f3f6f4;border-top:1px solid #e4ece8;">
+      <div style="width:100%;border:0;background:#0f766e;color:#fff;font-size:16px;font-weight:700;padding:16px;border-radius:15px;box-shadow:0 10px 20px rgba(15,118,110,.22);text-align:center;">Continue</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

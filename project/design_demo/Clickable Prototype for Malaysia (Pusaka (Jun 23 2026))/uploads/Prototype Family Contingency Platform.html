@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Direction A Expanded Prototype</title>
+  <style>
+    :root {
+      --bg: #f4f8fa;
+      --surface: #ffffff;
+      --surface-2: #f9fcfb;
+      --text: #163247;
+      --muted: #647789;
+      --line: #d4e2e8;
+      --teal: #0f766e;
+      --teal-2: #0d9488;
+      --teal-soft: #dbf4ef;
+      --gold: #bf8714;
+      --gold-soft: #fff2d7;
+      --mint: #eafaf3;
+      --mint-2: #d5f3e6;
+      --orange: #f97316;
+      --orange-soft: #fff0e6;
+      --navy: #102a43;
+      --danger: #b54708;
+      --danger-soft: #fff1eb;
+      --shadow: 0 18px 42px rgba(16, 42, 67, 0.1);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at left top, #e7f8f1 0%, transparent 26%),
+        radial-gradient(circle at right top, #fff0d9 0%, transparent 22%),
+        var(--bg);
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0;
+      font-family: Georgia, Cambria, "Times New Roman", serif;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 28px;
+      padding: 28px;
+    }
+
+    .sidebar,
+    .panel {
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(212, 226, 232, 0.95);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar {
+      padding: 22px;
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+
+    .workspace {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .sidebar h1 {
+      margin-top: 14px;
+      font-size: 29px;
+      line-height: 1.15;
+    }
+
+    .lead {
+      margin: 14px 0 18px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .section-title {
+      margin: 22px 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .flow-list,
+    .notes,
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .flow-item,
+    .note,
+    .mini-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+    }
+
+    .flow-item {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .flow-step {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .flow-item strong,
+    .mini-card strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .flow-item span,
+    .note,
+    .mini-card span {
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .topbar h2 {
+      font-size: 28px;
+      margin-top: 8px;
+    }
+
+    .topbar p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+      transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost,
+    .btn-small {
+      border-radius: 14px;
+      font-weight: 700;
+    }
+
+    .btn-primary,
+    .btn-secondary,
+    .btn-ghost {
+      padding: 12px 16px;
+    }
+
+    .btn-small {
+      padding: 10px 12px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--teal), var(--teal-2));
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(15, 118, 110, 0.24);
+    }
+
+    .btn-secondary {
+      background: var(--gold-soft);
+      color: #845d0d;
+    }
+
+    .btn-ghost {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn-small {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .prototype-shell {
+      display: grid;
+      grid-template-columns: 370px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .phone-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    .phone {
+      width: 350px;
+      min-height: 760px;
+      background: #112b3a;
+      border-radius: 36px;
+      padding: 14px;
+      box-shadow: 0 25px 60px rgba(17, 43, 58, 0.26);
+      position: sticky;
+      top: 20px;
+    }
+
+    .phone-notch {
+      width: 124px;
+      height: 18px;
+      border-radius: 0 0 14px 14px;
+      background: #06141b;
+      margin: 0 auto 10px;
+    }
+
+    .screen {
+      min-height: 704px;
+      border-radius: 26px;
+      background: var(--surface-2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .screen-top {
+      padding: 18px 18px 10px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .screen-panel {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .screen-panel.active {
+      display: flex;
+    }
+
+    .app-header {
+      padding: 0 18px 12px;
+    }
+
+    .tag {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .tag.gold {
+      background: var(--gold-soft);
+      color: #8b6311;
+    }
+
+    .app-header h3 {
+      font-size: 24px;
+      line-height: 1.2;
+      margin-top: 10px;
+    }
+
+    .app-header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .screen-body {
+      padding: 0 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 15px;
+      box-shadow: 0 6px 14px rgba(16, 42, 67, 0.04);
+    }
+
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card-title strong {
+      font-size: 14px;
+    }
+
+    .card-title small,
+    .muted,
+    .subtle {
+      color: var(--muted);
+    }
+
+    .subtle {
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .input,
+    .select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 13px;
+      color: var(--text);
+      background: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input:focus,
+    .select:focus {
+      border-color: var(--teal-2);
+      box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+    }
+
+    .grid-2,
+    .grid-3 {
+      display: grid;
+      gap: 10px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .pill-row,
+    .actions,
+    .option-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .choice,
+    .freq-option,
+    .cloud {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      text-align: left;
+    }
+
+    .choice.active,
+    .freq-option.active,
+    .cloud.active {
+      border-color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      border: 1.5px solid var(--line);
+      background: #fff;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-size: 12px;
+      flex: 0 0 auto;
+    }
+
+    .active .checkbox {
+      background: var(--teal);
+      border-color: var(--teal);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--gold-soft);
+      color: #8e6511;
+      font-weight: 800;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .timeline-item strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .timeline-item span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .member-list,
+    .contact-list,
+    .asset-list,
+    .gap-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .list-item {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .list-item strong {
+      font-size: 14px;
+    }
+
+    .list-item span {
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .count-badge {
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--mint);
+      color: #176548;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .warning,
+    .success {
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .warning {
+      background: var(--gold-soft);
+      color: #8d6311;
+      border: 1px solid #f0dcaa;
+    }
+
+    .success {
+      background: var(--mint);
+      color: #176548;
+      border: 1px solid #bde6d0;
+    }
+
+    .danger {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid #ffd8c7;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 12px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat .num {
+      margin-top: 6px;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--teal);
+    }
+
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .cloud {
+      justify-content: space-between;
+    }
+
+    .cloud strong {
+      font-size: 13px;
+    }
+
+    .cloud small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+
+    .bottom-nav {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 16px 16px;
+      background: linear-gradient(180deg, rgba(244,248,250,0) 0%, rgba(244,248,250,1) 28%);
+      border-top: 1px solid rgba(212, 226, 232, 0.7);
+    }
+
+    .nav-tab {
+      background: transparent;
+      color: var(--muted);
+      padding: 8px 6px;
+      flex: 1;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .nav-tab.active {
+      background: #fff;
+      color: var(--teal);
+      border: 1px solid var(--line);
+    }
+
+    .details {
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .panel h3 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .journey-steps {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .journey-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .journey-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .journey-card span {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .prototype-map {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .map-row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 14px;
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .map-row strong {
+      font-size: 14px;
+    }
+
+    .map-row div:last-child {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1200px) {
+      .page,
+      .prototype-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar,
+      .phone {
+        position: static;
+      }
+
+      .journey-steps {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        padding: 16px;
+      }
+
+      .grid-2,
+      .grid-3,
+      .provider-grid,
+      .journey-steps,
+      .map-row {
+        grid-template-columns: 1fr;
+      }
+
+      .phone {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="sidebar">
+      <div class="eyebrow">Direction A Expanded</div>
+      <h1>Deeper Consumer Prototype</h1>
+      <p class="lead">
+        This version expands the earlier prototype into a fuller planning setup with multiple family members,
+        multiple trusted contacts, asset entry forms, recurring check-ins, cloud integrations, and generated readiness gaps.
+      </p>
+
+      <div class="section-title">Expanded Journey</div>
+      <div class="flow-list">
+        <div class="flow-item"><div class="flow-step">1</div><div><strong>Welcome</strong><span>Set the trust boundary and position the product as a calm family guide.</span></div></div>
+        <div class="flow-item"><div class="flow-step">2</div><div><strong>Family Users</strong><span>Add multiple household members and define their roles.</span></div></div>
+        <div class="flow-item"><div class="flow-step">3</div><div><strong>Trusted Contacts</strong><span>Add multiple trusted contacts who can help in different situations.</span></div></div>
+        <div class="flow-item"><div class="flow-step">4</div><div><strong>Assets</strong><span>Fill simple forms for up to three asset references.</span></div></div>
+        <div class="flow-item"><div class="flow-step">5</div><div><strong>Check-ins + Integrations</strong><span>Choose update frequency and connect helpful cloud providers.</span></div></div>
+        <div class="flow-item"><div class="flow-step">6</div><div><strong>Readiness Assessment</strong><span>Generate gaps, score the plan, and recommend next actions.</span></div></div>
+        <div class="flow-item"><div class="flow-step">7</div><div><strong>Emergency Handoff</strong><span>Show what the family sees when the plan is activated.</span></div></div>
+      </div>
+
+      <div class="section-title">Testing Focus</div>
+      <div class="notes">
+        <div class="note">Do users understand why they may need more than one trusted contact?</div>
+        <div class="note">Can users comfortably add family members and understand their roles?</div>
+        <div class="note">Does the asset form feel simple enough without becoming too shallow?</div>
+        <div class="note">Is the check-in frequency clear and useful rather than nagging?</div>
+        <div class="note">Do the readiness gaps feel accurate and actionable?</div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Shareable HTML Prototype</div>
+          <h2>Direction A: Expanded Planning Flow</h2>
+          <p>This version is built for deeper product testing and partner discussions around real household setup behavior.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn-ghost" id="prevBtn">Previous</button>
+          <button class="btn-secondary" id="resetBtn">Reset Demo</button>
+          <button class="btn-primary" id="nextBtn">Next Screen</button>
+        </div>
+      </div>
+
+      <div class="prototype-shell">
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="screen">
+              <div class="screen-top">
+                <span>9:41</span>
+                <span>5G · 92%</span>
+              </div>
+
+              <section class="screen-panel active" data-screen="welcome">
+                <div class="app-header">
+                  <span class="tag">Start with calm</span>
+                  <h3>Your family will know what to do.</h3>
+                  <p>Build a clear contingency plan for people, contacts, assets, check-ins, and next steps.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="card">
+                    <div class="card-title"><strong>What this version adds</strong></div>
+                    <div class="pill-row">
+                      <span class="pill">Multiple family users</span>
+                      <span class="pill">Multiple trusted contacts</span>
+                      <span class="pill">Up to 3 assets</span>
+                      <span class="pill">Check-in frequency</span>
+                      <span class="pill">Cloud integrations</span>
+                    </div>
+                  </div>
+
+                  <div class="warning">We still do not store passwords, balances, or private keys.</div>
+
+                  <div class="stat-row">
+                    <div class="stat">
+                      <div class="label">Testing focus</div>
+                      <div class="num">Depth</div>
+                    </div>
+                    <div class="stat">
+                      <div class="label">Setup scope</div>
+                      <div class="num" style="color: var(--gold);">Family</div>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Suggested interview prompt</strong></div>
+                    <div class="subtle">“Please go through this setup as if you were preparing your own family plan. Tell me what feels useful, unclear, or too much.”</div>
+                    <div class="actions" style="margin-top: 12px;">
+                      <button class="btn-primary go-next">Begin expanded setup</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab active">Home</button>
+                  <button class="nav-tab">Plan</button>
+                  <button class="nav-tab">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+
+              <section class="screen-panel" data-screen="family">
+                <div class="app-header">
+                  <span class="tag">Step 1 of 6</span>
+                  <h3>Add family users</h3>
+                  <p>Build the household roster so the plan reflects real people and responsibilities.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="card">
+                    <div class="card-title"><strong>New family member</strong><small>Multiple users supported</small></div>
+                    <div class="grid-2">
+                      <input class="input" id="familyNameInput" value="Aisyah Rahman" />
+                      <input class="input" id="familyRoleInput" value="Primary owner" />
+                    </div>
+                    <div style="height: 10px;"></div>
+                    <div class="grid-2">
+                      <input class="input" id="familyRelationInput" value="Self" />
+                      <input class="input" id="familyLocationInput" value="Kuala Lumpur" />
+                    </div>
+                    <div class="actions" style="margin-top: 12px;">
+                      <button class="btn-small" id="addFamilyMember">Add family user</button>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="list-head">
+                      <strong>Family users</strong>
+                      <span class="count-badge" id="familyCount">1 user</span>
+                    </div>
+                    <div class="member-list" id="familyList"></div>
+                  </div>
+
+                  <div class="success hidden" id="familySaved">Family roster saved. The next step is assigning multiple trusted contacts.</div>
+                  <div class="actions">
+                    <button class="btn-secondary" id="saveFamily">Save family users</button>
+                    <button class="btn-primary go-next">Continue</button>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab">Home</button>
+                  <button class="nav-tab active">Plan</button>
+                  <button class="nav-tab">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+
+              <section class="screen-panel" data-screen="contacts">
+                <div class="app-header">
+                  <span class="tag">Step 2 of 6</span>
+                  <h3>Add trusted contacts</h3>
+                  <p>Use more than one contact so the family has backup support, not just a single point of failure.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="card">
+                    <div class="card-title"><strong>New trusted contact</strong><small>Recommended minimum: 2</small></div>
+                    <div class="grid-2">
+                      <input class="input" id="contactNameInput" value="Imran Rahman" />
+                      <input class="input" id="contactRoleInput" value="Spouse" />
+                    </div>
+                    <div style="height: 10px;"></div>
+                    <div class="grid-2">
+                      <input class="input" id="contactAccessInput" value="Emergency instructions and folders" />
+                      <input class="input" id="contactPriorityInput" value="Primary contact" />
+                    </div>
+                    <div class="actions" style="margin-top: 12px;">
+                      <button class="btn-small" id="addTrustedContact">Add trusted contact</button>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="list-head">
+                      <strong>Trusted contacts</strong>
+                      <span class="count-badge" id="contactCount">1 contact</span>
+                    </div>
+                    <div class="contact-list" id="contactList"></div>
+                  </div>
+
+                  <div class="warning">Testing prompt: ask whether users naturally want a spouse, sibling, and advisor, or whether this feels too much.</div>
+                  <div class="success hidden" id="contactsSaved">Trusted contacts saved. The next step is entering up to three asset references.</div>
+                  <div class="actions">
+                    <button class="btn-secondary" id="saveContacts">Save contacts</button>
+                    <button class="btn-primary go-next">Continue</button>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab">Home</button>
+                  <button class="nav-tab active">Plan</button>
+                  <button class="nav-tab">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+
+              <section class="screen-panel" data-screen="assets">
+                <div class="app-header">
+                  <span class="tag">Step 3 of 6</span>
+                  <h3>Add up to 3 asset references</h3>
+                  <p>Capture simple location details without storing sensitive credentials or balances.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="card">
+                    <div class="card-title"><strong>Asset form</strong><small>Maximum: 3</small></div>
+                    <div class="grid-2">
+                      <select class="select" id="assetTypeInput">
+                        <option>Banking</option>
+                        <option>Insurance</option>
+                        <option>Property</option>
+                        <option>Investment</option>
+                        <option>Crypto</option>
+                      </select>
+                      <input class="input" id="assetNameInput" value="Maybank savings relationship" />
+                    </div>
+                    <div style="height: 10px;"></div>
+                    <div class="grid-2">
+                      <input class="input" id="assetLocationInput" value="Drive > Family > Banking" />
+                      <input class="input" id="assetNoteInput" value="Beneficiary exists" />
+                    </div>
+                    <div class="actions" style="margin-top: 12px;">
+                      <button class="btn-small" id="addAsset">Add asset</button>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="list-head">
+                      <strong>Asset references</strong>
+                      <span class="count-badge" id="assetCount">1 of 3</span>
+                    </div>
+                    <div class="asset-list" id="assetList"></div>
+                  </div>
+
+                  <div class="warning">This form stores references only: location, owner context, and beneficiary note.</div>
+                  <div class="success hidden" id="assetsSaved">Assets saved. The next step is setting review frequency and choosing integrations.</div>
+                  <div class="actions">
+                    <button class="btn-secondary" id="saveAssetStep">Save assets</button>
+                    <button class="btn-primary go-next">Continue</button>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab">Home</button>
+                  <button class="nav-tab active">Plan</button>
+                  <button class="nav-tab">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+
+              <section class="screen-panel" data-screen="review">
+                <div class="app-header">
+                  <span class="tag">Step 4 of 6</span>
+                  <h3>Choose updates and integrations</h3>
+                  <p>Keep the plan current and make it easier to locate documents in familiar cloud services.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="card">
+                    <div class="card-title"><strong>Check-in frequency</strong><small>Set a default review rhythm</small></div>
+                    <div class="stack">
+                      <button class="freq-option active" data-frequency="Every 6 months">
+                        <span class="checkbox">✓</span>
+                        <span>Every 6 months</span>
+                      </button>
+                      <button class="freq-option" data-frequency="Every 12 months">
+                        <span class="checkbox"></span>
+                        <span>Every 12 months</span>
+                      </button>
+                      <button class="freq-option" data-frequency="Every 3 months">
+                        <span class="checkbox"></span>
+                        <span>Every 3 months</span>
+                      </button>
+                      <button class="freq-option" data-frequency="Custom annual reminder">
+                        <span class="checkbox"></span>
+                        <span>Custom annual reminder</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Cloud provider visuals</strong><small>Simple integration concept</small></div>
+                    <div class="provider-grid">
+                      <button class="cloud active" data-provider="Google Drive">
+                        <div><strong>Google Drive</strong><small>Family folders and shared references</small></div>
+                        <span class="checkbox">✓</span>
+                      </button>
+                      <button class="cloud" data-provider="Dropbox">
+                        <div><strong>Dropbox</strong><small>Backup storage reference</small></div>
+                        <span class="checkbox"></span>
+                      </button>
+                      <button class="cloud active" data-provider="OneDrive">
+                        <div><strong>OneDrive</strong><small>Document library for households</small></div>
+                        <span class="checkbox">✓</span>
+                      </button>
+                      <button class="cloud" data-provider="iCloud">
+                        <div><strong>iCloud</strong><small>Apple-first family storage</small></div>
+                        <span class="checkbox"></span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="success hidden" id="reviewSaved">Review cadence and integrations saved. The next step will generate a readiness assessment.</div>
+                  <div class="actions">
+                    <button class="btn-secondary" id="saveReviewStep">Save review settings</button>
+                    <button class="btn-primary go-next">Generate readiness</button>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab">Home</button>
+                  <button class="nav-tab active">Plan</button>
+                  <button class="nav-tab">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+
+              <section class="screen-panel" data-screen="readiness">
+                <div class="app-header">
+                  <span class="tag">Step 5 of 6</span>
+                  <h3>Readiness assessment</h3>
+                  <p>Review what is covered, what is missing, and what should happen next.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="stat-row">
+                    <div class="stat">
+                      <div class="label">Readiness score</div>
+                      <div class="num" id="readinessScore">78%</div>
+                    </div>
+                    <div class="stat">
+                      <div class="label">Open gaps</div>
+                      <div class="num" id="gapCount" style="color: var(--gold);">3</div>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Generated gaps</strong><small>Auto-created from current setup</small></div>
+                    <div class="gap-list" id="gapList"></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Readiness summary</strong></div>
+                    <div class="pill-row" id="summaryPills"></div>
+                    <div class="subtle" id="frequencySummary" style="margin-top: 10px;"></div>
+                  </div>
+
+                  <div class="actions">
+                    <button class="btn-secondary" id="refreshAssessment">Refresh assessment</button>
+                    <button class="btn-primary go-next">Preview emergency handoff</button>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab">Home</button>
+                  <button class="nav-tab">Plan</button>
+                  <button class="nav-tab active">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+
+              <section class="screen-panel" data-screen="emergency">
+                <div class="app-header">
+                  <span class="tag gold">Emergency mode</span>
+                  <h3>Verified family handoff</h3>
+                  <p>Show what the family would see after verification: the right contacts, folders, and next actions.</p>
+                </div>
+                <div class="screen-body">
+                  <div class="warning">Only instructions, contacts, asset references, and cloud folder locations are visible here.</div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Trusted contact sequence</strong></div>
+                    <div class="contact-list" id="emergencyContacts"></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Visible asset references</strong></div>
+                    <div class="asset-list" id="emergencyAssets"></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-title"><strong>Immediate next steps</strong></div>
+                    <div class="timeline" id="emergencyTimeline"></div>
+                  </div>
+
+                  <div class="success">This expanded prototype is ready for deeper sharing and discussion with users or GTM partners.</div>
+                  <div class="actions">
+                    <button class="btn-secondary" id="restartFlow">Restart flow</button>
+                  </div>
+                </div>
+                <div class="bottom-nav">
+                  <button class="nav-tab">Home</button>
+                  <button class="nav-tab">Plan</button>
+                  <button class="nav-tab active">Readiness</button>
+                  <button class="nav-tab">Help</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+
+        <div class="details">
+          <section class="panel">
+            <h3 id="detailTitle">Welcome screen</h3>
+            <p id="detailText">This expanded opening frame positions the product as deeper than a simple demo while keeping the same warm Direction A tone.</p>
+            <div class="journey-steps" id="journeyGrid"></div>
+          </section>
+
+          <section class="panel">
+            <h3>Prototype structure</h3>
+            <p>
+              This version is designed for richer evaluation. It gives users enough detail to react to real setup behavior:
+              choosing multiple contacts, entering assets, defining maintenance habits, and reacting to a generated readiness view.
+            </p>
+            <div class="prototype-map">
+              <div class="map-row"><strong>Family users</strong><div>Tests whether households want role-based setup from the start.</div></div>
+              <div class="map-row"><strong>Trusted contacts</strong><div>Tests comfort with primary and backup emergency relationships.</div></div>
+              <div class="map-row"><strong>Asset forms</strong><div>Tests whether simple reference capture is enough without secure vault behavior.</div></div>
+              <div class="map-row"><strong>Check-ins + integrations</strong><div>Tests whether ongoing maintenance and familiar cloud tools increase trust.</div></div>
+              <div class="map-row"><strong>Readiness gaps</strong><div>Tests whether automated guidance feels useful and credible.</div></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const prototypeDetails = [
+      {
+        id: "welcome",
+        title: "Welcome screen",
+        text: "This expanded opening frame positions the product as deeper than a simple demo while keeping the same warm Direction A tone.",
+        cards: [
+          ["User goal", "Understand the product scope and trust boundary quickly."],
+          ["Primary CTA", "Begin expanded setup."],
+          ["What to test", "Do users still feel calm even with a richer scope?"]
+        ]
+      },
+      {
+        id: "family",
+        title: "Family users",
+        text: "This step tests whether multi-person setup feels natural. It helps users think in terms of household continuity instead of individual storage.",
+        cards: [
+          ["User goal", "Build a realistic family roster with roles."],
+          ["Primary CTA", "Add family users and save."],
+          ["What to test", "Do users know who belongs in the plan and why?"]
+        ]
+      },
+      {
+        id: "contacts",
+        title: "Trusted contacts",
+        text: "This step expands the trust model. It checks whether users value backup contacts and how they think about different emergency roles.",
+        cards: [
+          ["User goal", "Create a reliable emergency contact structure."],
+          ["Primary CTA", "Add at least two trusted contacts."],
+          ["What to test", "Do users prefer family-only contacts or also advisors?"]
+        ]
+      },
+      {
+        id: "assets",
+        title: "Asset forms",
+        text: "This step simulates simple data entry without crossing into password-manager territory. It is useful for testing clarity and effort tolerance.",
+        cards: [
+          ["User goal", "Enter useful asset references quickly."],
+          ["Primary CTA", "Add up to three asset references."],
+          ["What to test", "Is the form simple enough while still feeling valuable?"]
+        ]
+      },
+      {
+        id: "review",
+        title: "Check-ins and integrations",
+        text: "This step introduces maintenance behavior. It also tests whether cloud integrations increase confidence by connecting to familiar storage environments.",
+        cards: [
+          ["User goal", "Set a sensible review habit and choose connected tools."],
+          ["Primary CTA", "Save review settings."],
+          ["What to test", "Do users prefer 6-month check-ins or another rhythm?"]
+        ]
+      },
+      {
+        id: "readiness",
+        title: "Readiness assessment",
+        text: "This is the main payoff screen for the expanded flow. It transforms setup progress into a score, gap list, and next-step guidance.",
+        cards: [
+          ["User goal", "Understand coverage and missing actions at a glance."],
+          ["Primary CTA", "Refresh or move to emergency preview."],
+          ["What to test", "Do the generated gaps feel accurate and motivating?"]
+        ]
+      },
+      {
+        id: "emergency",
+        title: "Emergency handoff",
+        text: "This final state shows how the richer setup becomes useful during a real event. It should make the value proposition feel concrete and believable.",
+        cards: [
+          ["User goal", "See how family members would act during a real event."],
+          ["Primary CTA", "Restart or discuss needed improvements."],
+          ["What to test", "Do users trust what is shown and not shown here?"]
+        ]
+      }
+    ];
+
+    const state = {
+      screenIndex: 0,
+      familyMembers: [
+        { name: "Aisyah Rahman", role: "Primary owner", relation: "Self", location: "Kuala Lumpur" }
+      ],
+      contacts: [
+        { name: "Imran Rahman", role: "Spouse", access: "Emergency instructions and folders", priority: "Primary contact" }
+      ],
+      assets: [
+        { type: "Banking", name: "Maybank savings relationship", location: "Drive > Family > Banking", note: "Beneficiary exists" }
+      ],
+      frequency: "Every 6 months",
+      providers: ["Google Drive", "OneDrive"]
+    };
+
+    const screenEls = Array.from(document.querySelectorAll(".screen-panel"));
+    const detailTitle = document.getElementById("detailTitle");
+    const detailText = document.getElementById("detailText");
+    const journeyGrid = document.getElementById("journeyGrid");
+
+    function pluralize(count, singular, plural) {
+      return `${count} ${count === 1 ? singular : plural}`;
+    }
+
+    function renderDetails() {
+      const current = prototypeDetails[state.screenIndex];
+      detailTitle.textContent = current.title;
+      detailText.textContent = current.text;
+      journeyGrid.innerHTML = current.cards.map(([title, text]) => (
+        `<div class="journey-card"><strong>${title}</strong><span>${text}</span></div>`
+      )).join("");
+    }
+
+    function showScreen(index) {
+      state.screenIndex = Math.max(0, Math.min(index, screenEls.length - 1));
+      screenEls.forEach((el, i) => el.classList.toggle("active", i === state.screenIndex));
+      if (prototypeDetails[state.screenIndex].id === "readiness" || prototypeDetails[state.screenIndex].id === "emergency") {
+        renderAssessment();
+      }
+      renderDetails();
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function renderFamily() {
+      document.getElementById("familyCount").textContent = pluralize(state.familyMembers.length, "user", "users");
+      document.getElementById("familyList").innerHTML = state.familyMembers.map(member => `
+        <div class="list-item">
+          <strong>${escapeHtml(member.name)}</strong>
+          <span>${escapeHtml(member.role)} · ${escapeHtml(member.relation)} · ${escapeHtml(member.location)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderContacts() {
+      document.getElementById("contactCount").textContent = pluralize(state.contacts.length, "contact", "contacts");
+      document.getElementById("contactList").innerHTML = state.contacts.map(contact => `
+        <div class="list-item">
+          <strong>${escapeHtml(contact.name)} <span class="subtle">(${escapeHtml(contact.priority)})</span></strong>
+          <span>${escapeHtml(contact.role)} · ${escapeHtml(contact.access)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderAssets() {
+      document.getElementById("assetCount").textContent = `${state.assets.length} of 3`;
+      document.getElementById("assetList").innerHTML = state.assets.map(asset => `
+        <div class="list-item">
+          <strong>${escapeHtml(asset.type)} · ${escapeHtml(asset.name)}</strong>
+          <span>${escapeHtml(asset.location)} · ${escapeHtml(asset.note)}</span>
+        </div>
+      `).join("");
+    }
+
+    function setInputValues(targets) {
+      Object.entries(targets).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+      });
+    }
+
+    function addFamilyMember() {
+      const name = document.getElementById("familyNameInput").value.trim();
+      const role = document.getElementById("familyRoleInput").value.trim();
+      const relation = document.getElementById("familyRelationInput").value.trim();
+      const location = document.getElementById("familyLocationInput").value.trim();
+      if (!name || !role) return;
+      state.familyMembers.push({ name, role, relation, location });
+      renderFamily();
+      const presets = [
+        { familyNameInput: "Nur Rahman", familyRoleInput: "Child", familyRelationInput: "Daughter", familyLocationInput: "Kuala Lumpur" },
+        { familyNameInput: "Hafiz Rahman", familyRoleInput: "Parent support", familyRelationInput: "Father", familyLocationInput: "Selangor" },
+        { familyNameInput: "", familyRoleInput: "", familyRelationInput: "", familyLocationInput: "" }
+      ];
+      const preset = presets[Math.min(state.familyMembers.length - 1, presets.length - 1)];
+      setInputValues(preset);
+    }
+
+    function addTrustedContact() {
+      const name = document.getElementById("contactNameInput").value.trim();
+      const role = document.getElementById("contactRoleInput").value.trim();
+      const access = document.getElementById("contactAccessInput").value.trim();
+      const priority = document.getElementById("contactPriorityInput").value.trim();
+      if (!name || !role) return;
+      state.contacts.push({ name, role, access, priority });
+      renderContacts();
+      const presets = [
+        { contactNameInput: "Sara Abdullah", contactRoleInput: "Sister", contactAccessInput: "Backup emergency contact", contactPriorityInput: "Backup contact" },
+        { contactNameInput: "Farid & Co", contactRoleInput: "Lawyer", contactAccessInput: "Legal folder references", contactPriorityInput: "Advisor contact" },
+        { contactNameInput: "", contactRoleInput: "", contactAccessInput: "", contactPriorityInput: "" }
+      ];
+      const preset = presets[Math.min(state.contacts.length - 1, presets.length - 1)];
+      setInputValues(preset);
+    }
+
+    function addAssetReference() {
+      if (state.assets.length >= 3) return;
+      const type = document.getElementById("assetTypeInput").value.trim();
+      const name = document.getElementById("assetNameInput").value.trim();
+      const location = document.getElementById("assetLocationInput").value.trim();
+      const note = document.getElementById("assetNoteInput").value.trim();
+      if (!type || !name || !location) return;
+      state.assets.push({ type, name, location, note });
+      renderAssets();
+      const presets = [
+        { assetTypeInput: "Insurance", assetNameInput: "AIA medical policy", assetLocationInput: "Drive > Family > Emergency", assetNoteInput: "Policy number saved offline" },
+        { assetTypeInput: "Property", assetNameInput: "Condo ownership file", assetLocationInput: "OneDrive > Property", assetNoteInput: "Lawyer contact linked" },
+        { assetTypeInput: "Investment", assetNameInput: "", assetLocationInput: "", assetNoteInput: "" }
+      ];
+      const preset = presets[Math.min(state.assets.length - 1, presets.length - 1)];
+      setInputValues(preset);
+    }
+
+    function computeAssessment() {
+      const gaps = [];
+      let score = 100;
+
+      if (state.familyMembers.length < 2) {
+        gaps.push("Add at least one more family member so the plan reflects the real household.");
+        score -= 10;
+      }
+      if (state.contacts.length < 2) {
+        gaps.push("Add a backup trusted contact so the family is not dependent on one person.");
+        score -= 12;
+      }
+      if (state.assets.length < 3) {
+        gaps.push("Add more asset references so important categories are easier to find in an emergency.");
+        score -= 10;
+      }
+      const hasAdvisor = state.contacts.some(c => /advisor|lawyer|planner/i.test(c.role + " " + c.priority));
+      if (!hasAdvisor) {
+        gaps.push("Consider adding an advisor or lawyer as a supporting trusted contact.");
+        score -= 8;
+      }
+      if (state.providers.length === 0) {
+        gaps.push("Connect at least one familiar cloud provider so document locations feel easier to retrieve.");
+        score -= 12;
+      }
+      if (state.frequency === "Custom annual reminder") {
+        gaps.push("Clarify the exact timing for the custom reminder so check-ins do not get forgotten.");
+        score -= 5;
+      }
+      if (!state.assets.some(a => /beneficiary/i.test(a.note))) {
+        gaps.push("Add beneficiary status notes to one or more assets so your family knows what is already set up.");
+        score -= 8;
+      }
+      if (gaps.length === 0) {
+        gaps.push("No critical gaps detected. The next improvement is adding richer event playbooks for more scenarios.");
+        score = 96;
+      }
+
+      return {
+        score: Math.max(55, score),
+        gaps
+      };
+    }
+
+    function renderAssessment() {
+      const assessment = computeAssessment();
+      document.getElementById("readinessScore").textContent = `${assessment.score}%`;
+      document.getElementById("gapCount").textContent = assessment.gaps.length;
+      document.getElementById("gapList").innerHTML = assessment.gaps.map(gap => `
+        <div class="list-item ${gap.startsWith("No critical") ? "" : "danger"}">
+          <strong>${gap.startsWith("No critical") ? "Strength" : "Gap"}</strong>
+          <span>${escapeHtml(gap)}</span>
+        </div>
+      `).join("");
+
+      const summary = [
+        pluralize(state.familyMembers.length, "family user", "family users"),
+        pluralize(state.contacts.length, "trusted contact", "trusted contacts"),
+        pluralize(state.assets.length, "asset reference", "asset references"),
+        state.providers.length ? `${state.providers.length} cloud integrations` : "No integrations"
+      ];
+      document.getElementById("summaryPills").innerHTML = summary.map(item => `<span class="pill">${escapeHtml(item)}</span>`).join("");
+      document.getElementById("frequencySummary").textContent = `Current review rhythm: ${state.frequency}. Connected providers: ${state.providers.join(", ") || "none"}.`;
+
+      document.getElementById("emergencyContacts").innerHTML = state.contacts.map(contact => `
+        <div class="list-item">
+          <strong>${escapeHtml(contact.name)} <span class="subtle">(${escapeHtml(contact.priority)})</span></strong>
+          <span>${escapeHtml(contact.role)} · ${escapeHtml(contact.access)}</span>
+        </div>
+      `).join("");
+
+      document.getElementById("emergencyAssets").innerHTML = state.assets.map(asset => `
+        <div class="list-item">
+          <strong>${escapeHtml(asset.type)} · ${escapeHtml(asset.name)}</strong>
+          <span>${escapeHtml(asset.location)} · ${escapeHtml(asset.note)}</span>
+        </div>
+      `).join("");
+
+      const firstContact = state.contacts[0]?.name || "trusted contact";
+      const secondContact = state.contacts[1]?.name || "backup trusted contact";
+      const firstProvider = state.providers[0] || "cloud folder";
+      document.getElementById("emergencyTimeline").innerHTML = `
+        <div class="timeline-item"><div class="dot">1</div><div><strong>Contact ${escapeHtml(firstContact)}</strong><span>Primary coordination begins with the first trusted contact.</span></div></div>
+        <div class="timeline-item"><div class="dot">2</div><div><strong>Use ${escapeHtml(firstProvider)}</strong><span>Open the saved family folders and retrieve referenced documents.</span></div></div>
+        <div class="timeline-item"><div class="dot">3</div><div><strong>Escalate to ${escapeHtml(secondContact)}</strong><span>Use the backup contact if extra support or verification is needed.</span></div></div>
+      `;
+    }
+
+    document.querySelectorAll(".go-next").forEach(btn => {
+      btn.addEventListener("click", () => showScreen(state.screenIndex + 1));
+    });
+
+    document.getElementById("prevBtn").addEventListener("click", () => showScreen(state.screenIndex - 1));
+    document.getElementById("nextBtn").addEventListener("click", () => showScreen(state.screenIndex + 1));
+
+    document.getElementById("resetBtn").addEventListener("click", resetPrototype);
+    document.getElementById("restartFlow").addEventListener("click", resetPrototype);
+
+    document.getElementById("addFamilyMember").addEventListener("click", addFamilyMember);
+    document.getElementById("addTrustedContact").addEventListener("click", addTrustedContact);
+    document.getElementById("addAsset").addEventListener("click", addAssetReference);
+
+    document.getElementById("saveFamily").addEventListener("click", () => {
+      document.getElementById("familySaved").classList.remove("hidden");
+    });
+    document.getElementById("saveContacts").addEventListener("click", () => {
+      document.getElementById("contactsSaved").classList.remove("hidden");
+    });
+    document.getElementById("saveAssetStep").addEventListener("click", () => {
+      document.getElementById("assetsSaved").classList.remove("hidden");
+    });
+    document.getElementById("saveReviewStep").addEventListener("click", () => {
+      document.getElementById("reviewSaved").classList.remove("hidden");
+      renderAssessment();
+    });
+    document.getElementById("refreshAssessment").addEventListener("click", renderAssessment);
+
+    document.querySelectorAll(".freq-option").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".freq-option").forEach(other => {
+          other.classList.remove("active");
+          other.querySelector(".checkbox").textContent = "";
+        });
+        btn.classList.add("active");
+        btn.querySelector(".checkbox").textContent = "✓";
+        state.frequency = btn.dataset.frequency;
+      });
+    });
+
+    document.querySelectorAll(".cloud").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const provider = btn.dataset.provider;
+        btn.classList.toggle("active");
+        btn.querySelector(".checkbox").textContent = btn.classList.contains("active") ? "✓" : "";
+        if (btn.classList.contains("active")) {
+          if (!state.providers.includes(provider)) state.providers.push(provider);
+        } else {
+          state.providers = state.providers.filter(item => item !== provider);
+        }
+      });
+    });
+
+    function resetPrototype() {
+      state.screenIndex = 0;
+      state.familyMembers = [
+        { name: "Aisyah Rahman", role: "Primary owner", relation: "Self", location: "Kuala Lumpur" }
+      ];
+      state.contacts = [
+        { name: "Imran Rahman", role: "Spouse", access: "Emergency instructions and folders", priority: "Primary contact" }
+      ];
+      state.assets = [
+        { type: "Banking", name: "Maybank savings relationship", location: "Drive > Family > Banking", note: "Beneficiary exists" }
+      ];
+      state.frequency = "Every 6 months";
+      state.providers = ["Google Drive", "OneDrive"];
+
+      document.getElementById("familySaved").classList.add("hidden");
+      document.getElementById("contactsSaved").classList.add("hidden");
+      document.getElementById("assetsSaved").classList.add("hidden");
+      document.getElementById("reviewSaved").classList.add("hidden");
+
+      setInputValues({
+        familyNameInput: "Aisyah Rahman",
+        familyRoleInput: "Primary owner",
+        familyRelationInput: "Self",
+        familyLocationInput: "Kuala Lumpur",
+        contactNameInput: "Imran Rahman",
+        contactRoleInput: "Spouse",
+        contactAccessInput: "Emergency instructions and folders",
+        contactPriorityInput: "Primary contact",
+        assetTypeInput: "Banking",
+        assetNameInput: "Maybank savings relationship",
+        assetLocationInput: "Drive > Family > Banking",
+        assetNoteInput: "Beneficiary exists"
+      });
+
+      document.querySelectorAll(".freq-option").forEach(btn => {
+        const active = btn.dataset.frequency === "Every 6 months";
+        btn.classList.toggle("active", active);
+        btn.querySelector(".checkbox").textContent = active ? "✓" : "";
+      });
+
+      document.querySelectorAll(".cloud").forEach(btn => {
+        const active = ["Google Drive", "OneDrive"].includes(btn.dataset.provider);
+        btn.classList.toggle("active", active);
+        btn.querySelector(".checkbox").textContent = active ? "✓" : "";
+      });
+
+      renderFamily();
+      renderContacts();
+      renderAssets();
+      renderAssessment();
+      showScreen(0);
+    }
+
+    renderFamily();
+    renderContacts();
+    renderAssets();
+    renderAssessment();
+    showScreen(0);
+  </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=392, initial-scale=1">
+<title>Pusaka — Account</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;background:#eceae3;display:flex;justify-content:center;padding:40px 0;}
+.screen{width:392px;min-height:844px;background:#f3f6f4;border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 30px 70px rgba(12,33,29,.18);}
+.navlabel{font-size:10.5px;font-weight:600;}
+.row{display:flex;align-items:center;gap:13px;padding:13px;border-radius:14px;}
+.row-on{background:#eef6f3;border:1.5px solid #0f766e;}
+.row-off{background:#fff;border:1.5px solid #e7eeeb;}
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <div style="height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-size:14px;font-weight:600;color:#13352e;position:relative;z-index:5;">
+    <span>9:41</span>
+    <div style="position:absolute;left:50%;top:9px;transform:translateX(-50%);width:104px;height:26px;background:#0c211d;border-radius:0 0 16px 16px;"></div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:12px;letter-spacing:.5px;">5G</span>
+      <div style="width:22px;height:11px;border:1px solid #13352e;border-radius:3px;padding:1px;opacity:.85;"><div style="width:80%;height:100%;background:#13352e;border-radius:1px;"></div></div>
+    </div>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;">
+    <div style="padding:2px 22px 16px;">
+      <div style="display:flex;align-items:center;gap:14px;margin-top:6px;">
+        <div style="width:54px;height:54px;border-radius:50%;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:19px;">AR</div>
+        <div><div style="font-family:Newsreader,serif;font-size:21px;color:#13352e;">Aisyah Rahman</div><div style="font-size:13px;color:#8a9b95;">aisyah.rahman@gmail.com</div></div>
+      </div>
+
+      <div style="margin-top:20px;border-radius:20px;padding:20px;background:linear-gradient(150deg,#13352e,#0c2521);color:#dff0ea;">
+        <div style="display:flex;align-items:center;gap:10px;"><div style="width:34px;height:34px;border-radius:10px;background:rgba(231,193,99,.18);color:#e7c163;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">ZK</div><div style="font-weight:700;font-size:15px;">Zero-knowledge privacy</div></div>
+        <p style="font-size:13px;line-height:1.6;color:#bcd6ce;margin:13px 0 0;">Your information is encrypted with keys only you control. We cannot view your asset details — so we can never reveal what we cannot see, to anyone.</p>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#dff0ea;"><span style="color:#e7c163;">✓</span>No passwords, balances, or account numbers stored</div>
+          <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#dff0ea;"><span style="color:#e7c163;">✓</span>Export everything any time — your data is portable</div>
+          <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#dff0ea;"><span style="color:#e7c163;">✓</span>Not even Pusaka can read it</div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a9b95;">Check-in rhythm</div>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:9px;">
+        <div class="row row-off">
+          <div style="flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #cdd9d4;"></div>
+          <span style="font-weight:600;font-size:14.5px;color:#13352e;">Every 3 months</span>
+        </div>
+        <div class="row row-on">
+          <div style="flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #0f766e;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;border-radius:50%;background:#0f766e;"></div></div>
+          <span style="font-weight:600;font-size:14.5px;color:#13352e;">Every 6 months</span>
+        </div>
+        <div class="row row-off">
+          <div style="flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #cdd9d4;"></div>
+          <span style="font-weight:600;font-size:14.5px;color:#13352e;">Every 12 months</span>
+        </div>
+      </div>
+
+      <div style="margin-top:18px;background:#fff;border:1px solid #e7eeeb;border-radius:18px;padding:16px;">
+        <div style="font-weight:700;font-size:14.5px;color:#13352e;">If I become inactive</div>
+        <p style="font-size:12.5px;color:#8a9b95;line-height:1.5;margin:5px 0 0;">After 12 months of no activity, Pusaka begins verifying your trusted contacts and gently releases your instructions.</p>
+        <div style="margin-top:13px;width:100%;border:1px solid #d8e3de;background:#13352e;color:#dff0ea;font-size:14px;font-weight:700;padding:13px;border-radius:13px;text-align:center;">Test the emergency handoff</div>
+      </div>
+
+      <div style="margin-top:16px;width:100%;border:1px solid #e7d6d0;background:#fff;color:#b4541f;font-size:14px;font-weight:600;padding:14px;border-radius:13px;text-align:center;">Reset demo</div>
+      <div style="height:18px;"></div>
+    </div>
+  </div>
+
+  <div style="flex:none;display:flex;padding:8px 12px 22px;background:rgba(243,246,244,.94);backdrop-filter:blur(8px);border-top:1px solid #e4ece8;">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 0;">
+      <div style="width:22px;height:22px;border-radius:6px;border:2px solid #b3c2bc;"></div>
+      <span class="navlabel" style="color:#b3c2bc;">Home</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 0;">
+      <div style="width:22px;height:22px;display:flex;flex-direction:column;justify-content:space-between;"><div style="height:3px;border-radius:2px;background:#b3c2bc;"></div><div style="height:3px;width:70%;border-radius:2px;background:#b3c2bc;"></div><div style="height:3px;border-radius:2px;background:#b3c2bc;"></div></div>
+      <span class="navlabel" style="color:#b3c2bc;">Plan</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 0;">
+      <div style="width:22px;height:22px;border-radius:50%;border:2px solid #b3c2bc;"></div>
+      <span class="navlabel" style="color:#b3c2bc;">Readiness</span>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 0;">
+      <div style="width:18px;height:18px;border-radius:50%;border:2px solid #0f766e;margin-top:1px;position:relative;"><div style="position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);width:22px;height:11px;border-radius:11px 11px 0 0;border:2px solid #0f766e;border-bottom:0;"></div></div>
+      <span class="navlabel" style="color:#0f766e;">Account</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>
