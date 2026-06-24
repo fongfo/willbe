@@ -13,6 +13,11 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      # Placeholder only — satisfies `prisma generate` (run via postinstall),
+      # which reads DATABASE_URL at config-load time but doesn't need a real
+      # connection until migrations/integration tests touch an actual DB.
+      DATABASE_URL: "postgresql://willbe:willbe_dev@localhost:5432/willbe?schema=public"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
