@@ -13,10 +13,21 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: willbe
+          POSTGRES_PASSWORD: willbe_dev
+          POSTGRES_DB: willbe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      # Placeholder only — satisfies `prisma generate` (run via postinstall),
-      # which reads DATABASE_URL at config-load time but doesn't need a real
-      # connection until migrations/integration tests touch an actual DB.
       DATABASE_URL: "postgresql://willbe:willbe_dev@localhost:5432/willbe?schema=public"
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +39,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npx prisma migrate deploy
       - run: npm test -- --ci
 
   app:
