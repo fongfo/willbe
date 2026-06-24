@@ -22,3 +22,7 @@ Thumbs.db
 # editors
 .vscode/
 .idea/
+
+# local Claude Code session state (root only — app/.claude and backend/.claude
+# may intentionally commit plugin-enablement settings)
+/.claude/
