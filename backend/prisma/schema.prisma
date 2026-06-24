@@ -33,3 +33,28 @@ model FamilyMember {
 
   @@map("family_members")
 }
+
+enum ContactRole {
+  PRIMARY
+  BACKUP
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+}
+
+model TrustedContact {
+  id                 String             @id @default(uuid())
+  name               String
+  relation           Relation
+  role               ContactRole
+  phone              String
+  email              String?
+  verificationStatus VerificationStatus @default(PENDING)
+  detail             String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("trusted_contacts")
+}
