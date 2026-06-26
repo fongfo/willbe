@@ -58,3 +58,24 @@ model TrustedContact {
 
   @@map("trusted_contacts")
 }
+
+enum AssetCategory {
+  BANK
+  INSURANCE
+  PROPERTY
+  INVESTMENT
+  CRYPTO
+  OTHER
+}
+
+model AssetReference {
+  id           String         @id @default(uuid())
+  name         String
+  category     AssetCategory
+  locationHint String?
+  detail       String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("asset_references")
+}
