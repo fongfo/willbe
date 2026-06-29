@@ -79,3 +79,31 @@ model AssetReference {
 
   @@map("asset_references")
 }
+
+enum CheckInFrequency {
+  EVERY_3_MONTHS
+  EVERY_6_MONTHS
+  EVERY_12_MONTHS
+  CUSTOM_ANNUAL
+}
+
+enum CloudProvider {
+  GOOGLE_DRIVE
+  ONEDRIVE
+  DROPBOX
+  ICLOUD
+}
+
+// Single global record (no per-user scoping yet): the plan's review cadence and
+// the set of cloud-storage providers the user has linked. Cloud "integration" here
+// is a reference only — we store which providers are connected, never credentials
+// or file contents — consistent with the asset-reference philosophy.
+model ReviewSetting {
+  id                 String           @id @default(uuid())
+  checkInFrequency   CheckInFrequency @default(EVERY_6_MONTHS)
+  connectedProviders CloudProvider[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@map("review_settings")
+}
