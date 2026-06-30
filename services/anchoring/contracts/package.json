@@ -1,0 +1,25 @@
+{
+  "name": "@willbe/anchoring-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Willbe (Pusaka) Proof of Plan smart contract — anchors tamper-evident plan commitments on-chain.",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "coverage": "hardhat coverage",
+    "typecheck": "tsc --noEmit",
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network amoy"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.1.0",
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^22.5.0",
+    "chai": "^4.5.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "hardhat": "^2.22.10",
+    "typescript": "^5.5.4"
+  }
+}

@@ -60,6 +60,24 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --ci
 
+  contracts:
+    name: Proof of Plan contracts (compile, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/anchoring/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/anchoring/contracts/package-lock.json
+      - run: npm ci
+      - run: npm run compile
+      - run: npm run typecheck
+      - run: npm test
+
   app:
     name: App (typecheck, test)
     runs-on: ubuntu-latest
@@ -88,4 +106,5 @@ jobs:
           node-version: 22
       - run: npm audit --audit-level=high --prefix backend || true
       - run: npm audit --audit-level=high --prefix services/anchoring || true
+      - run: npm audit --audit-level=high --prefix services/anchoring/contracts || true
       - run: npm audit --audit-level=high --prefix app || true
