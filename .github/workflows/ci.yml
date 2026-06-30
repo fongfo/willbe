@@ -42,6 +42,24 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm test -- --ci
 
+  anchoring:
+    name: Anchoring service (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/anchoring
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/anchoring/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --ci
+
   app:
     name: App (typecheck, test)
     runs-on: ubuntu-latest
@@ -69,4 +87,5 @@ jobs:
         with:
           node-version: 22
       - run: npm audit --audit-level=high --prefix backend || true
+      - run: npm audit --audit-level=high --prefix services/anchoring || true
       - run: npm audit --audit-level=high --prefix app || true
