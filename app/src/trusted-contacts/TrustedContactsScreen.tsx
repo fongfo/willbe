@@ -1,0 +1,137 @@
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Screen from '../components/Screen';
+import { colors, fontSizes, radii, spacing } from '../theme/tokens';
+import { evaluateContacts } from './evaluateContacts';
+import TrustedContactForm from './TrustedContactForm';
+import TrustedContactRow from './TrustedContactRow';
+import { useTrustedContacts } from './useTrustedContacts';
+
+export default function TrustedContactsScreen() {
+  const { contacts, loading, error, add } = useTrustedContacts();
+  const evaluation = evaluateContacts(contacts);
+
+  return (
+    <Screen>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.heading}>Who should your family turn to?</Text>
+        <Text style={styles.lede}>
+          Your trusted contacts. We suggest at least two, so no one is a single
+          point of failure.
+        </Text>
+
+        {!loading && !error ? (
+          <View
+            accessibilityRole="summary"
+            style={[
+              styles.banner,
+              evaluation.level === 'success' ? styles.bannerSuccess : styles.bannerWarn
+            ]}
+          >
+            <Text
+              style={[
+                styles.bannerText,
+                evaluation.level === 'success'
+                  ? styles.bannerTextSuccess
+                  : styles.bannerTextWarn
+              ]}
+            >
+              {evaluation.message}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Trusted contacts</Text>
+          <Text style={styles.count}>{contacts.length}</Text>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={colors.teal} accessibilityLabel="Loading" />
+        ) : error ? (
+          <Text style={styles.error}>{error}</Text>
+        ) : contacts.length === 0 ? (
+          <Text style={styles.empty}>No contacts yet. Add your first below.</Text>
+        ) : (
+          <View style={styles.list}>
+            {contacts.map((contact) => (
+              <TrustedContactRow key={contact.id} contact={contact} />
+            ))}
+          </View>
+        )}
+
+        <TrustedContactForm onSubmit={async (input) => void (await add(input))} />
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    gap: spacing.sm,
+    paddingBottom: spacing.xxl
+  },
+  heading: {
+    fontSize: fontSizes.heading,
+    color: colors.ink,
+    fontWeight: '500'
+  },
+  lede: {
+    fontSize: fontSizes.small,
+    color: colors.muted,
+    lineHeight: 20
+  },
+  banner: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.md
+  },
+  bannerWarn: {
+    backgroundColor: colors.warnBg
+  },
+  bannerSuccess: {
+    backgroundColor: colors.successBg
+  },
+  bannerText: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontWeight: '600'
+  },
+  bannerTextWarn: {
+    color: colors.warnText
+  },
+  bannerTextSuccess: {
+    color: colors.successText
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: colors.muted
+  },
+  count: {
+    fontSize: 12,
+    color: colors.teal,
+    fontWeight: '600'
+  },
+  list: {
+    gap: spacing.sm
+  },
+  empty: {
+    fontSize: fontSizes.small,
+    color: colors.muted2
+  },
+  error: {
+    fontSize: fontSizes.small,
+    color: colors.dangerText
+  }
+});

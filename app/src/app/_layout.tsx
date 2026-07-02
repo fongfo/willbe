@@ -9,6 +9,10 @@ export default function RootLayout() {
         name="family-members"
         options={{ headerShown: true, title: 'Family' }}
       />
+      <Stack.Screen
+        name="trusted-contacts"
+        options={{ headerShown: true, title: 'Trusted contacts' }}
+      />
     </Stack>
   );
 }

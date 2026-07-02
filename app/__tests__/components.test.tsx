@@ -1,6 +1,6 @@
 import { Text } from 'react-native';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import { Button, Card, Screen } from '../src/components';
+import { Badge, Button, Card, Screen } from '../src/components';
 
 describe('Button', () => {
   it('renders its label and fires onPress', () => {
@@ -41,6 +41,18 @@ describe('Card', () => {
       </Card>
     );
     expect(screen.getByText('Inside card')).toBeTruthy();
+  });
+});
+
+describe('Badge', () => {
+  it('renders its label and defaults to the success tone', () => {
+    render(<Badge label="Verified" />);
+    expect(screen.getByText('Verified')).toBeTruthy();
+  });
+
+  it('renders the warn tone', () => {
+    render(<Badge label="Pending" tone="warn" />);
+    expect(screen.getByText('Pending')).toBeTruthy();
   });
 });
 
