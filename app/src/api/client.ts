@@ -12,7 +12,10 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-type Json = Record<string, unknown>;
+// A JSON-serialisable request body. `object` (rather than
+// `Record<string, unknown>`) so typed domain interfaces are accepted without
+// an explicit index signature; the body is only ever JSON.stringify-d.
+type Json = object;
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
