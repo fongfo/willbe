@@ -5,6 +5,10 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="consent" options={{ headerShown: true, title: 'Consent' }} />
+      <Stack.Screen
+        name="family-members"
+        options={{ headerShown: true, title: 'Family' }}
+      />
     </Stack>
   );
 }
