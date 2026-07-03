@@ -13,6 +13,10 @@ export default function RootLayout() {
         name="trusted-contacts"
         options={{ headerShown: true, title: 'Trusted contacts' }}
       />
+      <Stack.Screen
+        name="asset-references"
+        options={{ headerShown: true, title: 'Asset references' }}
+      />
     </Stack>
   );
 }
