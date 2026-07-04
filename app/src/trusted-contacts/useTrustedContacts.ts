@@ -29,22 +29,27 @@ export function useTrustedContacts(): UseTrustedContactsResult {
   // synchronously in the effect body) and guarded against late responses.
   useEffect(() => {
     let active = true;
-    listTrustedContacts()
-      .then((data) => {
+
+    async function load(): Promise<void> {
+      try {
+        const data = await listTrustedContacts();
         if (active) {
           setContacts(data);
+          setError(null);
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (active) {
           setError(toMessage(err));
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    void load();
+
     return () => {
       active = false;
     };

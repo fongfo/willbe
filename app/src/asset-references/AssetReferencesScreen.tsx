@@ -40,8 +40,8 @@ export default function AssetReferencesScreen() {
 
         <View style={styles.notice}>
           <Text style={styles.noticeText}>
-            🔒 Pusaka stores the relationship and where to look — never account
-            numbers, balances, or passwords.
+            Pusaka stores the relationship and where to look — never account numbers,
+            balances, or passwords.
           </Text>
         </View>
 

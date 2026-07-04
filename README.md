@@ -23,6 +23,8 @@ cd backend && npm install && npm run dev   # http://localhost:4000/health
 cd app && npm install && npm start         # Expo dev server
 ```
 
+For phone preview, Expo Go compatibility, and development build steps, see [`project/APP_LOCAL_PREVIEW.md`](project/APP_LOCAL_PREVIEW.md).
+
 ## Branching
 
 Per `DEV_WORKFLOW.md`: `main` is protected, `develop` is the integration branch, work happens on `feature/<jira-key>-<short-desc>`.

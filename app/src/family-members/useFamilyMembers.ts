@@ -27,22 +27,27 @@ export function useFamilyMembers(): UseFamilyMembersResult {
   // update an unmounted component.
   useEffect(() => {
     let active = true;
-    listFamilyMembers()
-      .then((data) => {
+
+    async function load(): Promise<void> {
+      try {
+        const data = await listFamilyMembers();
         if (active) {
           setMembers(data);
+          setError(null);
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         if (active) {
           setError(toMessage(err));
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    void load();
+
     return () => {
       active = false;
     };

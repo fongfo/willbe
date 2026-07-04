@@ -75,6 +75,7 @@ export default function AssetReferenceForm({ onSubmit }: AssetReferenceFormProps
             return (
               <Pressable
                 key={option.value}
+                accessibilityLabel={`${option.label} category`}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 onPress={() => setCategory(option.value)}
@@ -102,8 +103,10 @@ export default function AssetReferenceForm({ onSubmit }: AssetReferenceFormProps
     <View style={styles.form}>
       <View style={styles.detailHead}>
         <Pressable
+          accessibilityLabel="Back to category"
           accessibilityRole="button"
           onPress={() => setStep('category')}
+          style={styles.backButton}
         >
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
@@ -188,6 +191,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.muted2
   },
+  backButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingRight: spacing.md
+  },
   label: {
     fontSize: 13,
     fontWeight: '700',
@@ -211,6 +219,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs
   },
   chip: {
+    minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: 11,
     borderRadius: 13,
