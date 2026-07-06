@@ -18,6 +18,10 @@ export default function RootLayout() {
         options={{ headerShown: true, title: 'Asset references' }}
       />
       <Stack.Screen name="check-in" options={{ headerShown: true, title: 'Check-in' }} />
+      <Stack.Screen
+        name="emergency-handover"
+        options={{ headerShown: true, title: 'Emergency handover' }}
+      />
     </Stack>
   );
 }
