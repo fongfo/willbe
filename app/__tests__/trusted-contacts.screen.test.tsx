@@ -92,6 +92,47 @@ describe('TrustedContactsScreen', () => {
     );
   });
 
+  it('edits an existing contact through the form', async () => {
+    mockedApi.listTrustedContacts.mockResolvedValue([makeContact()]);
+    mockedApi.updateTrustedContact.mockResolvedValue(
+      makeContact({ name: 'Imran Bin Rahman', phone: '+60127654321', role: 'BACKUP' })
+    );
+
+    render(<TrustedContactsScreen />);
+    expect(await screen.findByText('Imran Rahman')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Edit Imran Rahman'));
+    fireEvent.changeText(screen.getByLabelText('Name'), 'Imran Bin Rahman');
+    fireEvent.changeText(screen.getByLabelText('Phone'), '+60127654321');
+    fireEvent.press(screen.getByText('Backup'));
+    fireEvent.press(screen.getByText('Save changes'));
+
+    expect(await screen.findByText('Imran Bin Rahman')).toBeTruthy();
+    expect(screen.getByText('Spouse · Backup')).toBeTruthy();
+    expect(mockedApi.updateTrustedContact).toHaveBeenCalledWith(
+      'c1',
+      expect.objectContaining({
+        name: 'Imran Bin Rahman',
+        phone: '+60127654321',
+        role: 'BACKUP'
+      })
+    );
+  });
+
+  it('deletes an existing contact from the list', async () => {
+    mockedApi.listTrustedContacts.mockResolvedValue([makeContact()]);
+    mockedApi.deleteTrustedContact.mockResolvedValue(undefined);
+
+    render(<TrustedContactsScreen />);
+    expect(await screen.findByText('Imran Rahman')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Delete Imran Rahman'));
+
+    expect(await screen.findByText(/No contacts yet/)).toBeTruthy();
+    expect(screen.queryByText('Imran Rahman')).toBeNull();
+    expect(mockedApi.deleteTrustedContact).toHaveBeenCalledWith('c1');
+  });
+
   it('is exposed through the trusted-contacts route', async () => {
     mockedApi.listTrustedContacts.mockResolvedValue([]);
 
@@ -123,5 +164,26 @@ describe('TrustedContactForm', () => {
     fireEvent.press(screen.getByText('Add trusted contact'));
 
     expect(await screen.findByText('Save failed')).toBeTruthy();
+  });
+
+  it('prefills existing contact values in edit mode', () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    const onCancel = jest.fn();
+
+    render(
+      <TrustedContactForm
+        initialValue={makeContact({ email: 'imran@example.com', detail: 'Penang' })}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+      />
+    );
+
+    expect(screen.getByDisplayValue('Imran Rahman')).toBeTruthy();
+    expect(screen.getByDisplayValue('+60123456789')).toBeTruthy();
+    expect(screen.getByDisplayValue('imran@example.com')).toBeTruthy();
+    expect(screen.getByDisplayValue('Penang')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Cancel edit'));
+    expect(onCancel).toHaveBeenCalled();
   });
 });

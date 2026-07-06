@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../api';
-import { createTrustedContact, listTrustedContacts } from './trustedContact.api';
+import {
+  createTrustedContact,
+  deleteTrustedContact,
+  listTrustedContacts,
+  updateTrustedContact
+} from './trustedContact.api';
 import type {
   CreateTrustedContactInput,
-  TrustedContact
+  TrustedContact,
+  UpdateTrustedContactInput
 } from './trustedContact.types';
 
 interface UseTrustedContactsResult {
@@ -11,6 +17,8 @@ interface UseTrustedContactsResult {
   loading: boolean;
   error: string | null;
   add: (input: CreateTrustedContactInput) => Promise<TrustedContact>;
+  update: (id: string, input: UpdateTrustedContactInput) => Promise<TrustedContact>;
+  remove: (id: string) => Promise<void>;
 }
 
 function toMessage(error: unknown): string {
@@ -65,5 +73,24 @@ export function useTrustedContacts(): UseTrustedContactsResult {
     []
   );
 
-  return { contacts, loading, error, add };
+  const update = useCallback(
+    async (
+      id: string,
+      input: UpdateTrustedContactInput
+    ): Promise<TrustedContact> => {
+      const updated = await updateTrustedContact(id, input);
+      setContacts((current) =>
+        current.map((contact) => (contact.id === id ? updated : contact))
+      );
+      return updated;
+    },
+    []
+  );
+
+  const remove = useCallback(async (id: string): Promise<void> => {
+    await deleteTrustedContact(id);
+    setContacts((current) => current.filter((contact) => contact.id !== id));
+  }, []);
+
+  return { contacts, loading, error, add, update, remove };
 }

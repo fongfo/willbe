@@ -9,16 +9,23 @@ import type { ContactRole, CreateTrustedContactInput } from './trustedContact.ty
 import { ROLE_OPTIONS } from './roles';
 
 interface TrustedContactFormProps {
+  initialValue?: CreateTrustedContactInput;
+  onCancel?: () => void;
   onSubmit: (input: CreateTrustedContactInput) => Promise<void>;
 }
 
-export default function TrustedContactForm({ onSubmit }: TrustedContactFormProps) {
-  const [name, setName] = useState('');
-  const [relation, setRelation] = useState<Relation>('SPOUSE');
-  const [role, setRole] = useState<ContactRole>('PRIMARY');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [detail, setDetail] = useState('');
+export default function TrustedContactForm({
+  initialValue,
+  onCancel,
+  onSubmit
+}: TrustedContactFormProps) {
+  const isEditing = Boolean(initialValue);
+  const [name, setName] = useState(initialValue?.name ?? '');
+  const [relation, setRelation] = useState<Relation>(initialValue?.relation ?? 'SPOUSE');
+  const [role, setRole] = useState<ContactRole>(initialValue?.role ?? 'PRIMARY');
+  const [phone, setPhone] = useState(initialValue?.phone ?? '');
+  const [email, setEmail] = useState(initialValue?.email ?? '');
+  const [detail, setDetail] = useState(initialValue?.detail ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -47,12 +54,14 @@ export default function TrustedContactForm({ onSubmit }: TrustedContactFormProps
         email: parsed.data.email ?? null,
         detail: parsed.data.detail ?? null
       });
-      setName('');
-      setPhone('');
-      setEmail('');
-      setDetail('');
-      setRelation('SPOUSE');
-      setRole('PRIMARY');
+      if (!isEditing) {
+        setName('');
+        setPhone('');
+        setEmail('');
+        setDetail('');
+        setRelation('SPOUSE');
+        setRole('PRIMARY');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save contact');
     } finally {
@@ -148,11 +157,19 @@ export default function TrustedContactForm({ onSubmit }: TrustedContactFormProps
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Button
-        label={submitting ? 'Saving…' : 'Add trusted contact'}
+        label={submitting ? 'Saving…' : isEditing ? 'Save changes' : 'Add trusted contact'}
         onPress={handleSubmit}
         disabled={submitting}
         style={styles.submit}
       />
+      {isEditing && onCancel ? (
+        <Button
+          label="Cancel edit"
+          onPress={onCancel}
+          variant="secondary"
+          disabled={submitting}
+        />
+      ) : null}
     </View>
   );
 }

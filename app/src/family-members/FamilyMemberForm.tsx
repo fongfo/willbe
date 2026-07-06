@@ -7,13 +7,20 @@ import type { CreateFamilyMemberInput, Relation } from './familyMember.types';
 import { RELATION_OPTIONS } from './relations';
 
 interface FamilyMemberFormProps {
+  initialValue?: CreateFamilyMemberInput;
+  onCancel?: () => void;
   onSubmit: (input: CreateFamilyMemberInput) => Promise<void>;
 }
 
-export default function FamilyMemberForm({ onSubmit }: FamilyMemberFormProps) {
-  const [name, setName] = useState('');
-  const [relation, setRelation] = useState<Relation>('SPOUSE');
-  const [detail, setDetail] = useState('');
+export default function FamilyMemberForm({
+  initialValue,
+  onCancel,
+  onSubmit
+}: FamilyMemberFormProps) {
+  const isEditing = Boolean(initialValue);
+  const [name, setName] = useState(initialValue?.name ?? '');
+  const [relation, setRelation] = useState<Relation>(initialValue?.relation ?? 'SPOUSE');
+  const [detail, setDetail] = useState(initialValue?.detail ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -32,9 +39,11 @@ export default function FamilyMemberForm({ onSubmit }: FamilyMemberFormProps) {
         relation: parsed.data.relation,
         detail: parsed.data.detail ?? null
       });
-      setName('');
-      setDetail('');
-      setRelation('SPOUSE');
+      if (!isEditing) {
+        setName('');
+        setDetail('');
+        setRelation('SPOUSE');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save member');
     } finally {
@@ -87,11 +96,19 @@ export default function FamilyMemberForm({ onSubmit }: FamilyMemberFormProps) {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Button
-        label={submitting ? 'Saving…' : 'Add family member'}
+        label={submitting ? 'Saving…' : isEditing ? 'Save changes' : 'Add family member'}
         onPress={handleSubmit}
         disabled={submitting}
         style={styles.submit}
       />
+      {isEditing && onCancel ? (
+        <Button
+          label="Cancel edit"
+          onPress={onCancel}
+          variant="secondary"
+          disabled={submitting}
+        />
+      ) : null}
     </View>
   );
 }

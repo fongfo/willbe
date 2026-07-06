@@ -1,12 +1,28 @@
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
 import { colors, fontSizes, spacing } from '../theme/tokens';
 import FamilyMemberForm from './FamilyMemberForm';
 import FamilyMemberRow from './FamilyMemberRow';
+import type { FamilyMember } from './familyMember.types';
 import { useFamilyMembers } from './useFamilyMembers';
 
 export default function FamilyMembersScreen() {
-  const { members, loading, error, add } = useFamilyMembers();
+  const { members, loading, error, add, update, remove } = useFamilyMembers();
+  const [editing, setEditing] = useState<FamilyMember | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function handleDelete(member: FamilyMember): Promise<void> {
+    setActionError(null);
+    try {
+      await remove(member.id);
+      if (editing?.id === member.id) {
+        setEditing(null);
+      }
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete member');
+    }
+  }
 
   return (
     <Screen>
@@ -25,6 +41,8 @@ export default function FamilyMembersScreen() {
           <Text style={styles.count}>{members.length}</Text>
         </View>
 
+        {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+
         {loading ? (
           <ActivityIndicator color={colors.teal} accessibilityLabel="Loading" />
         ) : error ? (
@@ -34,12 +52,30 @@ export default function FamilyMembersScreen() {
         ) : (
           <View style={styles.list}>
             {members.map((member) => (
-              <FamilyMemberRow key={member.id} member={member} />
+              <FamilyMemberRow
+                key={member.id}
+                member={member}
+                onDelete={(target) => void handleDelete(target)}
+                onEdit={setEditing}
+              />
             ))}
           </View>
         )}
 
-        <FamilyMemberForm onSubmit={async (input) => void (await add(input))} />
+        <FamilyMemberForm
+          key={editing?.id ?? 'new-family-member'}
+          initialValue={editing ?? undefined}
+          onCancel={editing ? () => setEditing(null) : undefined}
+          onSubmit={async (input) => {
+            setActionError(null);
+            if (editing) {
+              await update(editing.id, input);
+              setEditing(null);
+              return;
+            }
+            await add(input);
+          }}
+        />
       </ScrollView>
     </Screen>
   );

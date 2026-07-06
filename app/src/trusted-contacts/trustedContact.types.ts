@@ -32,3 +32,5 @@ export interface CreateTrustedContactInput {
   email?: string | null;
   detail?: string | null;
 }
+
+export type UpdateTrustedContactInput = CreateTrustedContactInput;
