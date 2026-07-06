@@ -17,6 +17,7 @@ export default function RootLayout() {
         name="asset-references"
         options={{ headerShown: true, title: 'Asset references' }}
       />
+      <Stack.Screen name="check-in" options={{ headerShown: true, title: 'Check-in' }} />
     </Stack>
   );
 }
