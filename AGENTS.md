@@ -111,6 +111,9 @@ res.status(4xx/5xx).json({ success: false, error })     // 失败
 | 6. 安全审查 | **security-reviewer** | 涉及用户资产数据 / 钱包 / 链上交互 / AI 输入输出时**必须** |
 | 7. 提交 & PR | Codex | conventional commit + 测试计划 |
 
+- **从下一个 Jira Task 开始，每次代码修改或功能开发完成后，提交 / 合并 / 推送前必须执行一次 code review**。
+- Code review 是合并门禁：至少覆盖本次 diff 的正确性、架构一致性、TypeScript 类型安全、测试覆盖与回归风险。
+- Review 发现的 CRITICAL / HIGH 问题必须先修复并复测，之后重新 review；不得以“测试通过”为理由跳过 review。
 - 步骤 6 发现 CRITICAL 必须回步骤 4 修复，**不允许跳过直接合并**。
 - 覆盖率门槛 **≥80%**（单元 + 集成）。
 - 数据库 schema 变更需配套 Prisma migration（`prisma/migrations/`）。
