@@ -1,5 +1,5 @@
-import PlaceholderScreen from '../../screens/PlaceholderScreen';
+import PlanStepperScreen from '../../plan/PlanStepperScreen';
 
 export default function PlanScreen() {
-  return <PlaceholderScreen title="Plan" subtitle="Six-step plan overview arrives in WB-38." />;
+  return <PlanStepperScreen />;
 }
