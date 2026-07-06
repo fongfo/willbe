@@ -43,5 +43,7 @@ describe('PlanStepperScreen', () => {
     render(<PlanRoute />);
 
     expect(screen.getByText('Six-step flow')).toBeTruthy();
+    expect(screen.getByText('Setup inputs')).toBeTruthy();
+    expect(screen.getByText('Review outputs')).toBeTruthy();
   });
 });

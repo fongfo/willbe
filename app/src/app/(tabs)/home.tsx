@@ -1,5 +1,5 @@
-import PlaceholderScreen from '../../screens/PlaceholderScreen';
+import HomeDashboardScreen from '../../home/HomeDashboardScreen';
 
 export default function HomeScreen() {
-  return <PlaceholderScreen title="Home" subtitle="Dashboard arrives in WB-38." />;
+  return <HomeDashboardScreen />;
 }

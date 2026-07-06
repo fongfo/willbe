@@ -42,7 +42,6 @@ describe('PlaceholderScreen', () => {
 
 describe('tab + stack screens', () => {
   it.each([
-    [HomeScreen, 'Home'],
     [PlanScreen, 'Plan'],
     [AccountScreen, 'Account'],
     [ConsentScreen, 'Consent'],
@@ -50,6 +49,13 @@ describe('tab + stack screens', () => {
     render(<Screen />);
 
     expect(screen.getByText(heading)).toBeTruthy();
+  });
+
+  it('renders the Home dashboard heading after loading data', async () => {
+    render(<HomeScreen />);
+
+    expect(await screen.findByText('Home')).toBeTruthy();
+    expect(screen.getByText('Preparedness score')).toBeTruthy();
   });
 
   it('renders the Readiness screen heading after loading data', async () => {
