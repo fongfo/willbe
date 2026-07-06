@@ -29,3 +29,5 @@ export interface CreateFamilyMemberInput {
   relation: Relation;
   detail?: string | null;
 }
+
+export type UpdateFamilyMemberInput = CreateFamilyMemberInput;

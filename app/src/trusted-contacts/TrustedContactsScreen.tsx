@@ -1,14 +1,30 @@
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Screen from '../components/Screen';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { evaluateContacts } from './evaluateContacts';
 import TrustedContactForm from './TrustedContactForm';
 import TrustedContactRow from './TrustedContactRow';
+import type { TrustedContact } from './trustedContact.types';
 import { useTrustedContacts } from './useTrustedContacts';
 
 export default function TrustedContactsScreen() {
-  const { contacts, loading, error, add } = useTrustedContacts();
+  const { contacts, loading, error, add, update, remove } = useTrustedContacts();
+  const [editing, setEditing] = useState<TrustedContact | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const evaluation = evaluateContacts(contacts);
+
+  async function handleDelete(contact: TrustedContact): Promise<void> {
+    setActionError(null);
+    try {
+      await remove(contact.id);
+      if (editing?.id === contact.id) {
+        setEditing(null);
+      }
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not delete contact');
+    }
+  }
 
   return (
     <Screen>
@@ -48,6 +64,8 @@ export default function TrustedContactsScreen() {
           <Text style={styles.count}>{contacts.length}</Text>
         </View>
 
+        {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+
         {loading ? (
           <ActivityIndicator color={colors.teal} accessibilityLabel="Loading" />
         ) : error ? (
@@ -57,12 +75,30 @@ export default function TrustedContactsScreen() {
         ) : (
           <View style={styles.list}>
             {contacts.map((contact) => (
-              <TrustedContactRow key={contact.id} contact={contact} />
+              <TrustedContactRow
+                key={contact.id}
+                contact={contact}
+                onDelete={(target) => void handleDelete(target)}
+                onEdit={setEditing}
+              />
             ))}
           </View>
         )}
 
-        <TrustedContactForm onSubmit={async (input) => void (await add(input))} />
+        <TrustedContactForm
+          key={editing?.id ?? 'new-trusted-contact'}
+          initialValue={editing ?? undefined}
+          onCancel={editing ? () => setEditing(null) : undefined}
+          onSubmit={async (input) => {
+            setActionError(null);
+            if (editing) {
+              await update(editing.id, input);
+              setEditing(null);
+              return;
+            }
+            await add(input);
+          }}
+        />
       </ScrollView>
     </Screen>
   );

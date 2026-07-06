@@ -85,6 +85,43 @@ describe('FamilyMembersScreen', () => {
       detail: null
     });
   });
+
+  it('edits an existing member through the form', async () => {
+    mockedApi.listFamilyMembers.mockResolvedValue([makeMember()]);
+    mockedApi.updateFamilyMember.mockResolvedValue(
+      makeMember({ name: 'Imran Bin Rahman', detail: 'Kuala Lumpur' })
+    );
+
+    render(<FamilyMembersScreen />);
+    expect(await screen.findByText('Imran Rahman')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Edit Imran Rahman'));
+    fireEvent.changeText(screen.getByLabelText('Name'), 'Imran Bin Rahman');
+    fireEvent.changeText(screen.getByLabelText('Detail'), 'Kuala Lumpur');
+    fireEvent.press(screen.getByText('Save changes'));
+
+    expect(await screen.findByText('Imran Bin Rahman')).toBeTruthy();
+    expect(screen.getByText('Spouse · Kuala Lumpur')).toBeTruthy();
+    expect(mockedApi.updateFamilyMember).toHaveBeenCalledWith('m1', {
+      name: 'Imran Bin Rahman',
+      relation: 'SPOUSE',
+      detail: 'Kuala Lumpur'
+    });
+  });
+
+  it('deletes an existing member from the list', async () => {
+    mockedApi.listFamilyMembers.mockResolvedValue([makeMember()]);
+    mockedApi.deleteFamilyMember.mockResolvedValue(undefined);
+
+    render(<FamilyMembersScreen />);
+    expect(await screen.findByText('Imran Rahman')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Delete Imran Rahman'));
+
+    expect(await screen.findByText(/No one added yet/)).toBeTruthy();
+    expect(screen.queryByText('Imran Rahman')).toBeNull();
+    expect(mockedApi.deleteFamilyMember).toHaveBeenCalledWith('m1');
+  });
 });
 
 describe('FamilyMemberForm', () => {
@@ -106,5 +143,25 @@ describe('FamilyMemberForm', () => {
     fireEvent.press(screen.getByText('Add family member'));
 
     expect(await screen.findByText('Save failed')).toBeTruthy();
+  });
+
+  it('prefills existing member values in edit mode', () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    const onCancel = jest.fn();
+
+    render(
+      <FamilyMemberForm
+        initialValue={makeMember({ detail: 'Kuala Lumpur' })}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+      />
+    );
+
+    expect(screen.getByDisplayValue('Imran Rahman')).toBeTruthy();
+    expect(screen.getByDisplayValue('Kuala Lumpur')).toBeTruthy();
+    expect(screen.getByText('Save changes')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Cancel edit'));
+    expect(onCancel).toHaveBeenCalled();
   });
 });

@@ -1,13 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../api';
-import { createFamilyMember, listFamilyMembers } from './familyMember.api';
-import type { CreateFamilyMemberInput, FamilyMember } from './familyMember.types';
+import {
+  createFamilyMember,
+  deleteFamilyMember,
+  listFamilyMembers,
+  updateFamilyMember
+} from './familyMember.api';
+import type {
+  CreateFamilyMemberInput,
+  FamilyMember,
+  UpdateFamilyMemberInput
+} from './familyMember.types';
 
 interface UseFamilyMembersResult {
   members: FamilyMember[];
   loading: boolean;
   error: string | null;
   add: (input: CreateFamilyMemberInput) => Promise<FamilyMember>;
+  update: (id: string, input: UpdateFamilyMemberInput) => Promise<FamilyMember>;
+  remove: (id: string) => Promise<void>;
 }
 
 function toMessage(error: unknown): string {
@@ -63,5 +74,24 @@ export function useFamilyMembers(): UseFamilyMembersResult {
     []
   );
 
-  return { members, loading, error, add };
+  const update = useCallback(
+    async (
+      id: string,
+      input: UpdateFamilyMemberInput
+    ): Promise<FamilyMember> => {
+      const updated = await updateFamilyMember(id, input);
+      setMembers((current) =>
+        current.map((member) => (member.id === id ? updated : member))
+      );
+      return updated;
+    },
+    []
+  );
+
+  const remove = useCallback(async (id: string): Promise<void> => {
+    await deleteFamilyMember(id);
+    setMembers((current) => current.filter((member) => member.id !== id));
+  }, []);
+
+  return { members, loading, error, add, update, remove };
 }

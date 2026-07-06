@@ -1,16 +1,22 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Badge from '../components/Badge';
 import { getRelationLabel } from '../family-members/relations';
 import { getInitials } from '../family-members/initials';
-import { colors, radii } from '../theme/tokens';
+import { colors, radii, spacing } from '../theme/tokens';
 import type { TrustedContact } from './trustedContact.types';
 import { getRoleLabel } from './roles';
 
 interface TrustedContactRowProps {
   contact: TrustedContact;
+  onDelete: (contact: TrustedContact) => void;
+  onEdit: (contact: TrustedContact) => void;
 }
 
-export default function TrustedContactRow({ contact }: TrustedContactRowProps) {
+export default function TrustedContactRow({
+  contact,
+  onDelete,
+  onEdit
+}: TrustedContactRowProps) {
   const subtitle = `${getRelationLabel(contact.relation)} · ${getRoleLabel(contact.role)}`;
   const verified = contact.verificationStatus === 'VERIFIED';
 
@@ -23,7 +29,27 @@ export default function TrustedContactRow({ contact }: TrustedContactRowProps) {
         <Text style={styles.name}>{contact.name}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
-      <Badge label={verified ? 'Verified' : 'Pending'} tone={verified ? 'success' : 'warn'} />
+      <View style={styles.trailing}>
+        <Badge label={verified ? 'Verified' : 'Pending'} tone={verified ? 'success' : 'warn'} />
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityLabel={`Edit ${contact.name}`}
+            accessibilityRole="button"
+            onPress={() => onEdit(contact)}
+            style={styles.actionButton}
+          >
+            <Text style={styles.actionText}>Edit</Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel={`Delete ${contact.name}`}
+            accessibilityRole="button"
+            onPress={() => onDelete(contact)}
+            style={[styles.actionButton, styles.deleteButton]}
+          >
+            <Text style={[styles.actionText, styles.deleteText]}>Delete</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -64,5 +90,32 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 12.5,
     color: colors.muted
+  },
+  trailing: {
+    alignItems: 'flex-end',
+    gap: spacing.xs
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.xs
+  },
+  actionButton: {
+    minWidth: 54,
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+    backgroundColor: '#eef5f2'
+  },
+  deleteButton: {
+    backgroundColor: colors.dangerBg
+  },
+  actionText: {
+    color: colors.tealDark,
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  deleteText: {
+    color: colors.dangerText
   }
 });
