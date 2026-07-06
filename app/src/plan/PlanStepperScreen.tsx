@@ -20,6 +20,7 @@ export default function PlanStepperScreen({
   onOpenStep = defaultOpenStep
 }: PlanStepperScreenProps) {
   const setupSteps = PLAN_STEPS.filter((step) => step.status === 'ready').length;
+  const reviewSteps = PLAN_STEPS.length - setupSteps;
 
   return (
     <Screen>
@@ -54,6 +55,16 @@ export default function PlanStepperScreen({
             Setup steps collect the handover inputs. Review steps turn them into a score
             and an emergency preview.
           </Text>
+          <View style={styles.summaryMetrics}>
+            <View style={styles.summaryMetric}>
+              <Text style={styles.metricValue}>{setupSteps}</Text>
+              <Text style={styles.metricLabel}>Setup inputs</Text>
+            </View>
+            <View style={styles.summaryMetric}>
+              <Text style={styles.metricValue}>{reviewSteps}</Text>
+              <Text style={styles.metricLabel}>Review outputs</Text>
+            </View>
+          </View>
         </Card>
 
         <View style={styles.stepList}>
@@ -145,6 +156,31 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: fontSizes.small,
     lineHeight: 19,
+    color: colors.muted2
+  },
+  summaryMetrics: {
+    flexDirection: 'row',
+    gap: spacing.sm
+  },
+  summaryMetric: {
+    flex: 1,
+    minHeight: 72,
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    backgroundColor: colors.successBg,
+    padding: spacing.md
+  },
+  metricValue: {
+    fontSize: fontSizes.display,
+    fontWeight: '800',
+    color: colors.ink
+  },
+  metricLabel: {
+    marginTop: spacing.xs,
+    fontSize: fontSizes.caption,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
     color: colors.muted2
   },
   stepList: {

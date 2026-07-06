@@ -1,5 +1,24 @@
 import { act, fireEvent } from '@testing-library/react-native';
 import { renderRouter, screen } from 'expo-router/testing-library';
+import * as assetApi from '../src/asset-references/assetReference.api';
+import * as familyApi from '../src/family-members/familyMember.api';
+import * as contactApi from '../src/trusted-contacts/trustedContact.api';
+
+jest.mock('../src/family-members/familyMember.api');
+jest.mock('../src/trusted-contacts/trustedContact.api');
+jest.mock('../src/asset-references/assetReference.api');
+
+const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
+const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
+const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
+
+beforeEach(() => {
+  mockedFamilyApi.listFamilyMembers.mockResolvedValue([]);
+  mockedContactApi.listTrustedContacts.mockResolvedValue([]);
+  mockedAssetApi.listAssetReferences.mockResolvedValue([]);
+});
+
+afterEach(() => jest.clearAllMocks());
 
 describe('app navigation skeleton', () => {
   it('redirects the root route to the Home tab', async () => {
@@ -8,8 +27,8 @@ describe('app navigation skeleton', () => {
     await act(async () => {});
 
     expect(router.getPathname()).toBe('/home');
-    // Home tab label and screen title both read "Home"; assert on the unique subtitle.
-    expect(screen.getByText('Dashboard arrives in WB-38.')).toBeTruthy();
+    // Home tab label and screen title both read "Home"; assert on unique dashboard copy.
+    expect(await screen.findByText('Preparedness score')).toBeTruthy();
   });
 
   it('navigates between the bottom tabs', async () => {
