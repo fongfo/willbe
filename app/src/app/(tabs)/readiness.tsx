@@ -1,5 +1,5 @@
-import PlaceholderScreen from '../../screens/PlaceholderScreen';
+import ReadinessScreen from '../../readiness/ReadinessScreen';
 
-export default function ReadinessScreen() {
-  return <PlaceholderScreen title="Readiness" subtitle="Readiness score + gaps arrive in WB-35." />;
+export default function ReadinessRoute() {
+  return <ReadinessScreen />;
 }
