@@ -1,8 +1,10 @@
 # @willbe/ai
 
 AI 服务（Pusaka）。WB-20 实现第一版 RAG 知识库：产品文档、FAQ、法规摘要的结构化条目与确定性检索 API。
+WB-21 增加 Claude 客服对话封装。
 
-当前服务**不调用 Claude / OpenAI / 任何外部 LLM**，也不保存用户输入。WB-21 接入模型时应复用本服务返回的 grounded context 和 `answerPolicy`。
+当前服务通过 `@anthropic-ai/sdk` 调用 Claude Messages API。缺少 `ANTHROPIC_API_KEY` 时，
+`/api/chat` 返回 503，不会静默 fallback 到非受控模型。
 
 ## 架构
 
@@ -31,12 +33,15 @@ src/<feature>/
 - 涉及 PDPA / AI 建议边界的条目会设置 `disclaimerRequired: true`。
 - API body 使用 Zod `.strict()` 校验，未知字段会被拒绝，避免 prompt 注入字段混入。
 - 每个 router 启用 15 分钟 100 次的 rate limit。
+- Claude prompt 强制要求只基于 RAG context 回答；知识库无命中时必须说明上下文不足。
+- Claude API key 只从环境变量读取，测试使用 mock client，不调用外部网络。
 
 ## API
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/health` | 健康检查 |
+| `POST` | `/api/chat` | 客服对话接口：RAG 检索 + Claude 回复 |
 | `GET` | `/api/knowledge` | 列出知识库条目，可按 `category`、`locale` 过滤 |
 | `POST` | `/api/knowledge/search` | 检索 RAG context |
 
@@ -51,6 +56,21 @@ src/<feature>/
   "limit": 5
 }
 ```
+
+### Chat 请求示例
+
+```json
+{
+  "message": "Why do I need two trusted contacts?",
+  "locale": "en",
+  "history": [
+    { "role": "user", "content": "I am setting up my plan." },
+    { "role": "assistant", "content": "I can help with Pusaka product guidance." }
+  ]
+}
+```
+
+响应包含 `message`、`citations`、`answerPolicy`、`disclaimerRequired` 和 Claude provider metadata。
 
 ## 常用命令（端口 4200）
 

@@ -1,12 +1,19 @@
 import express, { Express } from 'express';
+import { ClaudeClient } from './chat/claude.client';
+import { createChatRouter } from './chat/chat.routes';
 import { knowledgeRouter } from './knowledge/knowledge.routes';
 import { healthRouter } from './routes/health';
 
-export function createApp(): Express {
+export interface AppOptions {
+  readonly claudeClient?: ClaudeClient;
+}
+
+export function createApp(options: AppOptions = {}): Express {
   const app = express();
 
   app.use(express.json({ limit: '10kb' }));
   app.use('/health', healthRouter);
+  app.use('/api/chat', createChatRouter(options.claudeClient));
   app.use('/api/knowledge', knowledgeRouter);
 
   return app;
