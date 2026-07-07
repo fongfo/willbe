@@ -1,11 +1,11 @@
 import { ChatService } from '../../src/chat/chat.service';
-import { ClaudeClient } from '../../src/chat/claude.client';
+import { LlmClient } from '../../src/chat/llm.client';
 import { seedKnowledgeEntries } from '../../src/knowledge/knowledge.seed';
 import { InMemoryKnowledgeRepository } from '../../src/knowledge/knowledge.repository';
 import { KnowledgeService } from '../../src/knowledge/knowledge.service';
 
 describe('ChatService', () => {
-  function buildService(client: ClaudeClient): ChatService {
+  function buildService(client: LlmClient): ChatService {
     return new ChatService(
       new KnowledgeService(new InMemoryKnowledgeRepository(seedKnowledgeEntries)),
       client
@@ -19,6 +19,7 @@ describe('ChatService', () => {
         calls.push(request);
         return {
           content: 'Add a primary and backup trusted contact so your family has a fallback path.',
+          provider: 'anthropic',
           model: 'claude-3-5-sonnet-latest',
           stopReason: 'end_turn',
           inputTokens: 120,
@@ -40,7 +41,7 @@ describe('ChatService', () => {
       })
     );
     expect(response.answerPolicy.responseMode).toBe('grounded_rag_context_only');
-    expect(response.provider).toEqual(expect.objectContaining({ name: 'claude' }));
+    expect(response.provider).toEqual(expect.objectContaining({ name: 'anthropic' }));
     expect(JSON.stringify(calls)).toContain('faq-trusted-contacts-why-two');
   });
 
@@ -49,6 +50,7 @@ describe('ChatService', () => {
       async complete() {
         return {
           content: 'I can explain the product boundary, but this is not legal, financial or insurance advice.',
+          provider: 'anthropic',
           model: 'claude-3-5-sonnet-latest',
           stopReason: 'end_turn'
         };
@@ -70,6 +72,7 @@ describe('ChatService', () => {
         expect(request.context).toEqual([]);
         return {
           content: 'I do not have enough Pusaka knowledge base context to answer that.',
+          provider: 'deepseek',
           model: 'claude-3-5-sonnet-latest',
           stopReason: 'end_turn'
         };

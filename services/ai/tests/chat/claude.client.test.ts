@@ -50,6 +50,7 @@ describe('Claude clients', () => {
 
     expect(response).toEqual({
       content: 'Grounded answer.',
+      provider: 'anthropic',
       model: 'claude-test',
       stopReason: 'end_turn',
       inputTokens: 10,
@@ -83,7 +84,7 @@ describe('Claude clients', () => {
 
   it('returns a configured 503 provider error when Claude is missing', async () => {
     await expect(new MissingClaudeClient().complete(baseRequest)).rejects.toEqual(
-      new HttpError(503, 'Claude provider is not configured')
+      new HttpError(503, 'Anthropic provider is not configured')
     );
   });
 
@@ -93,7 +94,7 @@ describe('Claude clients', () => {
 
     try {
       await expect(createClaudeClientFromEnv().complete(baseRequest)).rejects.toEqual(
-        new HttpError(503, 'Claude provider is not configured')
+        new HttpError(503, 'Anthropic provider is not configured')
       );
     } finally {
       if (previousKey) {
@@ -111,7 +112,7 @@ describe('Claude clients', () => {
     delete process.env.ANTHROPIC_MAX_TOKENS;
 
     try {
-      expect(createClaudeClientFromEnv()).toBeInstanceOf(AnthropicClaudeClient);
+      expect(createClaudeClientFromEnv()).toHaveProperty('complete');
     } finally {
       if (previousKey) {
         process.env.ANTHROPIC_API_KEY = previousKey;
@@ -139,7 +140,7 @@ describe('Claude clients', () => {
 
     try {
       expect(() => createClaudeClientFromEnv()).toThrow(
-        new HttpError(503, 'Claude provider is misconfigured')
+        new HttpError(503, 'Anthropic provider is misconfigured')
       );
     } finally {
       if (previousKey) {

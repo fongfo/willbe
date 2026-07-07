@@ -1,11 +1,12 @@
 import express, { Express } from 'express';
-import { ClaudeClient } from './chat/claude.client';
+import { LlmClient } from './chat/llm.client';
 import { createChatRouter } from './chat/chat.routes';
 import { knowledgeRouter } from './knowledge/knowledge.routes';
 import { healthRouter } from './routes/health';
 
 export interface AppOptions {
-  readonly claudeClient?: ClaudeClient;
+  readonly claudeClient?: LlmClient;
+  readonly llmClient?: LlmClient;
 }
 
 export function createApp(options: AppOptions = {}): Express {
@@ -13,7 +14,7 @@ export function createApp(options: AppOptions = {}): Express {
 
   app.use(express.json({ limit: '10kb' }));
   app.use('/health', healthRouter);
-  app.use('/api/chat', createChatRouter(options.claudeClient));
+  app.use('/api/chat', createChatRouter(options.llmClient ?? options.claudeClient));
   app.use('/api/knowledge', knowledgeRouter);
 
   return app;
