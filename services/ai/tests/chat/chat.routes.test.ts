@@ -12,6 +12,7 @@ describe('Chat routes (/api/chat)', () => {
         async complete() {
           return {
             content: 'Use Pusaka to add family members, trusted contacts and asset references.',
+            provider: 'deepseek',
             model: 'claude-3-5-sonnet-latest',
             stopReason: 'end_turn'
           };
@@ -29,7 +30,7 @@ describe('Chat routes (/api/chat)', () => {
       expect.objectContaining({
         message: expect.stringContaining('Pusaka'),
         citations: expect.any(Array),
-        provider: expect.objectContaining({ name: 'claude' })
+        provider: expect.objectContaining({ name: 'deepseek' })
       })
     );
   });
@@ -38,7 +39,7 @@ describe('Chat routes (/api/chat)', () => {
     const app = createApp({
       claudeClient: {
         async complete() {
-          return { content: 'unused', model: 'claude-3-5-sonnet-latest', stopReason: 'end_turn' };
+          return { content: 'unused', provider: 'anthropic', model: 'claude-3-5-sonnet-latest', stopReason: 'end_turn' };
         }
       }
     });

@@ -24,7 +24,7 @@ export interface ChatCitation {
 }
 
 export interface ChatProviderMetadata {
-  readonly name: 'claude';
+  readonly name: LlmProviderName;
   readonly model: string;
   readonly stopReason?: string;
   readonly inputTokens?: number;
@@ -39,17 +39,23 @@ export interface ChatReplyResponse {
   readonly provider: ChatProviderMetadata;
 }
 
-export interface ClaudeCompletionRequest {
+export type LlmProviderName = 'anthropic' | 'deepseek';
+
+export interface LlmCompletionRequest {
   readonly userMessage: string;
   readonly history: readonly ChatMessage[];
   readonly context: readonly KnowledgeSearchResult[];
   readonly answerPolicy: AnswerPolicy;
 }
 
-export interface ClaudeCompletionResponse {
+export interface LlmCompletionResponse {
   readonly content: string;
+  readonly provider: LlmProviderName;
   readonly model: string;
   readonly stopReason?: string;
   readonly inputTokens?: number;
   readonly outputTokens?: number;
 }
+
+export type ClaudeCompletionRequest = LlmCompletionRequest;
+export type ClaudeCompletionResponse = LlmCompletionResponse;

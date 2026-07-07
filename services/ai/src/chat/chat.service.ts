@@ -1,5 +1,5 @@
 import { KnowledgeService } from '../knowledge/knowledge.service';
-import { ClaudeClient } from './claude.client';
+import { LlmClient } from './llm.client';
 import {
   ChatCitation,
   ChatReplyRequest,
@@ -25,7 +25,7 @@ function toCitation(result: {
 export class ChatService {
   constructor(
     private readonly knowledgeService: KnowledgeService,
-    private readonly claudeClient: ClaudeClient
+    private readonly llmClient: LlmClient
   ) {}
 
   async reply(request: ChatReplyRequest): Promise<ChatReplyResponse> {
@@ -34,7 +34,7 @@ export class ChatService {
       locale: request.locale,
       limit: RAG_LIMIT
     });
-    const completion = await this.claudeClient.complete({
+    const completion = await this.llmClient.complete({
       userMessage: request.message,
       history: request.history ?? [],
       context: search.results,
@@ -47,7 +47,7 @@ export class ChatService {
       disclaimerRequired: search.answerPolicy.disclaimerRequired,
       answerPolicy: search.answerPolicy,
       provider: {
-        name: 'claude',
+        name: completion.provider,
         model: completion.model,
         stopReason: completion.stopReason,
         inputTokens: completion.inputTokens,

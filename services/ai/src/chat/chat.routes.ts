@@ -7,7 +7,7 @@ import { InMemoryKnowledgeRepository } from '../knowledge/knowledge.repository';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { chatReplySchema } from './chat.schema';
 import { ChatService } from './chat.service';
-import { ClaudeClient, createClaudeClientFromEnv } from './claude.client';
+import { createLlmClientFromEnv, LlmClient } from './llm.client';
 
 function firstIssueMessage(error: ZodError): string {
   const [issue] = error.issues;
@@ -49,11 +49,11 @@ export function buildChatRouter(service: ChatService): Router {
   return router;
 }
 
-export function createChatRouter(claudeClient: ClaudeClient = createClaudeClientFromEnv()): Router {
+export function createChatRouter(llmClient: LlmClient = createLlmClientFromEnv()): Router {
   return buildChatRouter(
     new ChatService(
       new KnowledgeService(new InMemoryKnowledgeRepository(seedKnowledgeEntries)),
-      claudeClient
+      llmClient
     )
   );
 }
