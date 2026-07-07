@@ -56,6 +56,8 @@ describe('evaluateReadiness', () => {
     expect(result.level).toBe('needs-work');
     expect(result.gaps.map((gap) => gap.id)).toContain('family-members');
     expect(result.gaps.map((gap) => gap.id)).toContain('asset-references');
+    expect(result.checks).toHaveLength(5);
+    expect(result.checks.every((check) => check.status === 'gap')).toBe(true);
   });
 
   it('scores a complete plan as ready', () => {
@@ -68,6 +70,7 @@ describe('evaluateReadiness', () => {
     expect(result.score).toBe(100);
     expect(result.level).toBe('ready');
     expect(result.gaps).toHaveLength(0);
+    expect(result.checks.every((check) => check.status === 'complete')).toBe(true);
   });
 
   it('flags missing asset location separately from the asset reference', () => {
@@ -83,5 +86,48 @@ describe('evaluateReadiness', () => {
         expect.objectContaining({ id: 'asset-location', severity: 'medium' })
       ])
     );
+  });
+
+  it('returns structured gap metadata for LLM explanation', () => {
+    const result = evaluateReadiness({
+      familyMembers: [makeMember()],
+      trustedContacts: [makeContact({ role: 'BACKUP' })],
+      assetReferences: []
+    });
+
+    expect(result.gaps).toEqual([
+      expect.objectContaining({
+        id: 'trusted-contacts-count',
+        category: 'trusted_contacts',
+        priority: 20,
+        action: {
+          label: 'Add trusted contact',
+          route: '/trusted-contacts'
+        },
+        evidence: {
+          current: 1,
+          required: 2,
+          unit: 'trusted contacts'
+        }
+      }),
+      expect.objectContaining({
+        id: 'trusted-contact-primary',
+        category: 'trusted_contacts',
+        priority: 30,
+        action: expect.objectContaining({ route: '/trusted-contacts' }),
+        evidence: expect.objectContaining({ current: 0, required: 1 })
+      }),
+      expect.objectContaining({
+        id: 'asset-references',
+        category: 'asset_references',
+        priority: 40,
+        action: expect.objectContaining({ route: '/asset-references' })
+      }),
+      expect.objectContaining({
+        id: 'asset-location',
+        category: 'asset_references',
+        priority: 45
+      })
+    ]);
   });
 });
