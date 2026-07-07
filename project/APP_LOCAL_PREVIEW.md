@@ -16,6 +16,15 @@
 
 Expo Go 是手机上的通用开发预览 App，适合快速打开 Expo 项目。但它只能打开自己支持的 SDK 版本。
 
+如需同时连接本地 backend 与 AI 服务，可在 `app/.env.local` 设置公开开发地址：
+
+```powershell
+EXPO_PUBLIC_API_URL=http://localhost:4000/api
+EXPO_PUBLIC_AI_API_URL=http://localhost:4200/api
+```
+
+真机预览时把 `localhost` 改成电脑局域网 IP，例如 `http://192.168.x.x:4200/api`。
+
 启动本地 dev server：
 
 ```powershell
@@ -146,4 +155,3 @@ npx expo start --lan --port 8081
 | Expo Go 只支持 SDK 54/55 | 更新 Expo Go，或使用 development build |
 | 手机连不上电脑 server | 检查同 Wi-Fi / 防火墙 / VPN，或使用 `--tunnel` |
 | 已安装 Pusaka development build | `npx expo start --dev-client --lan` |
-
