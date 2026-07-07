@@ -11,17 +11,30 @@
  * {@link resolveApiBaseUrl} to keep it testable independently of that inlining.
  */
 const DEFAULT_API_BASE_URL = 'http://localhost:4000/api';
+const DEFAULT_AI_API_BASE_URL = 'http://localhost:4200/api';
 
-export function resolveApiBaseUrl(raw: string | undefined): string {
+function resolveBaseUrl(raw: string | undefined, fallback: string): string {
   const trimmed = raw?.trim();
   // Guard against the literal string "undefined" produced by static inlining
   // when the env var is unset.
   const usable = trimmed && trimmed.length > 0 && trimmed !== 'undefined';
-  const base = usable ? (trimmed as string) : DEFAULT_API_BASE_URL;
+  const base = usable ? (trimmed as string) : fallback;
   // Normalise so callers can pass paths with or without a leading slash.
   return base.replace(/\/+$/, '');
 }
 
+export function resolveApiBaseUrl(raw: string | undefined): string {
+  return resolveBaseUrl(raw, DEFAULT_API_BASE_URL);
+}
+
+export function resolveAiApiBaseUrl(raw: string | undefined): string {
+  return resolveBaseUrl(raw, DEFAULT_AI_API_BASE_URL);
+}
+
 export function getApiBaseUrl(): string {
   return resolveApiBaseUrl(process.env.EXPO_PUBLIC_API_URL);
+}
+
+export function getAiApiBaseUrl(): string {
+  return resolveAiApiBaseUrl(process.env.EXPO_PUBLIC_AI_API_URL);
 }

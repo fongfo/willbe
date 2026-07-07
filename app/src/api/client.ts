@@ -21,11 +21,12 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: Json;
   signal?: AbortSignal;
+  baseUrl?: string;
 }
 
-function buildUrl(path: string): string {
+function buildUrl(path: string, baseUrl: string): string {
   const suffix = path.startsWith('/') ? path : `/${path}`;
-  return `${getApiBaseUrl()}${suffix}`;
+  return `${baseUrl}${suffix}`;
 }
 
 async function parseEnvelope<T>(response: Response): Promise<T | undefined> {
@@ -60,9 +61,9 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T | undefined> {
-  const { method = 'GET', body, signal } = options;
+  const { method = 'GET', body, signal, baseUrl = getApiBaseUrl() } = options;
 
-  const response = await fetch(buildUrl(path), {
+  const response = await fetch(buildUrl(path, baseUrl), {
     method,
     signal,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,

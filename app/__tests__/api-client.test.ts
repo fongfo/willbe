@@ -1,5 +1,10 @@
 import { apiClient, request } from '../src/api/client';
-import { getApiBaseUrl, resolveApiBaseUrl } from '../src/api/config';
+import {
+  getAiApiBaseUrl,
+  getApiBaseUrl,
+  resolveAiApiBaseUrl,
+  resolveApiBaseUrl
+} from '../src/api/config';
 import { ApiError } from '../src/api/errors';
 
 function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown> }): jest.Mock {
@@ -35,6 +40,14 @@ describe('resolveApiBaseUrl', () => {
 
   it('resolves the default in the current test environment', () => {
     expect(getApiBaseUrl()).toBe('http://localhost:4000/api');
+  });
+
+  it('resolves the AI service base URL separately from the backend', () => {
+    expect(resolveAiApiBaseUrl(undefined)).toBe('http://localhost:4200/api');
+    expect(resolveAiApiBaseUrl('https://ai.pusaka.app/api/')).toBe(
+      'https://ai.pusaka.app/api'
+    );
+    expect(getAiApiBaseUrl()).toBe('http://localhost:4200/api');
   });
 });
 
@@ -77,6 +90,23 @@ describe('apiClient', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: 'Grace' })
       })
+    );
+  });
+
+  it('can target an alternate service base URL', async () => {
+    const fetchFn = mockFetch({
+      json: async () => ({ success: true, data: { ok: true } })
+    });
+
+    await request('/chat', {
+      method: 'POST',
+      body: { message: 'hello' },
+      baseUrl: 'http://localhost:4200/api'
+    });
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:4200/api/chat',
+      expect.objectContaining({ method: 'POST' })
     );
   });
 

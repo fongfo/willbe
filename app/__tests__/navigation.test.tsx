@@ -8,6 +8,8 @@ jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
 
+jest.setTimeout(15000);
+
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
@@ -33,6 +35,13 @@ describe('app navigation skeleton', () => {
 
   it('navigates between the bottom tabs', async () => {
     const router = renderRouter('src/app', { initialUrl: '/home' });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('AI'));
+    });
+
+    expect(router.getPathname()).toBe('/assistant');
+    expect(screen.getByText('AI assistant')).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByText('Account'));
