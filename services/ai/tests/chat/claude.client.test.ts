@@ -89,7 +89,8 @@ describe('Claude clients', () => {
   });
 
   it('creates the missing provider from env when no API key is set', async () => {
-    const previousKey = process.env.ANTHROPIC_API_KEY;
+    const previous = snapshotEnv();
+    delete process.env.AI_PROVIDER;
     delete process.env.ANTHROPIC_API_KEY;
 
     try {
@@ -97,16 +98,13 @@ describe('Claude clients', () => {
         new HttpError(503, 'Anthropic provider is not configured')
       );
     } finally {
-      if (previousKey) {
-        process.env.ANTHROPIC_API_KEY = previousKey;
-      }
+      restoreEnv(previous);
     }
   });
 
   it('creates a configured provider from env without requiring max token overrides', async () => {
-    const previousKey = process.env.ANTHROPIC_API_KEY;
-    const previousModel = process.env.ANTHROPIC_MODEL;
-    const previousMaxTokens = process.env.ANTHROPIC_MAX_TOKENS;
+    const previous = snapshotEnv();
+    delete process.env.AI_PROVIDER;
     process.env.ANTHROPIC_API_KEY = 'test-key';
     process.env.ANTHROPIC_MODEL = 'claude-env';
     delete process.env.ANTHROPIC_MAX_TOKENS;
@@ -114,27 +112,13 @@ describe('Claude clients', () => {
     try {
       expect(createClaudeClientFromEnv()).toHaveProperty('complete');
     } finally {
-      if (previousKey) {
-        process.env.ANTHROPIC_API_KEY = previousKey;
-      } else {
-        delete process.env.ANTHROPIC_API_KEY;
-      }
-      if (previousModel) {
-        process.env.ANTHROPIC_MODEL = previousModel;
-      } else {
-        delete process.env.ANTHROPIC_MODEL;
-      }
-      if (previousMaxTokens) {
-        process.env.ANTHROPIC_MAX_TOKENS = previousMaxTokens;
-      } else {
-        delete process.env.ANTHROPIC_MAX_TOKENS;
-      }
+      restoreEnv(previous);
     }
   });
 
   it('rejects invalid max token env configuration safely', () => {
-    const previousKey = process.env.ANTHROPIC_API_KEY;
-    const previousMaxTokens = process.env.ANTHROPIC_MAX_TOKENS;
+    const previous = snapshotEnv();
+    delete process.env.AI_PROVIDER;
     process.env.ANTHROPIC_API_KEY = 'test-key';
     process.env.ANTHROPIC_MAX_TOKENS = 'not-a-number';
 
@@ -143,16 +127,22 @@ describe('Claude clients', () => {
         new HttpError(503, 'Anthropic provider is misconfigured')
       );
     } finally {
-      if (previousKey) {
-        process.env.ANTHROPIC_API_KEY = previousKey;
-      } else {
-        delete process.env.ANTHROPIC_API_KEY;
-      }
-      if (previousMaxTokens) {
-        process.env.ANTHROPIC_MAX_TOKENS = previousMaxTokens;
-      } else {
-        delete process.env.ANTHROPIC_MAX_TOKENS;
-      }
+      restoreEnv(previous);
     }
   });
 });
+
+function snapshotEnv(): NodeJS.ProcessEnv {
+  return { ...process.env };
+}
+
+function restoreEnv(previous: NodeJS.ProcessEnv): void {
+  process.env.AI_PROVIDER = previous.AI_PROVIDER;
+  process.env.ANTHROPIC_API_KEY = previous.ANTHROPIC_API_KEY;
+  process.env.ANTHROPIC_MODEL = previous.ANTHROPIC_MODEL;
+  process.env.ANTHROPIC_MAX_TOKENS = previous.ANTHROPIC_MAX_TOKENS;
+  process.env.DEEPSEEK_API_KEY = previous.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_BASE_URL = previous.DEEPSEEK_BASE_URL;
+  process.env.DEEPSEEK_MODEL = previous.DEEPSEEK_MODEL;
+  process.env.DEEPSEEK_MAX_TOKENS = previous.DEEPSEEK_MAX_TOKENS;
+}

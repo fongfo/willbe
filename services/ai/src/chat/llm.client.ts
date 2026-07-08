@@ -5,7 +5,9 @@ import {
   ChatMessage,
   LlmCompletionRequest,
   LlmCompletionResponse,
-  LlmProviderName
+  LlmProviderName,
+  PromptCompletionRequest,
+  PromptCompletionResponse
 } from './chat.types';
 
 const DEFAULT_ANTHROPIC_MODEL = 'claude-3-5-sonnet-latest';
@@ -15,6 +17,10 @@ const DEFAULT_MAX_TOKENS = 450;
 
 export interface LlmClient {
   complete(request: LlmCompletionRequest): Promise<LlmCompletionResponse>;
+}
+
+export interface PromptLlmClient {
+  completePrompt(request: PromptCompletionRequest): Promise<PromptCompletionResponse>;
 }
 
 export interface AnthropicMessagesGateway {
@@ -76,7 +82,7 @@ function displayName(provider: LlmProviderName): string {
   return provider === 'deepseek' ? 'DeepSeek' : 'Anthropic';
 }
 
-export class AnthropicCompatibleLlmClient implements LlmClient {
+export class AnthropicCompatibleLlmClient implements LlmClient, PromptLlmClient {
   private readonly messages: AnthropicMessagesGateway;
   private readonly provider: LlmProviderName;
   private readonly model: string;
@@ -122,6 +128,25 @@ export class AnthropicCompatibleLlmClient implements LlmClient {
     };
   }
 
+  async completePrompt(request: PromptCompletionRequest): Promise<PromptCompletionResponse> {
+    const message = await this.messages.create({
+      model: this.model,
+      max_tokens: this.maxTokens,
+      system: request.systemPrompt,
+      messages: [{ role: 'user', content: request.userMessage }]
+    });
+    const content = extractText(message.content);
+
+    return {
+      content: content || '{}',
+      provider: this.provider,
+      model: message.model,
+      stopReason: message.stop_reason ?? undefined,
+      inputTokens: message.usage.input_tokens,
+      outputTokens: message.usage.output_tokens
+    };
+  }
+
   toJSON(): { readonly provider: LlmProviderName; readonly model: string; readonly maxTokens: number } {
     return {
       provider: this.provider,
@@ -131,10 +156,14 @@ export class AnthropicCompatibleLlmClient implements LlmClient {
   }
 }
 
-export class MissingLlmClient implements LlmClient {
+export class MissingLlmClient implements LlmClient, PromptLlmClient {
   constructor(private readonly provider: LlmProviderName) {}
 
   async complete(_request: LlmCompletionRequest): Promise<LlmCompletionResponse> {
+    throw new HttpError(503, `${displayName(this.provider)} provider is not configured`);
+  }
+
+  async completePrompt(_request: PromptCompletionRequest): Promise<PromptCompletionResponse> {
     throw new HttpError(503, `${displayName(this.provider)} provider is not configured`);
   }
 }
@@ -190,4 +219,8 @@ export function createLlmClientFromEnv(): LlmClient {
     model: process.env.ANTHROPIC_MODEL,
     maxTokens: parseMaxTokens(process.env.ANTHROPIC_MAX_TOKENS, provider)
   });
+}
+
+export function createPromptLlmClientFromEnv(): PromptLlmClient {
+  return createLlmClientFromEnv() as LlmClient & PromptLlmClient;
 }

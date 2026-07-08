@@ -57,5 +57,12 @@ export interface LlmCompletionResponse {
   readonly outputTokens?: number;
 }
 
+export interface PromptCompletionRequest {
+  readonly systemPrompt: string;
+  readonly userMessage: string;
+}
+
+export type PromptCompletionResponse = LlmCompletionResponse;
+
 export type ClaudeCompletionRequest = LlmCompletionRequest;
 export type ClaudeCompletionResponse = LlmCompletionResponse;
