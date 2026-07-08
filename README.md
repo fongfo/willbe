@@ -7,11 +7,12 @@ Family resilience planning platform for Southeast Asian families (Malaysia first
 | Path | What |
 |---|---|
 | `app/` | React Native (Expo) mobile app |
+| `web/` | Next.js multilingual marketing website |
 | `backend/` | Node.js + Express API (TypeScript) |
 | `project/` | Product docs, compliance review, brand guidelines, design prototypes |
 | `project/design_demo/app_prototype/` | Clickable HTML prototype of the full app (open `index.html`) |
 
-Blockchain anchoring and AI service codebases land as their own top-level folders (`services/anchoring`, `services/ai`) once WB-3/4/5 start — not scaffolded yet to avoid unused structure.
+AI service code now lives in `services/ai`. Blockchain anchoring lands as its own top-level service once the relevant WB tasks start.
 
 ## Getting started
 
@@ -21,6 +22,9 @@ cd backend && npm install && npm run dev   # http://localhost:4000/health
 
 # App
 cd app && npm install && npm start         # Expo dev server
+
+# Website
+cd web && npm install && npm run dev       # http://localhost:3000
 ```
 
 For phone preview, Expo Go compatibility, and development build steps, see [`project/APP_LOCAL_PREVIEW.md`](project/APP_LOCAL_PREVIEW.md).

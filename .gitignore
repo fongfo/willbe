@@ -1,10 +1,13 @@
 # dependencies
 node_modules/
+.npm-cache/
 
 # build output
+.next/
 dist/
 build/
 coverage/
+*.tsbuildinfo
 
 # env files
 .env
