@@ -5,6 +5,8 @@ import { useFamilyMembers } from '../family-members/useFamilyMembers';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useTrustedContacts } from '../trusted-contacts/useTrustedContacts';
 import { evaluateReadiness, GapSeverity, ReadinessLevel } from './evaluateReadiness';
+import type { GapUrgency } from './gapExplanations.types';
+import { useGapExplanations } from './useGapExplanations';
 
 function getLevelLabel(level: ReadinessLevel): string {
   if (level === 'ready') {
@@ -20,6 +22,26 @@ function getSeverityTone(severity: GapSeverity): 'danger' | 'warn' {
   return severity === 'high' ? 'danger' : 'warn';
 }
 
+function getUrgencyLabel(urgency: GapUrgency): string {
+  if (urgency === 'do_first') {
+    return 'Do first';
+  }
+  if (urgency === 'do_next') {
+    return 'Do next';
+  }
+  return 'Do later';
+}
+
+function getUrgencyTone(urgency: GapUrgency): 'danger' | 'warn' | 'success' {
+  if (urgency === 'do_first') {
+    return 'danger';
+  }
+  if (urgency === 'do_next') {
+    return 'warn';
+  }
+  return 'success';
+}
+
 export default function ReadinessScreen() {
   const family = useFamilyMembers();
   const contacts = useTrustedContacts();
@@ -32,6 +54,7 @@ export default function ReadinessScreen() {
     trustedContacts: contacts.contacts,
     assetReferences: assets.references
   });
+  const explanation = useGapExplanations(evaluation, !loading && !error);
 
   return (
     <Screen>
@@ -69,6 +92,54 @@ export default function ReadinessScreen() {
                 {evaluation.completedChecks} of {evaluation.totalChecks} core checks complete
               </Text>
             </Card>
+
+            {evaluation.gaps.length > 0 ? (
+              <Card style={styles.analysisCard}>
+                <View style={styles.analysisHead}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Priority plan</Text>
+                    <Text style={styles.analysisKicker}>AI gap analysis</Text>
+                  </View>
+                  {explanation.data ? (
+                    <Badge
+                      label={explanation.data.provider.name === 'fallback' ? 'Fallback' : 'AI'}
+                      tone={explanation.data.provider.name === 'fallback' ? 'warn' : 'success'}
+                    />
+                  ) : null}
+                </View>
+
+                {explanation.loading ? (
+                  <View style={styles.analysisLoading}>
+                    <ActivityIndicator color={colors.teal} accessibilityLabel="Loading gap analysis" />
+                    <Text style={styles.analysisMuted}>Building your priority plan...</Text>
+                  </View>
+                ) : explanation.error ? (
+                  <Text style={styles.error}>{explanation.error}</Text>
+                ) : explanation.data ? (
+                  <>
+                    <Text style={styles.analysisSummary}>{explanation.data.summary}</Text>
+                    <View style={styles.recommendationList}>
+                      {explanation.data.recommendations.map((item) => (
+                        <View key={item.gapId} style={styles.recommendation}>
+                          <View style={styles.recommendationHead}>
+                            <Text style={styles.recommendationTitle}>{item.title}</Text>
+                            <Badge
+                              label={getUrgencyLabel(item.urgency)}
+                              tone={getUrgencyTone(item.urgency)}
+                            />
+                          </View>
+                          <Text style={styles.recommendationText}>{item.explanation}</Text>
+                          <Text style={styles.nextAction}>{item.nextAction.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.policyText}>
+                      Product guidance only. Not financial, legal, or insurance advice.
+                    </Text>
+                  </>
+                ) : null}
+              </Card>
+            ) : null}
 
             <View style={styles.sectionHead}>
               <Text style={styles.sectionTitle}>Gap list</Text>
@@ -126,6 +197,72 @@ const styles = StyleSheet.create({
   },
   scoreCard: {
     gap: spacing.md
+  },
+  analysisCard: {
+    gap: spacing.md
+  },
+  analysisHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md
+  },
+  analysisKicker: {
+    marginTop: spacing.xs,
+    fontSize: fontSizes.title,
+    fontWeight: '700',
+    color: colors.ink
+  },
+  analysisLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm
+  },
+  analysisMuted: {
+    flex: 1,
+    fontSize: fontSizes.small,
+    color: colors.muted2
+  },
+  analysisSummary: {
+    fontSize: fontSizes.lead,
+    lineHeight: 22,
+    color: colors.ink
+  },
+  recommendationList: {
+    gap: spacing.sm
+  },
+  recommendation: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border
+  },
+  recommendationHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md
+  },
+  recommendationTitle: {
+    flex: 1,
+    fontSize: fontSizes.title,
+    fontWeight: '700',
+    color: colors.ink
+  },
+  recommendationText: {
+    fontSize: fontSizes.small,
+    lineHeight: 19,
+    color: colors.muted2
+  },
+  nextAction: {
+    fontSize: fontSizes.small,
+    fontWeight: '700',
+    color: colors.teal
+  },
+  policyText: {
+    fontSize: fontSizes.caption,
+    lineHeight: 16,
+    color: colors.muted
   },
   scoreHead: {
     flexDirection: 'row',
