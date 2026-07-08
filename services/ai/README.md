@@ -2,6 +2,7 @@
 
 AI 服务（Pusaka）。WB-20 实现第一版 RAG 知识库：产品文档、FAQ、法规摘要的结构化条目与确定性检索 API。
 WB-21 增加 Claude 客服对话封装。WB-41 增加 DeepSeek provider 兼容与模型切换。
+WB-24 增加 Gap 解释层：基于结构化 readiness gaps 生成自然语言建议和优先级说明。
 
 当前服务通过 Anthropic-compatible Messages API 调用模型。默认 provider 为 `anthropic`；
 设置 `AI_PROVIDER=deepseek` 时会使用 DeepSeek Anthropic-compatible endpoint。
@@ -35,6 +36,8 @@ src/<feature>/
 - API body 使用 Zod `.strict()` 校验，未知字段会被拒绝，避免 prompt 注入字段混入。
 - 每个 router 启用 15 分钟 100 次的 rate limit。
 - LLM prompt 强制要求只基于 RAG context 回答；知识库无命中时必须说明上下文不足。
+- Gap 解释接口只接收结构化 gap metadata；未知字段会被拒绝，不接收资产名称、账号、location hint 等敏感线索。
+- Gap 解释的 LLM 输出必须通过 JSON schema 和建议边界检查；失败时返回确定性 fallback 建议。
 - Anthropic / DeepSeek API key 只从环境变量读取，测试使用 mock client，不调用外部网络。
 
 ## API
@@ -42,7 +45,8 @@ src/<feature>/
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/health` | 健康检查 |
-| `POST` | `/api/chat` | 客服对话接口：RAG 检索 + Claude 回复 |
+| `POST` | `/api/chat` | 客服对话接口：RAG 检索 + 模型回复 |
+| `POST` | `/api/gap-explanations` | Gap 解释接口：结构化 gaps → 自然语言建议 + 优先级排序 |
 | `GET` | `/api/knowledge` | 列出知识库条目，可按 `category`、`locale` 过滤 |
 | `POST` | `/api/knowledge/search` | 检索 RAG context |
 
@@ -72,6 +76,31 @@ src/<feature>/
 ```
 
 响应包含 `message`、`citations`、`answerPolicy`、`disclaimerRequired` 和 provider metadata。
+
+### Gap Explanation 请求示例
+
+```json
+{
+  "locale": "en",
+  "score": 40,
+  "level": "needs-work",
+  "gaps": [
+    {
+      "id": "trusted-contacts-count",
+      "category": "trusted_contacts",
+      "title": "Add two trusted contacts",
+      "detail": "Two contacts avoids a single point of failure during an emergency.",
+      "severity": "high",
+      "priority": 20,
+      "action": { "label": "Add trusted contact", "route": "/trusted-contacts" },
+      "evidence": { "current": 1, "required": 2, "unit": "trusted contacts" }
+    }
+  ]
+}
+```
+
+响应包含 `summary`、按 `priority` 排序的 `recommendations`、`answerPolicy`、`disclaimerRequired`
+和 provider metadata。模型不可用、返回坏 JSON 或越界建议时，服务会返回 `provider.name = "fallback"` 的确定性建议。
 
 ## Provider 配置
 

@@ -60,6 +60,40 @@ describe('LLM provider clients', () => {
     expect(JSON.stringify(calls[0])).toContain('faq-trusted-contacts-why-two');
   });
 
+  it('supports custom prompt completions for structured AI tasks', async () => {
+    const calls: unknown[] = [];
+    const client = new AnthropicCompatibleLlmClient({
+      provider: 'anthropic',
+      apiKey: 'test-key',
+      model: 'claude-structured',
+      messages: {
+        async create(params) {
+          calls.push(params);
+          return {
+            content: [{ type: 'text', text: '{"summary":"ok","recommendations":[]}', citations: null }],
+            model: 'claude-structured',
+            stop_reason: null,
+            usage: { input_tokens: 7, output_tokens: 3 }
+          };
+        }
+      }
+    });
+
+    const response = await client.completePrompt({
+      systemPrompt: 'Return JSON only.',
+      userMessage: '{"gaps":[]}'
+    });
+
+    expect(response.content).toContain('"summary"');
+    expect(response.stopReason).toBeUndefined();
+    expect(calls[0]).toEqual(
+      expect.objectContaining({
+        system: 'Return JSON only.',
+        messages: [{ role: 'user', content: '{"gaps":[]}' }]
+      })
+    );
+  });
+
   it('selects DeepSeek from env without leaking the API key', () => {
     const previous = snapshotEnv();
     process.env.AI_PROVIDER = 'deepseek';
