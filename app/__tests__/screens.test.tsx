@@ -8,20 +8,24 @@ import AccountScreen from '../src/app/(tabs)/account';
 import ConsentScreen from '../src/app/consent';
 import * as assetApi from '../src/asset-references/assetReference.api';
 import * as familyApi from '../src/family-members/familyMember.api';
+import * as gapApi from '../src/readiness/gapExplanations.api';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
+jest.mock('../src/readiness/gapExplanations.api');
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
+const mockedGapApi = gapApi as jest.Mocked<typeof gapApi>;
 
 beforeEach(() => {
   mockedFamilyApi.listFamilyMembers.mockResolvedValue([]);
   mockedContactApi.listTrustedContacts.mockResolvedValue([]);
   mockedAssetApi.listAssetReferences.mockResolvedValue([]);
+  mockedGapApi.explainGaps.mockImplementation(() => new Promise(() => undefined));
 });
 
 afterEach(() => jest.clearAllMocks());
