@@ -1,7 +1,7 @@
 # WB-26: Website Information Architecture and Design
 
-> Jira: [WB-26](https://growth-more.atlassian.net/browse/WB-26)  
-> Epic: [WB-6](https://growth-more.atlassian.net/browse/WB-6)  
+> Jira: [WB-26](https://growth-more.atlassian.net/browse/WB-26)
+> Epic: [WB-6](https://growth-more.atlassian.net/browse/WB-6)
 > Scope: Phase 2 marketing website IA and design specification for the WB-27 Next.js build.
 
 ## 1. Objective
