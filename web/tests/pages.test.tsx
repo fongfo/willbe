@@ -13,6 +13,7 @@ describe('WB-27 website pages', () => {
     expect(screen.getByAltText(/Family reviewing a practical handover checklist/i)).toBeInTheDocument();
     expect(screen.getByText('No passwords or private keys')).toBeInTheDocument();
     expect(screen.getByText(/does not provide financial, legal, or insurance advice/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open AI support' })).toBeInTheDocument();
   });
 
   it('renders the Chinese homepage and localized navigation', () => {

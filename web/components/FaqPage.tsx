@@ -3,6 +3,8 @@ import { Header } from '@/components/Header';
 import { getCommonContent, getPageContent, type FaqContent } from '@/lib/content';
 import type { Locale } from '@/lib/locales';
 
+import { AiSupportWidget } from './AiSupportWidget';
+
 type FaqPageProps = {
   locale: Locale;
   path: string;
@@ -37,6 +39,7 @@ export function FaqPage({ locale, path }: FaqPageProps): React.ReactElement {
           <p className="disclaimer">{common.compliance}</p>
         </div>
       </main>
+      <AiSupportWidget locale={locale} />
       <Footer locale={locale} />
     </div>
   );
