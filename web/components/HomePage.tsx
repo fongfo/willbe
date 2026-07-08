@@ -7,6 +7,8 @@ import { TrustStrip } from '@/components/TrustStrip';
 import { getPageContent } from '@/lib/content';
 import type { Locale } from '@/lib/locales';
 
+import { AiSupportWidget } from './AiSupportWidget';
+
 type HomePageProps = {
   locale: Locale;
   path: string;
@@ -35,6 +37,7 @@ export function HomePage({ locale, path }: HomePageProps): React.ReactElement {
         ))}
         <PreviewPanel locale={locale} />
       </main>
+      <AiSupportWidget locale={locale} />
       <Footer locale={locale} />
     </div>
   );

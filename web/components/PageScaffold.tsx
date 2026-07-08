@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { getPageContent, type PageContent } from '@/lib/content';
 import { defaultLocale, type Locale } from '@/lib/locales';
 
+import { AiSupportWidget } from './AiSupportWidget';
 import { Section } from './Section';
 
 type PageScaffoldProps = {
@@ -53,6 +54,7 @@ export function PageScaffold({ locale, page, path }: PageScaffoldProps): React.R
           <Section key={section.title} section={section} variant={index === 0 ? 'cards' : 'timeline'} />
         ))}
       </main>
+      <AiSupportWidget locale={locale} />
       <Footer locale={locale} />
     </div>
   );
