@@ -12,8 +12,8 @@ export class AuthService {
     private readonly users: UserService
   ) {}
 
-  async createSession(accessToken: string): Promise<AuthSession> {
-    const identity = await this.verifier.verify(accessToken);
+  async createSession(accessToken: string, identityToken?: string): Promise<AuthSession> {
+    const identity = await this.verifier.verify(accessToken, identityToken);
     const user = await this.users.syncFromVerifiedIdentity(identity);
     return { user };
   }

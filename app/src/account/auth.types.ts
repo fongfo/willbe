@@ -9,8 +9,3 @@ export interface AccountUser {
 export interface AuthSession {
   user: AccountUser;
 }
-
-export interface SignInInput {
-  email: string;
-  name: string;
-}

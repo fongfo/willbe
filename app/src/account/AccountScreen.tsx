@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -10,8 +10,23 @@ import {
 } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
-import { authenticateWithEmbeddedWallet } from './auth.api';
-import type { AccountUser, AuthSession, SignInInput } from './auth.types';
+import { shouldUsePrivyRuntime } from '../privy/privyConfig';
+import type { AccountUser, AuthSession } from './auth.types';
+
+interface VerifyCodeInput {
+  email: string;
+  code: string;
+}
+
+export interface AccountController {
+  isReady: boolean;
+  existingSessionKey?: string | null;
+  statusText?: string;
+  sendCode(email: string): Promise<void>;
+  verifyCode(input: VerifyCodeInput): Promise<AuthSession>;
+  getCurrentSession?(): Promise<AuthSession | null>;
+  signOut(): Promise<void> | void;
+}
 
 function initials(name: string | null | undefined, email: string | null | undefined): string {
   const source = name?.trim() || email?.split('@')[0] || 'Pusaka User';
@@ -24,6 +39,19 @@ function shortenAddress(address: string | null | undefined): string {
     return 'Pending wallet';
   }
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function messageFromError(error: unknown): string | null {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null && 'error' in error) {
+    const apiError = (error as { error?: unknown }).error;
+    return typeof apiError === 'string' && apiError.trim() ? apiError : null;
+  }
+
+  return null;
 }
 
 interface AccountRowProps {
@@ -50,48 +78,116 @@ function AccountRow({ title, detail, badge, danger = false, onPress }: AccountRo
   );
 }
 
-interface AccountScreenProps {
-  authenticate?: (input: SignInInput) => Promise<AuthSession>;
+interface AccountViewProps {
+  controller: AccountController;
 }
 
-export default function AccountScreen({
-  authenticate = authenticateWithEmbeddedWallet
-}: AccountScreenProps) {
+type LoadingStep = 'restore' | 'send' | 'verify' | null;
+
+export function AccountView({ controller }: AccountViewProps) {
   const [user, setUser] = useState<AccountUser | null>(null);
   const [email, setEmail] = useState('aisyah.rahman@gmail.com');
-  const [name, setName] = useState('Aisyah Rahman');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
   const [showConsentImpact, setShowConsentImpact] = useState(false);
   const [frequency, setFrequency] = useState('Every 6 months');
+  const restoredSessionKeyRef = useRef<string | null>(null);
 
   const signedIn = Boolean(user);
   const displayName = user?.name ?? 'Pusaka account';
-  const displayEmail = user?.email ?? 'No email linked';
-  const canSubmit = email.includes('@') && name.trim().length > 1 && !loading;
+  const displayEmail = user?.email ?? email;
+  const emailIsValid = email.includes('@');
+  const codeIsValid = code.trim().length >= 4;
+  const canSubmit =
+    controller.isReady && !loadingStep && emailIsValid && (!codeSent || codeIsValid);
   const proofStatus = useMemo(
     () => (signedIn ? 'Last secured 2 days ago' : 'Sign in to create proof'),
     [signedIn]
   );
+
+  useEffect(() => {
+    if (
+      !controller.isReady ||
+      !controller.existingSessionKey ||
+      restoredSessionKeyRef.current === controller.existingSessionKey ||
+      user
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    restoredSessionKeyRef.current = controller.existingSessionKey;
+    setLoadingStep('restore');
+    setError(null);
+    controller
+      .getCurrentSession?.()
+      .then((session) => {
+        if (!cancelled && session) {
+          setUser(session.user);
+          setCodeSent(false);
+          setCode('');
+        }
+      })
+      .catch((caughtError: unknown) => {
+        if (!cancelled) {
+          setError(
+            messageFromError(caughtError) ??
+              'We could not restore your account session. Sign out and try again.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingStep(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [controller, controller.existingSessionKey, controller.isReady, user]);
 
   async function handleSignIn(): Promise<void> {
     if (!canSubmit) {
       return;
     }
 
-    setLoading(true);
+    setLoadingStep(codeSent ? 'verify' : 'send');
     setError(null);
     try {
-      const session = await authenticate({
+      if (!codeSent) {
+        await controller.sendCode(email.trim());
+        setCodeSent(true);
+        return;
+      }
+
+      const session = await controller.verifyCode({
         email: email.trim(),
-        name: name.trim()
+        code: code.trim()
       });
       setUser(session.user);
-    } catch {
-      setError('We could not create the account session. Check the API and try again.');
+      setCode('');
+    } catch (caughtError) {
+      const detail = messageFromError(caughtError);
+      setError(
+        detail ??
+          (codeSent
+            ? 'We could not verify the code or create the account session. Try again.'
+            : 'We could not send the email code. Check Privy configuration and try again.')
+      );
     } finally {
-      setLoading(false);
+      setLoadingStep(null);
     }
+  }
+
+  async function handleSignOut(): Promise<void> {
+    await controller.signOut();
+    restoredSessionKeyRef.current = null;
+    setUser(null);
+    setCodeSent(false);
+    setCode('');
   }
 
   if (!signedIn) {
@@ -107,16 +203,6 @@ export default function AccountScreen({
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Web3 in Web2 sign in</Text>
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput
-                accessibilityLabel="Name"
-                autoCapitalize="words"
-                onChangeText={setName}
-                style={styles.input}
-                value={name}
-              />
-            </View>
-            <View style={styles.fieldGroup}>
               <Text style={styles.label}>Email</Text>
               <TextInput
                 accessibilityLabel="Email"
@@ -127,10 +213,36 @@ export default function AccountScreen({
                 value={email}
               />
             </View>
+            {codeSent ? (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Verification code</Text>
+                <TextInput
+                  accessibilityLabel="Verification code"
+                  inputMode="numeric"
+                  maxLength={8}
+                  onChangeText={setCode}
+                  style={[styles.input, styles.codeInput]}
+                  value={code}
+                />
+              </View>
+            ) : null}
+            {controller.statusText ? (
+              <Text style={styles.statusText}>{controller.statusText}</Text>
+            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <Button
               disabled={!canSubmit}
-              label={loading ? 'Creating account...' : 'Continue with email'}
+              label={
+                loadingStep
+                  ? loadingStep === 'restore'
+                    ? 'Restoring account...'
+                    : loadingStep === 'verify'
+                      ? 'Verifying code...'
+                      : 'Sending code...'
+                  : codeSent
+                    ? 'Verify and continue'
+                    : 'Continue with email'
+              }
               onPress={handleSignIn}
             />
           </Card>
@@ -244,7 +356,7 @@ export default function AccountScreen({
           <Text style={styles.sectionTitle}>Security</Text>
           <AccountRow
             badge="Email"
-            detail="Privy embedded wallet session, ready for production SDK integration."
+            detail="Privy embedded wallet session, backed by server-side token verification."
             title="Login method"
           />
           <AccountRow
@@ -253,7 +365,7 @@ export default function AccountScreen({
           />
         </Card>
 
-        <Button label="Sign out" onPress={() => setUser(null)} variant="danger" />
+        <Button label="Sign out" onPress={handleSignOut} variant="danger" />
       </ScrollView>
 
       <Modal
@@ -285,6 +397,32 @@ export default function AccountScreen({
       </Modal>
     </Screen>
   );
+}
+
+function MissingPrivyAccountScreen() {
+  const controller: AccountController = {
+    isReady: true,
+    statusText: 'Privy credentials are missing from the Expo environment.',
+    sendCode: async () => {
+      throw new Error('Privy is not configured.');
+    },
+    verifyCode: async () => {
+      throw new Error('Privy is not configured.');
+    },
+    signOut: () => undefined
+  };
+
+  return <AccountView controller={controller} />;
+}
+
+export default function AccountScreen() {
+  if (!shouldUsePrivyRuntime()) {
+    return <MissingPrivyAccountScreen />;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { default: PrivyAccountScreen } = require('./PrivyAccountScreen') as typeof import('./PrivyAccountScreen');
+  return <PrivyAccountScreen />;
 }
 
 const styles = StyleSheet.create({
@@ -494,6 +632,15 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     color: colors.ink,
     backgroundColor: colors.white
+  },
+  codeInput: {
+    letterSpacing: 3,
+    fontWeight: '700'
+  },
+  statusText: {
+    fontSize: fontSizes.small,
+    lineHeight: 19,
+    color: colors.muted2
   },
   error: {
     fontSize: fontSizes.small,

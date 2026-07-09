@@ -1,18 +1,14 @@
 import { apiClient } from '../api/client';
-import type { AuthSession, SignInInput } from './auth.types';
+import type { AuthSession } from './auth.types';
 
-function buildDevAccessToken(input: SignInInput): string {
-  return `dev:${encodeURIComponent(input.email)}:${encodeURIComponent(input.name)}`;
-}
-
-export async function authenticateWithEmbeddedWallet(
-  input: SignInInput,
+export async function createPrivyAccountSession(
+  accessToken: string,
+  identityToken?: string | null,
   signal?: AbortSignal
 ): Promise<AuthSession> {
-  const accessToken = buildDevAccessToken(input);
   const session = await apiClient.postWithHeaders<AuthSession>(
     '/api/auth/session',
-    {},
+    identityToken ? { identityToken } : {},
     { Authorization: `Bearer ${accessToken}` },
     signal
   );

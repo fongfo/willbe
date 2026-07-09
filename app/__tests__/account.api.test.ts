@@ -1,4 +1,4 @@
-import { authenticateWithEmbeddedWallet } from '../src/account/auth.api';
+import { createPrivyAccountSession } from '../src/account/auth.api';
 import { apiClient } from '../src/api/client';
 
 jest.mock('../src/api/client', () => ({
@@ -25,17 +25,14 @@ describe('account auth api', () => {
   afterEach(() => jest.clearAllMocks());
 
   it('exchanges the embedded-wallet access token for a backend session', async () => {
-    const session = await authenticateWithEmbeddedWallet({
-      email: 'aisyah.rahman@gmail.com',
-      name: 'Aisyah Rahman'
-    });
+    const session = await createPrivyAccountSession('privy-access-token', 'privy-id-token');
 
     expect(session.user.email).toBe('aisyah.rahman@gmail.com');
     expect(mockedApiClient.postWithHeaders).toHaveBeenCalledWith(
       '/api/auth/session',
-      {},
+      { identityToken: 'privy-id-token' },
       {
-        Authorization: 'Bearer dev:aisyah.rahman%40gmail.com:Aisyah%20Rahman'
+        Authorization: 'Bearer privy-access-token'
       },
       undefined
     );
@@ -44,11 +41,8 @@ describe('account auth api', () => {
   it('throws when the backend does not return a session envelope', async () => {
     mockedApiClient.postWithHeaders.mockResolvedValue(undefined);
 
-    await expect(
-      authenticateWithEmbeddedWallet({
-        email: 'aisyah.rahman@gmail.com',
-        name: 'Aisyah Rahman'
-      })
-    ).rejects.toThrow('Authentication did not return a session.');
+    await expect(createPrivyAccountSession('privy-access-token')).rejects.toThrow(
+      'Authentication did not return a session.'
+    );
   });
 });

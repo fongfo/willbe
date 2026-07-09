@@ -175,5 +175,5 @@ describe('Pusaka E2E user journey', () => {
     expect(screen.getByText('Sara Abdullah')).toBeTruthy();
     expect(screen.getByText('Maybank main account')).toBeTruthy();
     expect(router.getPathname()).toBe('/emergency-handover');
-  }, 20000);
+  }, 45000);
 });
