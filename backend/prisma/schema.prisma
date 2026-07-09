@@ -107,3 +107,15 @@ model ReviewSetting {
 
   @@map("review_settings")
 }
+
+model User {
+  id            String   @id @default(uuid())
+  privyUserId   String   @unique
+  email         String?
+  name          String?
+  walletAddress String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("users")
+}

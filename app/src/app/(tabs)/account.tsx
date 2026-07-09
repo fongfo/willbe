@@ -1,5 +1,5 @@
-import PlaceholderScreen from '../../screens/PlaceholderScreen';
+import AccountScreen from '../../account/AccountScreen';
 
-export default function AccountScreen() {
-  return <PlaceholderScreen title="Account" subtitle="Account settings arrive later." />;
+export default function AccountRoute() {
+  return <AccountScreen />;
 }

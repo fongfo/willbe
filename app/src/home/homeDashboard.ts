@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import type { AssetReference } from '../asset-references/assetReference.types';
 import type { FamilyMember } from '../family-members/familyMember.types';
 import type { ReadinessEvaluation } from '../readiness/evaluateReadiness';
@@ -19,7 +20,7 @@ export interface DashboardMetric {
 export interface DashboardAction {
   title: string;
   detail: string;
-  route: string;
+  route: Href;
 }
 
 export function getDashboardMetrics({

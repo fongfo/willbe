@@ -22,6 +22,7 @@ interface RequestOptions {
   body?: Json;
   signal?: AbortSignal;
   baseUrl?: string;
+  headers?: Record<string, string>;
 }
 
 function buildUrl(path: string, baseUrl: string): string {
@@ -61,12 +62,21 @@ export async function request<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T | undefined> {
-  const { method = 'GET', body, signal, baseUrl = getApiBaseUrl() } = options;
+  const {
+    method = 'GET',
+    body,
+    signal,
+    baseUrl = getApiBaseUrl(),
+    headers
+  } = options;
 
   const response = await fetch(buildUrl(path, baseUrl), {
     method,
     signal,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : undefined),
+      ...headers
+    },
     body: body ? JSON.stringify(body) : undefined
   });
 
@@ -78,6 +88,13 @@ export const apiClient = {
     request<T>(path, { method: 'GET', signal }),
   post: <T>(path: string, body: Json, signal?: AbortSignal): Promise<T | undefined> =>
     request<T>(path, { method: 'POST', body, signal }),
+  postWithHeaders: <T>(
+    path: string,
+    body: Json,
+    headers: Record<string, string>,
+    signal?: AbortSignal
+  ): Promise<T | undefined> =>
+    request<T>(path, { method: 'POST', body, headers, signal }),
   patch: <T>(path: string, body: Json, signal?: AbortSignal): Promise<T | undefined> =>
     request<T>(path, { method: 'PATCH', body, signal }),
   delete: (path: string, signal?: AbortSignal): Promise<void> =>

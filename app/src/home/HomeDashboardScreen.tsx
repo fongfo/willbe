@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { Href, router } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAssetReferences } from '../asset-references/useAssetReferences';
 import { Badge, Button, Card, Screen } from '../components';
@@ -9,10 +9,10 @@ import { useTrustedContacts } from '../trusted-contacts/useTrustedContacts';
 import { getDashboardAction, getDashboardMetrics } from './homeDashboard';
 
 interface HomeDashboardScreenProps {
-  onNavigate?: (route: string) => void;
+  onNavigate?: (route: Href) => void;
 }
 
-function defaultNavigate(route: string): void {
+function defaultNavigate(route: Href): void {
   router.push(route);
 }
 
