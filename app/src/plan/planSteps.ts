@@ -1,3 +1,5 @@
+import type { Href } from 'expo-router';
+
 export type PlanStepStatus = 'ready' | 'review';
 
 export interface PlanStep {
@@ -5,7 +7,7 @@ export interface PlanStep {
   stepNumber: number;
   title: string;
   description: string;
-  route: string;
+  route: Href;
   status: PlanStepStatus;
 }
 

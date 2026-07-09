@@ -1,14 +1,14 @@
-import { router } from 'expo-router';
+import { Href, router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { getPlanProgressLabel, PLAN_STEPS, PlanStep } from './planSteps';
 
 interface PlanStepperScreenProps {
-  onOpenStep?: (route: string) => void;
+  onOpenStep?: (route: Href) => void;
 }
 
-function defaultOpenStep(route: string): void {
+function defaultOpenStep(route: Href): void {
   router.push(route);
 }
 

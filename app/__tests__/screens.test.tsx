@@ -47,7 +47,7 @@ describe('PlaceholderScreen', () => {
 describe('tab + stack screens', () => {
   it.each([
     [PlanScreen, 'Plan'],
-    [AccountScreen, 'Account'],
+    [AccountScreen, 'Create your Pusaka account'],
     [ConsentScreen, 'Consent'],
   ])('renders the %s screen heading', (Screen, heading) => {
     render(<Screen />);
