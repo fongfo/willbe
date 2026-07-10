@@ -7,7 +7,7 @@ export async function createPrivyAccountSession(
   signal?: AbortSignal
 ): Promise<AuthSession> {
   const session = await apiClient.postWithHeaders<AuthSession>(
-    '/api/auth/session',
+    '/auth/session',
     identityToken ? { identityToken } : {},
     { Authorization: `Bearer ${accessToken}` },
     signal

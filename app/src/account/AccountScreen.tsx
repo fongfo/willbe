@@ -1,31 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View
-} from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
-import { shouldUsePrivyRuntime } from '../privy/privyConfig';
-import type { AccountUser, AuthSession } from './auth.types';
+import { useAccountAuth } from './AccountAuthContext';
+import type { AccountUser } from './auth.types';
 
-interface VerifyCodeInput {
-  email: string;
-  code: string;
+interface AccountRowProps {
+  title: string;
+  detail: string;
+  badge?: string;
+  danger?: boolean;
+  onPress?: () => void;
 }
 
-export interface AccountController {
-  isReady: boolean;
-  existingSessionKey?: string | null;
-  statusText?: string;
-  sendCode(email: string): Promise<void>;
-  verifyCode(input: VerifyCodeInput): Promise<AuthSession>;
-  getCurrentSession?(): Promise<AuthSession | null>;
-  signOut(): Promise<void> | void;
+interface AccountCenterViewProps {
+  user: AccountUser;
+  walletStatus?: 'ready' | 'pending' | 'error';
+  walletError?: string | null;
+  onRetryWallet?: () => Promise<void> | void;
+  onSignOut: () => Promise<void> | void;
 }
 
 function initials(name: string | null | undefined, email: string | null | undefined): string {
@@ -39,27 +32,6 @@ function shortenAddress(address: string | null | undefined): string {
     return 'Pending wallet';
   }
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function messageFromError(error: unknown): string | null {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  if (typeof error === 'object' && error !== null && 'error' in error) {
-    const apiError = (error as { error?: unknown }).error;
-    return typeof apiError === 'string' && apiError.trim() ? apiError : null;
-  }
-
-  return null;
-}
-
-interface AccountRowProps {
-  title: string;
-  detail: string;
-  badge?: string;
-  danger?: boolean;
-  onPress?: () => void;
 }
 
 function AccountRow({ title, detail, badge, danger = false, onPress }: AccountRowProps) {
@@ -78,185 +50,21 @@ function AccountRow({ title, detail, badge, danger = false, onPress }: AccountRo
   );
 }
 
-interface AccountViewProps {
-  controller: AccountController;
-}
-
-type LoadingStep = 'restore' | 'send' | 'verify' | null;
-
-export function AccountView({ controller }: AccountViewProps) {
-  const [user, setUser] = useState<AccountUser | null>(null);
-  const [email, setEmail] = useState('aisyah.rahman@gmail.com');
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
+export function AccountCenterView({
+  user,
+  walletStatus = user.walletAddress ? 'ready' : 'pending',
+  walletError,
+  onRetryWallet,
+  onSignOut
+}: AccountCenterViewProps) {
   const [showConsentImpact, setShowConsentImpact] = useState(false);
   const [frequency, setFrequency] = useState('Every 6 months');
-  const restoredSessionKeyRef = useRef<string | null>(null);
-
-  const signedIn = Boolean(user);
-  const displayName = user?.name ?? 'Pusaka account';
-  const displayEmail = user?.email ?? email;
-  const emailIsValid = email.includes('@');
-  const codeIsValid = code.trim().length >= 4;
-  const canSubmit =
-    controller.isReady && !loadingStep && emailIsValid && (!codeSent || codeIsValid);
-  const proofStatus = useMemo(
-    () => (signedIn ? 'Last secured 2 days ago' : 'Sign in to create proof'),
-    [signedIn]
-  );
-
-  useEffect(() => {
-    if (
-      !controller.isReady ||
-      !controller.existingSessionKey ||
-      restoredSessionKeyRef.current === controller.existingSessionKey ||
-      user
-    ) {
-      return;
-    }
-
-    let cancelled = false;
-    restoredSessionKeyRef.current = controller.existingSessionKey;
-    setLoadingStep('restore');
-    setError(null);
-    controller
-      .getCurrentSession?.()
-      .then((session) => {
-        if (!cancelled && session) {
-          setUser(session.user);
-          setCodeSent(false);
-          setCode('');
-        }
-      })
-      .catch((caughtError: unknown) => {
-        if (!cancelled) {
-          setError(
-            messageFromError(caughtError) ??
-              'We could not restore your account session. Sign out and try again.'
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadingStep(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [controller, controller.existingSessionKey, controller.isReady, user]);
-
-  async function handleSignIn(): Promise<void> {
-    if (!canSubmit) {
-      return;
-    }
-
-    setLoadingStep(codeSent ? 'verify' : 'send');
-    setError(null);
-    try {
-      if (!codeSent) {
-        await controller.sendCode(email.trim());
-        setCodeSent(true);
-        return;
-      }
-
-      const session = await controller.verifyCode({
-        email: email.trim(),
-        code: code.trim()
-      });
-      setUser(session.user);
-      setCode('');
-    } catch (caughtError) {
-      const detail = messageFromError(caughtError);
-      setError(
-        detail ??
-          (codeSent
-            ? 'We could not verify the code or create the account session. Try again.'
-            : 'We could not send the email code. Check Privy configuration and try again.')
-      );
-    } finally {
-      setLoadingStep(null);
-    }
-  }
-
-  async function handleSignOut(): Promise<void> {
-    await controller.signOut();
-    restoredSessionKeyRef.current = null;
-    setUser(null);
-    setCodeSent(false);
-    setCode('');
-  }
-
-  if (!signedIn) {
-    return (
-      <Screen>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.heading}>Create your Pusaka account</Text>
-          <Text style={styles.lede}>
-            Sign in with email. Pusaka quietly creates a secure proof wallet for your
-            plan, without crypto steps or seed phrases.
-          </Text>
-
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Web3 in Web2 sign in</Text>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                accessibilityLabel="Email"
-                autoCapitalize="none"
-                inputMode="email"
-                onChangeText={setEmail}
-                style={styles.input}
-                value={email}
-              />
-            </View>
-            {codeSent ? (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Verification code</Text>
-                <TextInput
-                  accessibilityLabel="Verification code"
-                  inputMode="numeric"
-                  maxLength={8}
-                  onChangeText={setCode}
-                  style={[styles.input, styles.codeInput]}
-                  value={code}
-                />
-              </View>
-            ) : null}
-            {controller.statusText ? (
-              <Text style={styles.statusText}>{controller.statusText}</Text>
-            ) : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button
-              disabled={!canSubmit}
-              label={
-                loadingStep
-                  ? loadingStep === 'restore'
-                    ? 'Restoring account...'
-                    : loadingStep === 'verify'
-                      ? 'Verifying code...'
-                      : 'Sending code...'
-                  : codeSent
-                    ? 'Verify and continue'
-                    : 'Continue with email'
-              }
-              onPress={handleSignIn}
-            />
-          </Card>
-
-          <View style={styles.notice}>
-            <Text style={styles.noticeText}>
-              The wallet is for Proof of Plan records only. Pusaka never asks for
-              passwords, balances, private keys, or seed phrases.
-            </Text>
-          </View>
-        </ScrollView>
-      </Screen>
-    );
-  }
+  const displayName = user.name ?? 'Pusaka account';
+  const displayEmail = user.email ?? 'Email verified';
+  const proofStatus =
+    walletStatus === 'ready'
+      ? 'Last secured 2 days ago'
+      : 'Proof wallet setup pending';
 
   return (
     <Screen>
@@ -294,7 +102,10 @@ export function AccountView({ controller }: AccountViewProps) {
         <Card style={styles.card}>
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Proof of Plan</Text>
-            <Badge label="Ready" tone="success" />
+            <Badge
+              label={walletStatus === 'ready' ? 'Ready' : walletStatus === 'error' ? 'Retry' : 'Pending'}
+              tone={walletStatus === 'error' ? 'warn' : 'success'}
+            />
           </View>
           <Text style={styles.rowTitle}>Plan certificate</Text>
           <Text style={styles.rowDetail}>
@@ -303,7 +114,13 @@ export function AccountView({ controller }: AccountViewProps) {
           </Text>
           <View style={styles.walletStrip}>
             <Text style={styles.walletLabel}>Proof wallet</Text>
-            <Text style={styles.walletValue}>{shortenAddress(user?.walletAddress)}</Text>
+            <Text style={styles.walletValue}>{shortenAddress(user.walletAddress)}</Text>
+            {walletStatus === 'error' && walletError ? (
+              <Text style={styles.error}>{walletError}</Text>
+            ) : null}
+            {walletStatus === 'error' && onRetryWallet ? (
+              <Button label="Retry wallet setup" onPress={onRetryWallet} variant="secondary" />
+            ) : null}
           </View>
         </Card>
 
@@ -365,7 +182,7 @@ export function AccountView({ controller }: AccountViewProps) {
           />
         </Card>
 
-        <Button label="Sign out" onPress={handleSignOut} variant="danger" />
+        <Button label="Sign out" onPress={onSignOut} variant="danger" />
       </ScrollView>
 
       <Modal
@@ -399,30 +216,22 @@ export function AccountView({ controller }: AccountViewProps) {
   );
 }
 
-function MissingPrivyAccountScreen() {
-  const controller: AccountController = {
-    isReady: true,
-    statusText: 'Privy credentials are missing from the Expo environment.',
-    sendCode: async () => {
-      throw new Error('Privy is not configured.');
-    },
-    verifyCode: async () => {
-      throw new Error('Privy is not configured.');
-    },
-    signOut: () => undefined
-  };
-
-  return <AccountView controller={controller} />;
-}
-
 export default function AccountScreen() {
-  if (!shouldUsePrivyRuntime()) {
-    return <MissingPrivyAccountScreen />;
+  const { user, walletStatus, walletError, retryWalletSync, signOut } = useAccountAuth();
+
+  if (!user) {
+    return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { default: PrivyAccountScreen } = require('./PrivyAccountScreen') as typeof import('./PrivyAccountScreen');
-  return <PrivyAccountScreen />;
+  return (
+    <AccountCenterView
+      onRetryWallet={retryWalletSync}
+      onSignOut={signOut}
+      user={user}
+      walletError={walletError}
+      walletStatus={walletStatus}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
@@ -434,11 +243,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.heading,
     color: colors.ink,
     fontWeight: '500'
-  },
-  lede: {
-    fontSize: fontSizes.small,
-    lineHeight: 20,
-    color: colors.muted2
   },
   card: {
     gap: spacing.md
@@ -604,43 +408,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     fontWeight: '700',
     color: colors.ink
-  },
-  notice: {
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: '#eef4f1'
-  },
-  noticeText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.muted2
-  },
-  fieldGroup: {
-    gap: spacing.xs
-  },
-  label: {
-    fontSize: fontSizes.small,
-    fontWeight: '700',
-    color: colors.ink
-  },
-  input: {
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    fontSize: fontSizes.body,
-    color: colors.ink,
-    backgroundColor: colors.white
-  },
-  codeInput: {
-    letterSpacing: 3,
-    fontWeight: '700'
-  },
-  statusText: {
-    fontSize: fontSizes.small,
-    lineHeight: 19,
-    color: colors.muted2
   },
   error: {
     fontSize: fontSizes.small,

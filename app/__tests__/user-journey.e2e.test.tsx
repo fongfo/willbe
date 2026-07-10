@@ -1,5 +1,6 @@
 import { fireEvent } from '@testing-library/react-native';
 import { renderRouter, screen, testRouter } from 'expo-router/testing-library';
+import { resetDevAccountAuth } from '../src/account/AccountAuthContext';
 import * as assetApi from '../src/asset-references/assetReference.api';
 import type {
   AssetReference,
@@ -79,7 +80,16 @@ function navigateTo(path: string): void {
   testRouter.push(path);
 }
 
+async function authenticate(): Promise<void> {
+  fireEvent.changeText(screen.getByLabelText('Email'), 'aisyah.rahman@gmail.com');
+  fireEvent.press(screen.getByText('Continue with email'));
+  expect(await screen.findByText('Verify and continue')).toBeTruthy();
+  fireEvent.changeText(screen.getByLabelText('Verification code'), '123456');
+  fireEvent.press(screen.getByText('Verify and continue'));
+}
+
 beforeEach(() => {
+  resetDevAccountAuth();
   familyMembers = [];
   trustedContacts = [];
   assetReferences = [];
@@ -111,6 +121,8 @@ afterEach(() => jest.clearAllMocks());
 describe('Pusaka E2E user journey', () => {
   it('goes from empty dashboard to readiness report and emergency handover preview', async () => {
     const router = renderRouter('src/app', { initialUrl: '/home' });
+
+    await authenticate();
 
     expect(await screen.findByText('Preparedness score')).toBeTruthy();
     expect(screen.getByText('0/5 checks')).toBeTruthy();

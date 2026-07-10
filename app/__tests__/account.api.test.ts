@@ -29,7 +29,7 @@ describe('account auth api', () => {
 
     expect(session.user.email).toBe('aisyah.rahman@gmail.com');
     expect(mockedApiClient.postWithHeaders).toHaveBeenCalledWith(
-      '/api/auth/session',
+      '/auth/session',
       { identityToken: 'privy-id-token' },
       {
         Authorization: 'Bearer privy-access-token'
