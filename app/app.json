@@ -1,16 +1,20 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Pusaka",
+    "slug": "pusaka",
     "version": "1.0.0",
     "scheme": "willbe",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.willbe.pusaka",
+      "buildNumber": "1",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.willbe.pusaka",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
