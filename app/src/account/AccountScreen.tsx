@@ -1,17 +1,25 @@
-import { useMemo, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View
-} from 'react-native';
+import { useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
-import { authenticateWithEmbeddedWallet } from './auth.api';
-import type { AccountUser, AuthSession, SignInInput } from './auth.types';
+import { useAccountAuth } from './AccountAuthContext';
+import type { AccountUser } from './auth.types';
+
+interface AccountRowProps {
+  title: string;
+  detail: string;
+  badge?: string;
+  danger?: boolean;
+  onPress?: () => void;
+}
+
+interface AccountCenterViewProps {
+  user: AccountUser;
+  walletStatus?: 'ready' | 'pending' | 'error';
+  walletError?: string | null;
+  onRetryWallet?: () => Promise<void> | void;
+  onSignOut: () => Promise<void> | void;
+}
 
 function initials(name: string | null | undefined, email: string | null | undefined): string {
   const source = name?.trim() || email?.split('@')[0] || 'Pusaka User';
@@ -24,14 +32,6 @@ function shortenAddress(address: string | null | undefined): string {
     return 'Pending wallet';
   }
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-interface AccountRowProps {
-  title: string;
-  detail: string;
-  badge?: string;
-  danger?: boolean;
-  onPress?: () => void;
 }
 
 function AccountRow({ title, detail, badge, danger = false, onPress }: AccountRowProps) {
@@ -50,101 +50,21 @@ function AccountRow({ title, detail, badge, danger = false, onPress }: AccountRo
   );
 }
 
-interface AccountScreenProps {
-  authenticate?: (input: SignInInput) => Promise<AuthSession>;
-}
-
-export default function AccountScreen({
-  authenticate = authenticateWithEmbeddedWallet
-}: AccountScreenProps) {
-  const [user, setUser] = useState<AccountUser | null>(null);
-  const [email, setEmail] = useState('aisyah.rahman@gmail.com');
-  const [name, setName] = useState('Aisyah Rahman');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export function AccountCenterView({
+  user,
+  walletStatus = user.walletAddress ? 'ready' : 'pending',
+  walletError,
+  onRetryWallet,
+  onSignOut
+}: AccountCenterViewProps) {
   const [showConsentImpact, setShowConsentImpact] = useState(false);
   const [frequency, setFrequency] = useState('Every 6 months');
-
-  const signedIn = Boolean(user);
-  const displayName = user?.name ?? 'Pusaka account';
-  const displayEmail = user?.email ?? 'No email linked';
-  const canSubmit = email.includes('@') && name.trim().length > 1 && !loading;
-  const proofStatus = useMemo(
-    () => (signedIn ? 'Last secured 2 days ago' : 'Sign in to create proof'),
-    [signedIn]
-  );
-
-  async function handleSignIn(): Promise<void> {
-    if (!canSubmit) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const session = await authenticate({
-        email: email.trim(),
-        name: name.trim()
-      });
-      setUser(session.user);
-    } catch {
-      setError('We could not create the account session. Check the API and try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (!signedIn) {
-    return (
-      <Screen>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.heading}>Create your Pusaka account</Text>
-          <Text style={styles.lede}>
-            Sign in with email. Pusaka quietly creates a secure proof wallet for your
-            plan, without crypto steps or seed phrases.
-          </Text>
-
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Web3 in Web2 sign in</Text>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput
-                accessibilityLabel="Name"
-                autoCapitalize="words"
-                onChangeText={setName}
-                style={styles.input}
-                value={name}
-              />
-            </View>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                accessibilityLabel="Email"
-                autoCapitalize="none"
-                inputMode="email"
-                onChangeText={setEmail}
-                style={styles.input}
-                value={email}
-              />
-            </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button
-              disabled={!canSubmit}
-              label={loading ? 'Creating account...' : 'Continue with email'}
-              onPress={handleSignIn}
-            />
-          </Card>
-
-          <View style={styles.notice}>
-            <Text style={styles.noticeText}>
-              The wallet is for Proof of Plan records only. Pusaka never asks for
-              passwords, balances, private keys, or seed phrases.
-            </Text>
-          </View>
-        </ScrollView>
-      </Screen>
-    );
-  }
+  const displayName = user.name ?? 'Pusaka account';
+  const displayEmail = user.email ?? 'Email verified';
+  const proofStatus =
+    walletStatus === 'ready'
+      ? 'Last secured 2 days ago'
+      : 'Proof wallet setup pending';
 
   return (
     <Screen>
@@ -182,7 +102,10 @@ export default function AccountScreen({
         <Card style={styles.card}>
           <View style={styles.sectionHead}>
             <Text style={styles.sectionTitle}>Proof of Plan</Text>
-            <Badge label="Ready" tone="success" />
+            <Badge
+              label={walletStatus === 'ready' ? 'Ready' : walletStatus === 'error' ? 'Retry' : 'Pending'}
+              tone={walletStatus === 'error' ? 'warn' : 'success'}
+            />
           </View>
           <Text style={styles.rowTitle}>Plan certificate</Text>
           <Text style={styles.rowDetail}>
@@ -191,7 +114,13 @@ export default function AccountScreen({
           </Text>
           <View style={styles.walletStrip}>
             <Text style={styles.walletLabel}>Proof wallet</Text>
-            <Text style={styles.walletValue}>{shortenAddress(user?.walletAddress)}</Text>
+            <Text style={styles.walletValue}>{shortenAddress(user.walletAddress)}</Text>
+            {walletStatus === 'error' && walletError ? (
+              <Text style={styles.error}>{walletError}</Text>
+            ) : null}
+            {walletStatus === 'error' && onRetryWallet ? (
+              <Button label="Retry wallet setup" onPress={onRetryWallet} variant="secondary" />
+            ) : null}
           </View>
         </Card>
 
@@ -244,7 +173,7 @@ export default function AccountScreen({
           <Text style={styles.sectionTitle}>Security</Text>
           <AccountRow
             badge="Email"
-            detail="Privy embedded wallet session, ready for production SDK integration."
+            detail="Privy embedded wallet session, backed by server-side token verification."
             title="Login method"
           />
           <AccountRow
@@ -253,7 +182,7 @@ export default function AccountScreen({
           />
         </Card>
 
-        <Button label="Sign out" onPress={() => setUser(null)} variant="danger" />
+        <Button label="Sign out" onPress={onSignOut} variant="danger" />
       </ScrollView>
 
       <Modal
@@ -287,6 +216,24 @@ export default function AccountScreen({
   );
 }
 
+export default function AccountScreen() {
+  const { user, walletStatus, walletError, retryWalletSync, signOut } = useAccountAuth();
+
+  if (!user) {
+    return null;
+  }
+
+  return (
+    <AccountCenterView
+      onRetryWallet={retryWalletSync}
+      onSignOut={signOut}
+      user={user}
+      walletError={walletError}
+      walletStatus={walletStatus}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
     gap: spacing.md,
@@ -296,11 +243,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.heading,
     color: colors.ink,
     fontWeight: '500'
-  },
-  lede: {
-    fontSize: fontSizes.small,
-    lineHeight: 20,
-    color: colors.muted2
   },
   card: {
     gap: spacing.md
@@ -466,34 +408,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     fontWeight: '700',
     color: colors.ink
-  },
-  notice: {
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: '#eef4f1'
-  },
-  noticeText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.muted2
-  },
-  fieldGroup: {
-    gap: spacing.xs
-  },
-  label: {
-    fontSize: fontSizes.small,
-    fontWeight: '700',
-    color: colors.ink
-  },
-  input: {
-    minHeight: 48,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    fontSize: fontSizes.body,
-    color: colors.ink,
-    backgroundColor: colors.white
   },
   error: {
     fontSize: fontSizes.small,

@@ -5,7 +5,7 @@ import { UserRepository } from '../users/user.repository';
 import { UserService } from '../users/user.service';
 import { authSessionBodySchema } from './auth.schema';
 import { AuthService } from './auth.service';
-import { DevTokenVerifier } from './token-verifier';
+import { createTokenVerifier } from './token-verifier';
 
 export const authRouter = Router();
 
@@ -19,7 +19,7 @@ authRouter.use(
 );
 
 const service = new AuthService(
-  new DevTokenVerifier(),
+  createTokenVerifier(),
   new UserService(new UserRepository())
 );
 
@@ -56,7 +56,7 @@ authRouter.post('/session', async (req: Request, res: Response) => {
   }
 
   try {
-    const session = await service.createSession(accessToken);
+    const session = await service.createSession(accessToken, parsed.data.identityToken);
     res.status(200).json({ success: true, data: session });
   } catch (error: unknown) {
     handleError(error, res);
