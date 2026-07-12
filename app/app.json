@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Pusaka",
+    "owner": "fongfo",
     "slug": "pusaka",
     "version": "1.0.0",
     "scheme": "willbe",
@@ -31,6 +32,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f6714268-b2de-444d-871c-4a4e006972dc"
+      }
     }
   }
 }

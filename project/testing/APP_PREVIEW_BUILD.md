@@ -68,6 +68,19 @@ npx eas-cli build --platform android --profile preview
 
 The `preview` profile uses internal distribution and produces an Android APK.
 
+## WB-44 Build 1
+
+- EAS project: `@fongfo/pusaka`
+- EAS project ID: `f6714268-b2de-444d-871c-4a4e006972dc`
+- Build ID: `162b078a-1d1c-4b7e-a512-3b4ff5e83fd7`
+- Build profile: `preview`
+- Platform: Android
+- Distribution: internal
+- Git commit: `58c98c35ee45b87430b9ddd9ff0418384db7e3a2`
+- APK: `https://expo.dev/artifacts/eas/-N1rEY1bcy7LRPsH5h7uYwE2PcUcV-P27ifNapNcXtM.apk`
+- Completed at: `2026-07-12T09:52:13.935Z`
+- Expires at: `2026-07-26T09:40:12.309Z`
+
 ## Tester Handoff Template
 
 Share this with testers:
