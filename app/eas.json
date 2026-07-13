@@ -9,14 +9,20 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "staging",
-        "EXPO_PUBLIC_API_URL": "https://willbe-staging.up.railway.app/api"
+        "EXPO_PUBLIC_API_URL": "https://willbe-staging.up.railway.app/api",
+        "EXPO_PUBLIC_AI_API_URL": "https://ai-staging-5843.up.railway.app/api",
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmqriwky5001t0dlb4153zpfh",
+        "EXPO_PUBLIC_PRIVY_CLIENT_ID": "client-WY6aTvQCE95RSj6gGMpWj7gY5Ve1iBgiKiB6eS42xaqTS"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "staging",
-        "EXPO_PUBLIC_API_URL": "https://willbe-staging.up.railway.app/api"
+        "EXPO_PUBLIC_API_URL": "https://willbe-staging.up.railway.app/api",
+        "EXPO_PUBLIC_AI_API_URL": "https://ai-staging-5843.up.railway.app/api",
+        "EXPO_PUBLIC_PRIVY_APP_ID": "cmqriwky5001t0dlb4153zpfh",
+        "EXPO_PUBLIC_PRIVY_CLIENT_ID": "client-WY6aTvQCE95RSj6gGMpWj7gY5Ve1iBgiKiB6eS42xaqTS"
       },
       "android": {
         "buildType": "apk"

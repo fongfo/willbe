@@ -7,8 +7,12 @@ This note tracks the first tester-facing app package for WB-44.
 - Health check: `https://willbe-staging.up.railway.app/health`
 - App API base URL: `https://willbe-staging.up.railway.app/api`
 - EAS preview profile variable: `EXPO_PUBLIC_API_URL=https://willbe-staging.up.railway.app/api`
+- AI health check: `https://ai-staging-5843.up.railway.app/health`
+- AI API base URL: `https://ai-staging-5843.up.railway.app/api`
+- EAS preview profile variable: `EXPO_PUBLIC_AI_API_URL=https://ai-staging-5843.up.railway.app/api`
 
 The staging backend health check was verified on 2026-07-11.
+The staging AI health check and `/api/chat` endpoint were verified on 2026-07-13.
 
 ## First Android QA Scope
 
@@ -20,12 +24,13 @@ Include these flows in the first Android preview build:
 - Asset references CRUD
 - Readiness score based on local/backend data
 - Emergency handover preview
-- Email/wallet account flow only if Privy staging values are configured before build time
-
-Exclude these flows until their services are deployed:
-
 - AI assistant chat
 - AI gap explanations
+- Email account registration/login through Privy
+- Account profile/session display after backend session creation
+
+Exclude these flows until their services are configured:
+
 - iOS TestFlight distribution
 
 ## Build Prerequisites
@@ -33,9 +38,15 @@ Exclude these flows until their services are deployed:
 Set these values before creating the preview build:
 
 - `EXPO_PUBLIC_API_URL=https://willbe-staging.up.railway.app/api`
-- `EXPO_PUBLIC_PRIVY_APP_ID` if testing account/wallet login
-- `EXPO_PUBLIC_PRIVY_CLIENT_ID` if testing account/wallet login
-- `EXPO_PUBLIC_AI_API_URL` only after the AI service has a staging URL
+- `EXPO_PUBLIC_AI_API_URL=https://ai-staging-5843.up.railway.app/api`
+- `EXPO_PUBLIC_PRIVY_APP_ID=cmqriwky5001t0dlb4153zpfh`
+- `EXPO_PUBLIC_PRIVY_CLIENT_ID=client-WY6aTvQCE95RSj6gGMpWj7gY5Ve1iBgiKiB6eS42xaqTS`
+
+The backend Railway service must also have Privy server-side variables configured:
+
+- `PRIVY_APP_ID`
+- `PRIVY_APP_SECRET`
+- `PRIVY_JWT_VERIFICATION_KEY` when provided by Privy
 
 The app identity for the preview build is:
 
