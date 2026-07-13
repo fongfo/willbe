@@ -1,4 +1,4 @@
-import { apiClient, request } from '../src/api/client';
+import { apiClient, request, setApiAccessTokenProvider } from '../src/api/client';
 import {
   getAiApiBaseUrl,
   getApiBaseUrl,
@@ -19,6 +19,7 @@ function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown>
 }
 
 afterEach(() => {
+  setApiAccessTokenProvider(null);
   jest.restoreAllMocks();
 });
 
@@ -93,10 +94,25 @@ describe('apiClient', () => {
     );
   });
 
+  it('adds the current access token when one is available', async () => {
+    const fetchFn = mockFetch({ json: async () => ({ success: true, data: [] }) });
+    setApiAccessTokenProvider(async () => 'test-token');
+
+    await apiClient.get('/family-members');
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:4000/api/family-members',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer test-token' }
+      })
+    );
+  });
+
   it('can target an alternate service base URL', async () => {
     const fetchFn = mockFetch({
       json: async () => ({ success: true, data: { ok: true } })
     });
+    setApiAccessTokenProvider(async () => 'backend-token');
 
     await request('/chat', {
       method: 'POST',
@@ -106,7 +122,10 @@ describe('apiClient', () => {
 
     expect(fetchFn).toHaveBeenCalledWith(
       'http://localhost:4200/api/chat',
-      expect.objectContaining({ method: 'POST' })
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST'
+      })
     );
   });
 

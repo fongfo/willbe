@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../auth/require-auth';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { FamilyMemberRepository } from './family-member.repository';
 import { FamilyMemberService } from './family-member.service';
@@ -19,6 +21,8 @@ familyMemberRouter.use(
     legacyHeaders: false
   })
 );
+
+familyMemberRouter.use(requireAuth);
 
 const service = new FamilyMemberService(new FamilyMemberRepository());
 
@@ -42,16 +46,16 @@ familyMemberRouter.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const member = await service.create(parsed.data);
+    const member = await service.create((req as AuthenticatedRequest).authUser.id, parsed.data);
     res.status(201).json({ success: true, data: member });
   } catch (error: unknown) {
     handleError(error, res);
   }
 });
 
-familyMemberRouter.get('/', async (_req: Request, res: Response) => {
+familyMemberRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const members = await service.list();
+    const members = await service.list((req as AuthenticatedRequest).authUser.id);
     res.status(200).json({ success: true, data: members });
   } catch (error: unknown) {
     handleError(error, res);
@@ -66,7 +70,10 @@ familyMemberRouter.get('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const member = await service.getById(parsedParams.data.id);
+    const member = await service.getById(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id
+    );
     res.status(200).json({ success: true, data: member });
   } catch (error: unknown) {
     handleError(error, res);
@@ -87,7 +94,11 @@ familyMemberRouter.patch('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const member = await service.update(parsedParams.data.id, parsedBody.data);
+    const member = await service.update(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id,
+      parsedBody.data
+    );
     res.status(200).json({ success: true, data: member });
   } catch (error: unknown) {
     handleError(error, res);
@@ -102,7 +113,7 @@ familyMemberRouter.delete('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    await service.remove(parsedParams.data.id);
+    await service.remove((req as AuthenticatedRequest).authUser.id, parsedParams.data.id);
     res.status(204).send();
   } catch (error: unknown) {
     handleError(error, res);

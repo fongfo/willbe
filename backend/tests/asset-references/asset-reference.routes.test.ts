@@ -1,10 +1,12 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/db/client';
+import { withAuth } from '../support/auth';
 
 describe('Asset Reference routes (/api/asset-references)', () => {
   beforeEach(async () => {
     await prisma.assetReference.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   afterAll(async () => {
@@ -15,7 +17,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('creates an asset reference and returns 201 with the created record', async () => {
       const app = createApp();
 
-      const res = await request(app).post('/api/asset-references').send({
+      const res = await withAuth(request(app).post('/api/asset-references')).send({
         name: 'Maybank Savings Account',
         category: 'BANK',
         locationHint: 'Top drawer, home office',
@@ -33,7 +35,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 400 with an error message when name is missing', async () => {
       const app = createApp();
 
-      const res = await request(app).post('/api/asset-references').send({
+      const res = await withAuth(request(app).post('/api/asset-references')).send({
         category: 'BANK'
       });
 
@@ -49,7 +51,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 400 when the body contains a password field', async () => {
       const app = createApp();
 
-      const res = await request(app).post('/api/asset-references').send({
+      const res = await withAuth(request(app).post('/api/asset-references')).send({
         name: 'Maybank Savings Account',
         category: 'BANK',
         password: 'super-secret'
@@ -64,7 +66,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 200 with an array of asset references', async () => {
       const app = createApp();
 
-      const res = await request(app).get('/api/asset-references');
+      const res = await withAuth(request(app).get('/api/asset-references'));
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
@@ -75,8 +77,8 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns a 404 envelope when the id does not exist', async () => {
       const app = createApp();
 
-      const res = await request(app).get(
-        '/api/asset-references/550e8400-e29b-41d4-a716-446655440000'
+      const res = await withAuth(
+        request(app).get('/api/asset-references/550e8400-e29b-41d4-a716-446655440000')
       );
 
       expect(res.status).toBe(404);
@@ -86,7 +88,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 400 when the id is malformed', async () => {
       const app = createApp();
 
-      const res = await request(app).get('/api/asset-references/not-a-uuid');
+      const res = await withAuth(request(app).get('/api/asset-references/not-a-uuid'));
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -94,11 +96,12 @@ describe('Asset Reference routes (/api/asset-references)', () => {
 
     it('returns 200 with the record when it exists', async () => {
       const app = createApp();
-      const created = await request(app)
-        .post('/api/asset-references')
+      const created = await withAuth(request(app).post('/api/asset-references'))
         .send({ name: 'Tabung Haji Account', category: 'INVESTMENT' });
 
-      const res = await request(app).get(`/api/asset-references/${created.body.data.id}`);
+      const res = await withAuth(
+        request(app).get(`/api/asset-references/${created.body.data.id}`)
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -110,8 +113,9 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 400 when the body is empty', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .patch('/api/asset-references/550e8400-e29b-41d4-a716-446655440000')
+      const res = await withAuth(
+        request(app).patch('/api/asset-references/550e8400-e29b-41d4-a716-446655440000')
+      )
         .send({});
 
       expect(res.status).toBe(400);
@@ -121,8 +125,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 400 when the id is malformed', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .patch('/api/asset-references/not-a-uuid')
+      const res = await withAuth(request(app).patch('/api/asset-references/not-a-uuid'))
         .send({ name: 'New Name' });
 
       expect(res.status).toBe(400);
@@ -132,8 +135,9 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 404 when the id is well-formed but does not exist', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .patch('/api/asset-references/550e8400-e29b-41d4-a716-446655440000')
+      const res = await withAuth(
+        request(app).patch('/api/asset-references/550e8400-e29b-41d4-a716-446655440000')
+      )
         .send({ name: 'New Name' });
 
       expect(res.status).toBe(404);
@@ -142,12 +146,12 @@ describe('Asset Reference routes (/api/asset-references)', () => {
 
     it('returns 200 with the updated record when it exists', async () => {
       const app = createApp();
-      const created = await request(app)
-        .post('/api/asset-references')
+      const created = await withAuth(request(app).post('/api/asset-references'))
         .send({ name: 'Crypto Cold Wallet', category: 'CRYPTO' });
 
-      const res = await request(app)
-        .patch(`/api/asset-references/${created.body.data.id}`)
+      const res = await withAuth(
+        request(app).patch(`/api/asset-references/${created.body.data.id}`)
+      )
         .send({ name: 'Crypto Cold Wallet (Ledger)' });
 
       expect(res.status).toBe(200);
@@ -160,8 +164,8 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns a 404 envelope when the id does not exist', async () => {
       const app = createApp();
 
-      const res = await request(app).delete(
-        '/api/asset-references/550e8400-e29b-41d4-a716-446655440000'
+      const res = await withAuth(
+        request(app).delete('/api/asset-references/550e8400-e29b-41d4-a716-446655440000')
       );
 
       expect(res.status).toBe(404);
@@ -171,7 +175,7 @@ describe('Asset Reference routes (/api/asset-references)', () => {
     it('returns 400 when the id is malformed', async () => {
       const app = createApp();
 
-      const res = await request(app).delete('/api/asset-references/not-a-uuid');
+      const res = await withAuth(request(app).delete('/api/asset-references/not-a-uuid'));
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -179,13 +183,14 @@ describe('Asset Reference routes (/api/asset-references)', () => {
 
     it('returns 204 and removes the record when it exists', async () => {
       const app = createApp();
-      const created = await request(app)
-        .post('/api/asset-references')
+      const created = await withAuth(request(app).post('/api/asset-references'))
         .send({ name: 'Vacant Land Title Deed', category: 'PROPERTY' });
 
-      const res = await request(app).delete(`/api/asset-references/${created.body.data.id}`);
-      const afterDelete = await request(app).get(
-        `/api/asset-references/${created.body.data.id}`
+      const res = await withAuth(
+        request(app).delete(`/api/asset-references/${created.body.data.id}`)
+      );
+      const afterDelete = await withAuth(
+        request(app).get(`/api/asset-references/${created.body.data.id}`)
       );
 
       expect(res.status).toBe(204);

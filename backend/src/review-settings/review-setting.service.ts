@@ -11,8 +11,8 @@ export interface ReviewSettingView {
 }
 
 export interface ReviewSettingRepositoryLike {
-  get(): Promise<ReviewSetting | null>;
-  upsert(data: UpdateReviewSettingInput): Promise<ReviewSetting>;
+  get(userId: string): Promise<ReviewSetting | null>;
+  upsert(userId: string, data: UpdateReviewSettingInput): Promise<ReviewSetting>;
 }
 
 const DEFAULT_SETTING: ReviewSettingView = {
@@ -23,12 +23,12 @@ const DEFAULT_SETTING: ReviewSettingView = {
 export class ReviewSettingService {
   constructor(private readonly repository: ReviewSettingRepositoryLike) {}
 
-  async get(): Promise<ReviewSetting | ReviewSettingView> {
-    const setting = await this.repository.get();
+  async get(userId: string): Promise<ReviewSetting | ReviewSettingView> {
+    const setting = await this.repository.get(userId);
     return setting ?? DEFAULT_SETTING;
   }
 
-  save(input: UpdateReviewSettingInput): Promise<ReviewSetting> {
-    return this.repository.upsert(input);
+  save(userId: string, input: UpdateReviewSettingInput): Promise<ReviewSetting> {
+    return this.repository.upsert(userId, input);
   }
 }

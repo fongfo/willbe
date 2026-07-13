@@ -1,10 +1,12 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/db/client';
+import { OTHER_ACCESS_TOKEN, withAuth } from '../support/auth';
 
 describe('Family Member routes (/api/family-members)', () => {
   beforeEach(async () => {
     await prisma.familyMember.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   afterAll(async () => {
@@ -18,7 +20,7 @@ describe('Family Member routes (/api/family-members)', () => {
     it('creates a family member and returns 201 with the created record', async () => {
       const app = createApp();
 
-      const res = await request(app).post('/api/family-members').send({
+      const res = await withAuth(request(app).post('/api/family-members')).send({
         name: 'Aisyah Rahman',
         relation: 'SELF',
         detail: 'Primary owner · Kuala Lumpur'
@@ -35,7 +37,7 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 400 with an error message when name is missing', async () => {
       const app = createApp();
 
-      const res = await request(app).post('/api/family-members').send({
+      const res = await withAuth(request(app).post('/api/family-members')).send({
         relation: 'SELF'
       });
 
@@ -50,7 +52,7 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 200 with an array of family members', async () => {
       const app = createApp();
 
-      const res = await request(app).get('/api/family-members');
+      const res = await withAuth(request(app).get('/api/family-members'));
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
@@ -61,8 +63,8 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns a 404 envelope when the id does not exist', async () => {
       const app = createApp();
 
-      const res = await request(app).get(
-        '/api/family-members/550e8400-e29b-41d4-a716-446655440000'
+      const res = await withAuth(
+        request(app).get('/api/family-members/550e8400-e29b-41d4-a716-446655440000')
       );
 
       expect(res.status).toBe(404);
@@ -72,7 +74,7 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 400 when the id is malformed', async () => {
       const app = createApp();
 
-      const res = await request(app).get('/api/family-members/not-a-uuid');
+      const res = await withAuth(request(app).get('/api/family-members/not-a-uuid'));
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -80,11 +82,12 @@ describe('Family Member routes (/api/family-members)', () => {
 
     it('returns 200 with the record when it exists', async () => {
       const app = createApp();
-      const created = await request(app)
-        .post('/api/family-members')
+      const created = await withAuth(request(app).post('/api/family-members'))
         .send({ name: 'Imran Rahman', relation: 'SPOUSE' });
 
-      const res = await request(app).get(`/api/family-members/${created.body.data.id}`);
+      const res = await withAuth(
+        request(app).get(`/api/family-members/${created.body.data.id}`)
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -96,8 +99,9 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 400 when the body is empty', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .patch('/api/family-members/550e8400-e29b-41d4-a716-446655440000')
+      const res = await withAuth(
+        request(app).patch('/api/family-members/550e8400-e29b-41d4-a716-446655440000')
+      )
         .send({});
 
       expect(res.status).toBe(400);
@@ -107,8 +111,7 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 400 when the id is malformed', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .patch('/api/family-members/not-a-uuid')
+      const res = await withAuth(request(app).patch('/api/family-members/not-a-uuid'))
         .send({ name: 'New Name' });
 
       expect(res.status).toBe(400);
@@ -118,8 +121,9 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 404 when the id is well-formed but does not exist', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .patch('/api/family-members/550e8400-e29b-41d4-a716-446655440000')
+      const res = await withAuth(
+        request(app).patch('/api/family-members/550e8400-e29b-41d4-a716-446655440000')
+      )
         .send({ name: 'New Name' });
 
       expect(res.status).toBe(404);
@@ -128,12 +132,12 @@ describe('Family Member routes (/api/family-members)', () => {
 
     it('returns 200 with the updated record when it exists', async () => {
       const app = createApp();
-      const created = await request(app)
-        .post('/api/family-members')
+      const created = await withAuth(request(app).post('/api/family-members'))
         .send({ name: 'Sara Abdullah', relation: 'SIBLING' });
 
-      const res = await request(app)
-        .patch(`/api/family-members/${created.body.data.id}`)
+      const res = await withAuth(
+        request(app).patch(`/api/family-members/${created.body.data.id}`)
+      )
         .send({ name: 'Sara A. Rahman' });
 
       expect(res.status).toBe(200);
@@ -146,8 +150,8 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns a 404 envelope when the id does not exist', async () => {
       const app = createApp();
 
-      const res = await request(app).delete(
-        '/api/family-members/550e8400-e29b-41d4-a716-446655440000'
+      const res = await withAuth(
+        request(app).delete('/api/family-members/550e8400-e29b-41d4-a716-446655440000')
       );
 
       expect(res.status).toBe(404);
@@ -157,7 +161,7 @@ describe('Family Member routes (/api/family-members)', () => {
     it('returns 400 when the id is malformed', async () => {
       const app = createApp();
 
-      const res = await request(app).delete('/api/family-members/not-a-uuid');
+      const res = await withAuth(request(app).delete('/api/family-members/not-a-uuid'));
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
@@ -165,15 +169,40 @@ describe('Family Member routes (/api/family-members)', () => {
 
     it('returns 204 and removes the record when it exists', async () => {
       const app = createApp();
-      const created = await request(app)
-        .post('/api/family-members')
+      const created = await withAuth(request(app).post('/api/family-members'))
         .send({ name: 'Nur Rahman', relation: 'CHILD' });
 
-      const res = await request(app).delete(`/api/family-members/${created.body.data.id}`);
-      const afterDelete = await request(app).get(`/api/family-members/${created.body.data.id}`);
+      const res = await withAuth(
+        request(app).delete(`/api/family-members/${created.body.data.id}`)
+      );
+      const afterDelete = await withAuth(
+        request(app).get(`/api/family-members/${created.body.data.id}`)
+      );
 
       expect(res.status).toBe(204);
       expect(afterDelete.status).toBe(404);
+    });
+
+    it('returns 404 when another user tries to delete the record', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/family-members')).send({
+        name: 'Private Family Member',
+        relation: 'PARENT'
+      });
+
+      const otherDelete = await withAuth(
+        request(app).delete(`/api/family-members/${created.body.data.id}`),
+        OTHER_ACCESS_TOKEN
+      );
+      const ownerList = await withAuth(request(app).get('/api/family-members'));
+      const otherList = await withAuth(
+        request(app).get('/api/family-members'),
+        OTHER_ACCESS_TOKEN
+      );
+
+      expect(otherDelete.status).toBe(404);
+      expect(ownerList.body.data).toHaveLength(1);
+      expect(otherList.body.data).toEqual([]);
     });
   });
 });

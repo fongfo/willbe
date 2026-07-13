@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../auth/require-auth';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { ReviewSettingRepository } from './review-setting.repository';
 import { ReviewSettingService } from './review-setting.service';
@@ -16,6 +18,8 @@ reviewSettingRouter.use(
   })
 );
 
+reviewSettingRouter.use(requireAuth);
+
 const service = new ReviewSettingService(new ReviewSettingRepository());
 
 function firstIssueMessage(error: { issues: { message: string }[] }): string {
@@ -30,9 +34,9 @@ function handleError(error: unknown, res: Response): void {
   res.status(500).json({ success: false, error: 'Internal server error' });
 }
 
-reviewSettingRouter.get('/', async (_req: Request, res: Response) => {
+reviewSettingRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const setting = await service.get();
+    const setting = await service.get((req as AuthenticatedRequest).authUser.id);
     res.status(200).json({ success: true, data: setting });
   } catch (error: unknown) {
     handleError(error, res);
@@ -47,7 +51,7 @@ reviewSettingRouter.put('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const setting = await service.save(parsed.data);
+    const setting = await service.save((req as AuthenticatedRequest).authUser.id, parsed.data);
     res.status(200).json({ success: true, data: setting });
   } catch (error: unknown) {
     handleError(error, res);

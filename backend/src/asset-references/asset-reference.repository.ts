@@ -17,21 +17,28 @@ function isRecordNotFoundError(error: unknown): boolean {
 }
 
 export class AssetReferenceRepository {
-  findAll(): Promise<AssetReference[]> {
-    return prisma.assetReference.findMany({ orderBy: { createdAt: 'asc' } });
+  findAll(userId: string): Promise<AssetReference[]> {
+    return prisma.assetReference.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' }
+    });
   }
 
-  findById(id: string): Promise<AssetReference | null> {
-    return prisma.assetReference.findUnique({ where: { id } });
+  findById(userId: string, id: string): Promise<AssetReference | null> {
+    return prisma.assetReference.findUnique({ where: { id_userId: { id, userId } } });
   }
 
-  create(data: CreateAssetReferenceInput): Promise<AssetReference> {
-    return prisma.assetReference.create({ data });
+  create(userId: string, data: CreateAssetReferenceInput): Promise<AssetReference> {
+    return prisma.assetReference.create({ data: { ...data, userId } });
   }
 
-  async update(id: string, data: UpdateAssetReferenceInput): Promise<AssetReference | null> {
+  async update(
+    userId: string,
+    id: string,
+    data: UpdateAssetReferenceInput
+  ): Promise<AssetReference | null> {
     try {
-      return await prisma.assetReference.update({ where: { id }, data });
+      return await prisma.assetReference.update({ where: { id_userId: { id, userId } }, data });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {
         return null;
@@ -40,9 +47,9 @@ export class AssetReferenceRepository {
     }
   }
 
-  async delete(id: string): Promise<AssetReference | null> {
+  async delete(userId: string, id: string): Promise<AssetReference | null> {
     try {
-      return await prisma.assetReference.delete({ where: { id } });
+      return await prisma.assetReference.delete({ where: { id_userId: { id, userId } } });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {
         return null;

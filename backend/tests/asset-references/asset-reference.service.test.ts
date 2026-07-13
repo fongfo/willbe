@@ -36,6 +36,7 @@ const sampleAssetReference = {
 };
 
 describe('AssetReferenceService', () => {
+  const userId = 'user-1';
   let repository: MockAssetReferenceRepository;
   let service: AssetReferenceService;
 
@@ -49,9 +50,9 @@ describe('AssetReferenceService', () => {
       const assetReferences = [sampleAssetReference];
       repository.findAll.mockResolvedValue(assetReferences);
 
-      const result = await service.list();
+      const result = await service.list(userId);
 
-      expect(repository.findAll).toHaveBeenCalledTimes(1);
+      expect(repository.findAll).toHaveBeenCalledWith(userId);
       expect(result).toBe(assetReferences);
     });
   });
@@ -60,19 +61,19 @@ describe('AssetReferenceService', () => {
     it('returns the asset reference when repository.findById resolves to a record', async () => {
       repository.findById.mockResolvedValue(sampleAssetReference);
 
-      const result = await service.getById(sampleAssetReference.id);
+      const result = await service.getById(userId, sampleAssetReference.id);
 
-      expect(repository.findById).toHaveBeenCalledWith(sampleAssetReference.id);
+      expect(repository.findById).toHaveBeenCalledWith(userId, sampleAssetReference.id);
       expect(result).toBe(sampleAssetReference);
     });
 
     it('throws HttpError with status 404 when repository.findById resolves to null', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.getById('missing-id')).rejects.toMatchObject({
+      await expect(service.getById(userId, 'missing-id')).rejects.toMatchObject({
         status: 404
       });
-      await expect(service.getById('missing-id')).rejects.toBeInstanceOf(HttpError);
+      await expect(service.getById(userId, 'missing-id')).rejects.toBeInstanceOf(HttpError);
     });
   });
 
@@ -86,9 +87,9 @@ describe('AssetReferenceService', () => {
       };
       repository.create.mockResolvedValue(sampleAssetReference);
 
-      const result = await service.create(input);
+      const result = await service.create(userId, input);
 
-      expect(repository.create).toHaveBeenCalledWith(input);
+      expect(repository.create).toHaveBeenCalledWith(userId, input);
       expect(result).toBe(sampleAssetReference);
     });
   });
@@ -98,10 +99,10 @@ describe('AssetReferenceService', () => {
       repository.update.mockResolvedValue(null);
 
       await expect(
-        service.update(sampleAssetReference.id, { name: 'New Name' })
+        service.update(userId, sampleAssetReference.id, { name: 'New Name' })
       ).rejects.toMatchObject({ status: 404 });
       await expect(
-        service.update(sampleAssetReference.id, { name: 'New Name' })
+        service.update(userId, sampleAssetReference.id, { name: 'New Name' })
       ).rejects.toBeInstanceOf(HttpError);
     });
 
@@ -109,9 +110,13 @@ describe('AssetReferenceService', () => {
       const updated = { ...sampleAssetReference, name: 'New Name' };
       repository.update.mockResolvedValue(updated);
 
-      const result = await service.update(sampleAssetReference.id, { name: 'New Name' });
+      const result = await service.update(userId, sampleAssetReference.id, {
+        name: 'New Name'
+      });
 
-      expect(repository.update).toHaveBeenCalledWith(sampleAssetReference.id, { name: 'New Name' });
+      expect(repository.update).toHaveBeenCalledWith(userId, sampleAssetReference.id, {
+        name: 'New Name'
+      });
       expect(result).toBe(updated);
     });
   });
@@ -120,10 +125,12 @@ describe('AssetReferenceService', () => {
     it('throws HttpError(404) when repository.delete resolves to null (not-found signal)', async () => {
       repository.delete.mockResolvedValue(null);
 
-      await expect(service.remove(sampleAssetReference.id)).rejects.toMatchObject({
+      await expect(service.remove(userId, sampleAssetReference.id)).rejects.toMatchObject({
         status: 404
       });
-      await expect(service.remove(sampleAssetReference.id)).rejects.toBeInstanceOf(HttpError);
+      await expect(service.remove(userId, sampleAssetReference.id)).rejects.toBeInstanceOf(
+        HttpError
+      );
     });
   });
 });

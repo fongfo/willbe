@@ -5,6 +5,7 @@ import type { AssetReferenceModel as AssetReference } from '../../src/generated/
 function contact(overrides: Partial<TrustedContact>): TrustedContact {
   return {
     id: 'c1',
+    userId: 'user-1',
     name: 'Imran Rahman',
     relation: 'SPOUSE',
     role: 'PRIMARY',
@@ -21,6 +22,7 @@ function contact(overrides: Partial<TrustedContact>): TrustedContact {
 function asset(overrides: Partial<AssetReference>): AssetReference {
   return {
     id: 'a1',
+    userId: 'user-1',
     name: 'Maybank — main account',
     category: 'BANK',
     locationHint: '▸ Drive ▸ Family ▸ Banking',

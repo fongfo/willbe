@@ -25,12 +25,16 @@ enum Relation {
 
 model FamilyMember {
   id        String   @id @default(uuid())
+  userId    String
   name      String
   relation  Relation
   detail    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([id, userId])
+  @@index([userId])
   @@map("family_members")
 }
 
@@ -46,6 +50,7 @@ enum VerificationStatus {
 
 model TrustedContact {
   id                 String             @id @default(uuid())
+  userId             String
   name               String
   relation           Relation
   role               ContactRole
@@ -55,7 +60,10 @@ model TrustedContact {
   detail             String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([id, userId])
+  @@index([userId])
   @@map("trusted_contacts")
 }
 
@@ -70,13 +78,17 @@ enum AssetCategory {
 
 model AssetReference {
   id           String         @id @default(uuid())
+  userId       String
   name         String
   category     AssetCategory
   locationHint String?
   detail       String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([id, userId])
+  @@index([userId])
   @@map("asset_references")
 }
 
@@ -94,16 +106,14 @@ enum CloudProvider {
   ICLOUD
 }
 
-// Single global record (no per-user scoping yet): the plan's review cadence and
-// the set of cloud-storage providers the user has linked. Cloud "integration" here
-// is a reference only — we store which providers are connected, never credentials
-// or file contents — consistent with the asset-reference philosophy.
 model ReviewSetting {
   id                 String           @id @default(uuid())
+  userId             String           @unique
   checkInFrequency   CheckInFrequency @default(EVERY_6_MONTHS)
   connectedProviders CloudProvider[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("review_settings")
 }
@@ -116,6 +126,10 @@ model User {
   walletAddress String?  @unique
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  familyMembers FamilyMember[]
+  trustedContacts TrustedContact[]
+  assetReferences AssetReference[]
+  reviewSetting ReviewSetting?
 
   @@map("users")
 }
