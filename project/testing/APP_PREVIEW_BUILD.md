@@ -7,8 +7,12 @@ This note tracks the first tester-facing app package for WB-44.
 - Health check: `https://willbe-staging.up.railway.app/health`
 - App API base URL: `https://willbe-staging.up.railway.app/api`
 - EAS preview profile variable: `EXPO_PUBLIC_API_URL=https://willbe-staging.up.railway.app/api`
+- AI health check: `https://ai-staging-5843.up.railway.app/health`
+- AI API base URL: `https://ai-staging-5843.up.railway.app/api`
+- EAS preview profile variable: `EXPO_PUBLIC_AI_API_URL=https://ai-staging-5843.up.railway.app/api`
 
 The staging backend health check was verified on 2026-07-11.
+The staging AI health check and `/api/chat` endpoint were verified on 2026-07-13.
 
 ## First Android QA Scope
 
@@ -20,12 +24,13 @@ Include these flows in the first Android preview build:
 - Asset references CRUD
 - Readiness score based on local/backend data
 - Emergency handover preview
-- Email/wallet account flow only if Privy staging values are configured before build time
-
-Exclude these flows until their services are deployed:
-
 - AI assistant chat
 - AI gap explanations
+- Email account registration/login through Privy
+- Account profile/session display after backend session creation
+
+Exclude these flows until their services are configured:
+
 - iOS TestFlight distribution
 
 ## Build Prerequisites
@@ -33,9 +38,15 @@ Exclude these flows until their services are deployed:
 Set these values before creating the preview build:
 
 - `EXPO_PUBLIC_API_URL=https://willbe-staging.up.railway.app/api`
-- `EXPO_PUBLIC_PRIVY_APP_ID` if testing account/wallet login
-- `EXPO_PUBLIC_PRIVY_CLIENT_ID` if testing account/wallet login
-- `EXPO_PUBLIC_AI_API_URL` only after the AI service has a staging URL
+- `EXPO_PUBLIC_AI_API_URL=https://ai-staging-5843.up.railway.app/api`
+- `EXPO_PUBLIC_PRIVY_APP_ID=cmqriwky5001t0dlb4153zpfh`
+- `EXPO_PUBLIC_PRIVY_CLIENT_ID=client-WY6aTvQCE95RSj6gGMpWj7gY5Ve1iBgiKiB6eS42xaqTS`
+
+The backend Railway service must also have Privy server-side variables configured:
+
+- `PRIVY_APP_ID`
+- `PRIVY_APP_SECRET`
+- `PRIVY_JWT_VERIFICATION_KEY` when provided by Privy
 
 The app identity for the preview build is:
 
@@ -80,6 +91,22 @@ The `preview` profile uses internal distribution and produces an Android APK.
 - APK: `https://expo.dev/artifacts/eas/-N1rEY1bcy7LRPsH5h7uYwE2PcUcV-P27ifNapNcXtM.apk`
 - Completed at: `2026-07-12T09:52:13.935Z`
 - Expires at: `2026-07-26T09:40:12.309Z`
+
+## WB-45 Build 2
+
+- EAS project: `@fongfo/pusaka`
+- EAS project ID: `f6714268-b2de-444d-871c-4a4e006972dc`
+- Build ID: `481b1557-1607-4478-b1cf-e675ffda3be3`
+- Build profile: `preview`
+- Platform: Android
+- Distribution: internal
+- Git commit: `548bbd6f6d9a0ba53185f55e2b588c5ac24f2dfd`
+- APK: `https://expo.dev/artifacts/eas/Xky39JYDOHkJWcP28VSlSjLXhphWwzcCOUroyGSuqOw.apk`
+- Backend API: `https://willbe-staging.up.railway.app/api`
+- AI API: `https://ai-staging-5843.up.railway.app/api`
+- Account provider: Privy staging app `cmqriwky5001t0dlb4153zpfh`
+- Completed at: `2026-07-13T04:52:35.684Z`
+- Expires at: `2026-07-27T04:45:04.578Z`
 
 ## Tester Handoff Template
 
