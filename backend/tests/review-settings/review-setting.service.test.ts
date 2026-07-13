@@ -21,6 +21,7 @@ const sampleSetting = {
 };
 
 describe('ReviewSettingService', () => {
+  const userId = 'user-1';
   let repository: MockReviewSettingRepository;
   let service: ReviewSettingService;
 
@@ -33,16 +34,16 @@ describe('ReviewSettingService', () => {
     it('returns the persisted setting when one exists', async () => {
       repository.get.mockResolvedValue(sampleSetting);
 
-      const result = await service.get();
+      const result = await service.get(userId);
 
-      expect(repository.get).toHaveBeenCalledTimes(1);
+      expect(repository.get).toHaveBeenCalledWith(userId);
       expect(result).toBe(sampleSetting);
     });
 
     it('returns a sensible default when no setting has been saved', async () => {
       repository.get.mockResolvedValue(null);
 
-      const result = await service.get();
+      const result = await service.get(userId);
 
       expect(result).toEqual({
         checkInFrequency: 'EVERY_6_MONTHS',
@@ -60,9 +61,9 @@ describe('ReviewSettingService', () => {
       };
       repository.upsert.mockResolvedValue({ ...sampleSetting, ...input });
 
-      const result = await service.save(input);
+      const result = await service.save(userId, input);
 
-      expect(repository.upsert).toHaveBeenCalledWith(input);
+      expect(repository.upsert).toHaveBeenCalledWith(userId, input);
       expect(result).toMatchObject(input);
     });
   });

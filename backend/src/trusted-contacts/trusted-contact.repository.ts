@@ -18,21 +18,28 @@ function isRecordNotFoundError(error: unknown): boolean {
 }
 
 export class TrustedContactRepository {
-  findAll(): Promise<TrustedContact[]> {
-    return prisma.trustedContact.findMany({ orderBy: { createdAt: 'asc' } });
+  findAll(userId: string): Promise<TrustedContact[]> {
+    return prisma.trustedContact.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' }
+    });
   }
 
-  findById(id: string): Promise<TrustedContact | null> {
-    return prisma.trustedContact.findUnique({ where: { id } });
+  findById(userId: string, id: string): Promise<TrustedContact | null> {
+    return prisma.trustedContact.findUnique({ where: { id_userId: { id, userId } } });
   }
 
-  create(data: CreateTrustedContactInput): Promise<TrustedContact> {
-    return prisma.trustedContact.create({ data });
+  create(userId: string, data: CreateTrustedContactInput): Promise<TrustedContact> {
+    return prisma.trustedContact.create({ data: { ...data, userId } });
   }
 
-  async update(id: string, data: UpdateTrustedContactInput): Promise<TrustedContact | null> {
+  async update(
+    userId: string,
+    id: string,
+    data: UpdateTrustedContactInput
+  ): Promise<TrustedContact | null> {
     try {
-      return await prisma.trustedContact.update({ where: { id }, data });
+      return await prisma.trustedContact.update({ where: { id_userId: { id, userId } }, data });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {
         return null;
@@ -41,9 +48,9 @@ export class TrustedContactRepository {
     }
   }
 
-  async delete(id: string): Promise<TrustedContact | null> {
+  async delete(userId: string, id: string): Promise<TrustedContact | null> {
     try {
-      return await prisma.trustedContact.delete({ where: { id } });
+      return await prisma.trustedContact.delete({ where: { id_userId: { id, userId } } });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {
         return null;
@@ -52,10 +59,10 @@ export class TrustedContactRepository {
     }
   }
 
-  async markVerified(id: string): Promise<TrustedContact | null> {
+  async markVerified(userId: string, id: string): Promise<TrustedContact | null> {
     try {
       return await prisma.trustedContact.update({
-        where: { id },
+        where: { id_userId: { id, userId } },
         data: { verificationStatus: VerificationStatus.VERIFIED }
       });
     } catch (error: unknown) {

@@ -1,10 +1,12 @@
 import request from 'supertest';
 import { createApp } from '../../src/app';
 import { prisma } from '../../src/db/client';
+import { OTHER_ACCESS_TOKEN, withAuth } from '../support/auth';
 
 describe('Review Setting routes (/api/review-settings)', () => {
   beforeEach(async () => {
     await prisma.reviewSetting.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   afterAll(async () => {
@@ -15,7 +17,7 @@ describe('Review Setting routes (/api/review-settings)', () => {
     it('returns 200 with default settings when none have been saved', async () => {
       const app = createApp();
 
-      const res = await request(app).get('/api/review-settings');
+      const res = await withAuth(request(app).get('/api/review-settings'));
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -28,7 +30,7 @@ describe('Review Setting routes (/api/review-settings)', () => {
     it('creates the singleton on first save and returns 200 with the record', async () => {
       const app = createApp();
 
-      const res = await request(app).put('/api/review-settings').send({
+      const res = await withAuth(request(app).put('/api/review-settings')).send({
         checkInFrequency: 'EVERY_3_MONTHS',
         connectedProviders: ['GOOGLE_DRIVE', 'ONEDRIVE']
       });
@@ -43,15 +45,13 @@ describe('Review Setting routes (/api/review-settings)', () => {
     it('replaces the existing singleton instead of creating a second row', async () => {
       const app = createApp();
 
-      await request(app)
-        .put('/api/review-settings')
+      await withAuth(request(app).put('/api/review-settings'))
         .send({ checkInFrequency: 'EVERY_3_MONTHS', connectedProviders: ['GOOGLE_DRIVE'] });
 
-      const second = await request(app)
-        .put('/api/review-settings')
+      const second = await withAuth(request(app).put('/api/review-settings'))
         .send({ checkInFrequency: 'CUSTOM_ANNUAL', connectedProviders: [] });
 
-      const after = await request(app).get('/api/review-settings');
+      const after = await withAuth(request(app).get('/api/review-settings'));
       const count = await prisma.reviewSetting.count();
 
       expect(second.status).toBe(200);
@@ -63,8 +63,7 @@ describe('Review Setting routes (/api/review-settings)', () => {
     it('returns 400 when the frequency is invalid', async () => {
       const app = createApp();
 
-      const res = await request(app)
-        .put('/api/review-settings')
+      const res = await withAuth(request(app).put('/api/review-settings'))
         .send({ checkInFrequency: 'WEEKLY', connectedProviders: [] });
 
       expect(res.status).toBe(400);
@@ -75,7 +74,7 @@ describe('Review Setting routes (/api/review-settings)', () => {
     it('returns 400 when the body contains an unexpected field', async () => {
       const app = createApp();
 
-      const res = await request(app).put('/api/review-settings').send({
+      const res = await withAuth(request(app).put('/api/review-settings')).send({
         checkInFrequency: 'EVERY_6_MONTHS',
         connectedProviders: ['GOOGLE_DRIVE'],
         accessToken: 'super-secret'
@@ -83,6 +82,30 @@ describe('Review Setting routes (/api/review-settings)', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
+    });
+
+    it('keeps review settings separate per authenticated user', async () => {
+      const app = createApp();
+
+      await withAuth(request(app).put('/api/review-settings')).send({
+        checkInFrequency: 'EVERY_3_MONTHS',
+        connectedProviders: ['GOOGLE_DRIVE']
+      });
+      await withAuth(request(app).put('/api/review-settings'), OTHER_ACCESS_TOKEN).send({
+        checkInFrequency: 'CUSTOM_ANNUAL',
+        connectedProviders: []
+      });
+
+      const owner = await withAuth(request(app).get('/api/review-settings'));
+      const other = await withAuth(
+        request(app).get('/api/review-settings'),
+        OTHER_ACCESS_TOKEN
+      );
+      const count = await prisma.reviewSetting.count();
+
+      expect(owner.body.data.checkInFrequency).toBe('EVERY_3_MONTHS');
+      expect(other.body.data.checkInFrequency).toBe('CUSTOM_ANNUAL');
+      expect(count).toBe(2);
     });
   });
 });

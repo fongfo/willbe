@@ -41,6 +41,7 @@ const sampleContact = {
 };
 
 describe('TrustedContactService', () => {
+  const userId = 'user-1';
   let repository: MockTrustedContactRepository;
   let service: TrustedContactService;
 
@@ -54,9 +55,9 @@ describe('TrustedContactService', () => {
       const contacts = [sampleContact];
       repository.findAll.mockResolvedValue(contacts);
 
-      const result = await service.list();
+      const result = await service.list(userId);
 
-      expect(repository.findAll).toHaveBeenCalledTimes(1);
+      expect(repository.findAll).toHaveBeenCalledWith(userId);
       expect(result).toBe(contacts);
     });
   });
@@ -65,19 +66,19 @@ describe('TrustedContactService', () => {
     it('returns the contact when repository.findById resolves to a record', async () => {
       repository.findById.mockResolvedValue(sampleContact);
 
-      const result = await service.getById(sampleContact.id);
+      const result = await service.getById(userId, sampleContact.id);
 
-      expect(repository.findById).toHaveBeenCalledWith(sampleContact.id);
+      expect(repository.findById).toHaveBeenCalledWith(userId, sampleContact.id);
       expect(result).toBe(sampleContact);
     });
 
     it('throws HttpError with status 404 when repository.findById resolves to null', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.getById('missing-id')).rejects.toMatchObject({
+      await expect(service.getById(userId, 'missing-id')).rejects.toMatchObject({
         status: 404
       });
-      await expect(service.getById('missing-id')).rejects.toBeInstanceOf(HttpError);
+      await expect(service.getById(userId, 'missing-id')).rejects.toBeInstanceOf(HttpError);
     });
   });
 
@@ -91,9 +92,9 @@ describe('TrustedContactService', () => {
       };
       repository.create.mockResolvedValue(sampleContact);
 
-      const result = await service.create(input);
+      const result = await service.create(userId, input);
 
-      expect(repository.create).toHaveBeenCalledWith(input);
+      expect(repository.create).toHaveBeenCalledWith(userId, input);
       expect(result).toBe(sampleContact);
     });
   });
@@ -103,10 +104,10 @@ describe('TrustedContactService', () => {
       repository.update.mockResolvedValue(null);
 
       await expect(
-        service.update(sampleContact.id, { name: 'New Name' })
+        service.update(userId, sampleContact.id, { name: 'New Name' })
       ).rejects.toMatchObject({ status: 404 });
       await expect(
-        service.update(sampleContact.id, { name: 'New Name' })
+        service.update(userId, sampleContact.id, { name: 'New Name' })
       ).rejects.toBeInstanceOf(HttpError);
     });
 
@@ -114,9 +115,11 @@ describe('TrustedContactService', () => {
       const updated = { ...sampleContact, name: 'New Name' };
       repository.update.mockResolvedValue(updated);
 
-      const result = await service.update(sampleContact.id, { name: 'New Name' });
+      const result = await service.update(userId, sampleContact.id, { name: 'New Name' });
 
-      expect(repository.update).toHaveBeenCalledWith(sampleContact.id, { name: 'New Name' });
+      expect(repository.update).toHaveBeenCalledWith(userId, sampleContact.id, {
+        name: 'New Name'
+      });
       expect(result).toBe(updated);
     });
   });
@@ -125,8 +128,10 @@ describe('TrustedContactService', () => {
     it('throws HttpError(404) when repository.delete resolves to null (not-found signal)', async () => {
       repository.delete.mockResolvedValue(null);
 
-      await expect(service.remove(sampleContact.id)).rejects.toMatchObject({ status: 404 });
-      await expect(service.remove(sampleContact.id)).rejects.toBeInstanceOf(HttpError);
+      await expect(service.remove(userId, sampleContact.id)).rejects.toMatchObject({
+        status: 404
+      });
+      await expect(service.remove(userId, sampleContact.id)).rejects.toBeInstanceOf(HttpError);
     });
   });
 
@@ -134,17 +139,17 @@ describe('TrustedContactService', () => {
     it('throws HttpError(404) when repository.markVerified resolves to null (not-found signal)', async () => {
       repository.markVerified.mockResolvedValue(null);
 
-      await expect(service.verify('missing-id')).rejects.toMatchObject({ status: 404 });
-      await expect(service.verify('missing-id')).rejects.toBeInstanceOf(HttpError);
+      await expect(service.verify(userId, 'missing-id')).rejects.toMatchObject({ status: 404 });
+      await expect(service.verify(userId, 'missing-id')).rejects.toBeInstanceOf(HttpError);
     });
 
     it('returns the verified contact when repository.markVerified resolves to a record', async () => {
       const verified = { ...sampleContact, verificationStatus: 'VERIFIED' };
       repository.markVerified.mockResolvedValue(verified);
 
-      const result = await service.verify(sampleContact.id);
+      const result = await service.verify(userId, sampleContact.id);
 
-      expect(repository.markVerified).toHaveBeenCalledWith(sampleContact.id);
+      expect(repository.markVerified).toHaveBeenCalledWith(userId, sampleContact.id);
       expect(result).toBe(verified);
     });
   });

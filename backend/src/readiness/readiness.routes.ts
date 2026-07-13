@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../auth/require-auth';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { FamilyMemberRepository } from '../family-members/family-member.repository';
 import { TrustedContactRepository } from '../trusted-contacts/trusted-contact.repository';
@@ -18,6 +20,8 @@ readinessRouter.use(
   })
 );
 
+readinessRouter.use(requireAuth);
+
 const service = new ReadinessService({
   familyMembers: new FamilyMemberRepository(),
   trustedContacts: new TrustedContactRepository(),
@@ -33,9 +37,9 @@ function handleError(error: unknown, res: Response): void {
   res.status(500).json({ success: false, error: 'Internal server error' });
 }
 
-readinessRouter.get('/', async (_req: Request, res: Response) => {
+readinessRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const assessment = await service.assess();
+    const assessment = await service.assess((req as AuthenticatedRequest).authUser.id);
     res.status(200).json({ success: true, data: assessment });
   } catch (error: unknown) {
     handleError(error, res);

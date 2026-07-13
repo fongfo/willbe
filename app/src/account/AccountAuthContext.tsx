@@ -8,6 +8,7 @@ import {
   useRef,
   useState
 } from 'react';
+import { setApiAccessTokenProvider } from '../api/client';
 import { shouldUsePrivyRuntime } from '../privy/privyConfig';
 import { createPrivyAccountSession } from './auth.api';
 import type { AccountUser, AuthSession } from './auth.types';
@@ -98,11 +99,21 @@ function mergeWalletAddress(session: AuthSession, walletAddress?: string): AuthS
 
 function DevAccountAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(devSession);
+  const sessionRef = useRef<AuthSession | null>(devSession);
 
   function setSession(nextSession: AuthSession | null): void {
     devSession = nextSession;
+    sessionRef.current = nextSession;
     setSessionState(nextSession);
   }
+
+  useEffect(() => {
+    setApiAccessTokenProvider(async () => {
+      const email = sessionRef.current?.user.email;
+      return email ? `dev:${encodeURIComponent(email)}` : null;
+    });
+    return () => setApiAccessTokenProvider(null);
+  }, []);
 
   const value = useMemo<AccountAuthContextValue>(
     () => ({
@@ -160,6 +171,11 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
         ? 'authenticated'
         : 'unauthenticated';
   const currentUser = status === 'authenticated' ? session?.user ?? null : null;
+
+  useEffect(() => {
+    setApiAccessTokenProvider(() => getAccessToken());
+    return () => setApiAccessTokenProvider(null);
+  }, [getAccessToken]);
 
   const createBackendSession = useCallback(async (): Promise<AuthSession> => {
     if (sessionRequestRef.current) {

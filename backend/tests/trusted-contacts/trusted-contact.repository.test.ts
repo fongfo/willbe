@@ -41,6 +41,7 @@ const sampleContact = {
 
 describe('TrustedContactRepository', () => {
   const repository = new TrustedContactRepository();
+  const userId = 'user-1';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +51,7 @@ describe('TrustedContactRepository', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.update as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.update('missing-id', { name: 'New Name' });
+      const result = await repository.update(userId, 'missing-id', { name: 'New Name' });
 
       expect(result).toBeNull();
     });
@@ -58,7 +59,7 @@ describe('TrustedContactRepository', () => {
     it('rethrows other Prisma errors', async () => {
       (prisma.trustedContact.update as jest.Mock).mockRejectedValue(otherKnownError());
 
-      await expect(repository.update('some-id', { name: 'New Name' })).rejects.toThrow(
+      await expect(repository.update(userId, 'some-id', { name: 'New Name' })).rejects.toThrow(
         'Unique constraint failed.'
       );
     });
@@ -68,7 +69,7 @@ describe('TrustedContactRepository', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.delete as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.delete('missing-id');
+      const result = await repository.delete(userId, 'missing-id');
 
       expect(result).toBeNull();
     });
@@ -76,7 +77,9 @@ describe('TrustedContactRepository', () => {
     it('rethrows other Prisma errors', async () => {
       (prisma.trustedContact.delete as jest.Mock).mockRejectedValue(otherKnownError());
 
-      await expect(repository.delete('some-id')).rejects.toThrow('Unique constraint failed.');
+      await expect(repository.delete(userId, 'some-id')).rejects.toThrow(
+        'Unique constraint failed.'
+      );
     });
   });
 
@@ -85,10 +88,10 @@ describe('TrustedContactRepository', () => {
       const verified = { ...sampleContact, verificationStatus: 'VERIFIED' };
       (prisma.trustedContact.update as jest.Mock).mockResolvedValue(verified);
 
-      const result = await repository.markVerified(sampleContact.id);
+      const result = await repository.markVerified(userId, sampleContact.id);
 
       expect(prisma.trustedContact.update).toHaveBeenCalledWith({
-        where: { id: sampleContact.id },
+        where: { id_userId: { id: sampleContact.id, userId } },
         data: { verificationStatus: 'VERIFIED' }
       });
       expect(result).toBe(verified);
@@ -97,7 +100,7 @@ describe('TrustedContactRepository', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.update as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.markVerified('missing-id');
+      const result = await repository.markVerified(userId, 'missing-id');
 
       expect(result).toBeNull();
     });
@@ -105,7 +108,7 @@ describe('TrustedContactRepository', () => {
     it('rethrows other Prisma errors', async () => {
       (prisma.trustedContact.update as jest.Mock).mockRejectedValue(otherKnownError());
 
-      await expect(repository.markVerified('some-id')).rejects.toThrow(
+      await expect(repository.markVerified(userId, 'some-id')).rejects.toThrow(
         'Unique constraint failed.'
       );
     });

@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../auth/require-auth';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { AssetReferenceRepository } from './asset-reference.repository';
 import { AssetReferenceService } from './asset-reference.service';
@@ -19,6 +21,8 @@ assetReferenceRouter.use(
     legacyHeaders: false
   })
 );
+
+assetReferenceRouter.use(requireAuth);
 
 const service = new AssetReferenceService(new AssetReferenceRepository());
 
@@ -42,16 +46,16 @@ assetReferenceRouter.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const reference = await service.create(parsed.data);
+    const reference = await service.create((req as AuthenticatedRequest).authUser.id, parsed.data);
     res.status(201).json({ success: true, data: reference });
   } catch (error: unknown) {
     handleError(error, res);
   }
 });
 
-assetReferenceRouter.get('/', async (_req: Request, res: Response) => {
+assetReferenceRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const references = await service.list();
+    const references = await service.list((req as AuthenticatedRequest).authUser.id);
     res.status(200).json({ success: true, data: references });
   } catch (error: unknown) {
     handleError(error, res);
@@ -66,7 +70,10 @@ assetReferenceRouter.get('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const reference = await service.getById(parsedParams.data.id);
+    const reference = await service.getById(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id
+    );
     res.status(200).json({ success: true, data: reference });
   } catch (error: unknown) {
     handleError(error, res);
@@ -87,7 +94,11 @@ assetReferenceRouter.patch('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const reference = await service.update(parsedParams.data.id, parsedBody.data);
+    const reference = await service.update(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id,
+      parsedBody.data
+    );
     res.status(200).json({ success: true, data: reference });
   } catch (error: unknown) {
     handleError(error, res);
@@ -102,7 +113,7 @@ assetReferenceRouter.delete('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    await service.remove(parsedParams.data.id);
+    await service.remove((req as AuthenticatedRequest).authUser.id, parsedParams.data.id);
     res.status(204).send();
   } catch (error: unknown) {
     handleError(error, res);

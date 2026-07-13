@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../auth/require-auth';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { TrustedContactRepository } from '../trusted-contacts/trusted-contact.repository';
 import { AssetReferenceRepository } from '../asset-references/asset-reference.repository';
@@ -16,6 +18,8 @@ handoverRouter.use(
   })
 );
 
+handoverRouter.use(requireAuth);
+
 const service = new HandoverService({
   trustedContacts: new TrustedContactRepository(),
   assetReferences: new AssetReferenceRepository()
@@ -29,9 +33,9 @@ function handleError(error: unknown, res: Response): void {
   res.status(500).json({ success: false, error: 'Internal server error' });
 }
 
-handoverRouter.get('/', async (_req: Request, res: Response) => {
+handoverRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const view = await service.preview();
+    const view = await service.preview((req as AuthenticatedRequest).authUser.id);
     res.status(200).json({ success: true, data: view });
   } catch (error: unknown) {
     handleError(error, res);

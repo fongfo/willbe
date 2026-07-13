@@ -25,6 +25,14 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
+type AccessTokenProvider = () => Promise<string | null | undefined>;
+
+let accessTokenProvider: AccessTokenProvider | null = null;
+
+export function setApiAccessTokenProvider(provider: AccessTokenProvider | null): void {
+  accessTokenProvider = provider;
+}
+
 function buildUrl(path: string, baseUrl: string): string {
   const suffix = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${suffix}`;
@@ -69,12 +77,15 @@ export async function request<T>(
     baseUrl = getApiBaseUrl(),
     headers
   } = options;
+  const shouldAttachAccessToken = baseUrl === getApiBaseUrl() && !headers?.Authorization;
+  const accessToken = shouldAttachAccessToken ? await accessTokenProvider?.() : undefined;
 
   const response = await fetch(buildUrl(path, baseUrl), {
     method,
     signal,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : undefined),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined),
       ...headers
     },
     body: body ? JSON.stringify(body) : undefined

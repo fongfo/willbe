@@ -1,9 +1,8 @@
 jest.mock('../../src/db/client', () => ({
   prisma: {
     reviewSetting: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn()
+      findUnique: jest.fn(),
+      upsert: jest.fn()
     }
   }
 }));
@@ -13,9 +12,8 @@ import { ReviewSettingRepository } from '../../src/review-settings/review-settin
 
 const mockedPrisma = prisma as unknown as {
   reviewSetting: {
-    findFirst: jest.Mock;
-    create: jest.Mock;
-    update: jest.Mock;
+    findUnique: jest.Mock;
+    upsert: jest.Mock;
   };
 };
 
@@ -29,6 +27,7 @@ const sampleSetting = {
 
 describe('ReviewSettingRepository', () => {
   let repository: ReviewSettingRepository;
+  const userId = 'user-1';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,19 +35,21 @@ describe('ReviewSettingRepository', () => {
   });
 
   describe('get', () => {
-    it('returns the singleton via findFirst', async () => {
-      mockedPrisma.reviewSetting.findFirst.mockResolvedValue(sampleSetting);
+    it('returns the user setting via findUnique', async () => {
+      mockedPrisma.reviewSetting.findUnique.mockResolvedValue(sampleSetting);
 
-      const result = await repository.get();
+      const result = await repository.get(userId);
 
-      expect(mockedPrisma.reviewSetting.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.reviewSetting.findUnique).toHaveBeenCalledWith({
+        where: { userId }
+      });
       expect(result).toBe(sampleSetting);
     });
 
     it('returns null when no setting has been saved', async () => {
-      mockedPrisma.reviewSetting.findFirst.mockResolvedValue(null);
+      mockedPrisma.reviewSetting.findUnique.mockResolvedValue(null);
 
-      const result = await repository.get();
+      const result = await repository.get(userId);
 
       expect(result).toBeNull();
     });
@@ -60,28 +61,16 @@ describe('ReviewSettingRepository', () => {
       connectedProviders: ['DROPBOX' as const]
     };
 
-    it('creates a new row when none exists', async () => {
-      mockedPrisma.reviewSetting.findFirst.mockResolvedValue(null);
-      mockedPrisma.reviewSetting.create.mockResolvedValue({ ...sampleSetting, ...input });
+    it('upserts by user id', async () => {
+      mockedPrisma.reviewSetting.upsert.mockResolvedValue({ ...sampleSetting, ...input });
 
-      const result = await repository.upsert(input);
+      const result = await repository.upsert(userId, input);
 
-      expect(mockedPrisma.reviewSetting.create).toHaveBeenCalledWith({ data: input });
-      expect(mockedPrisma.reviewSetting.update).not.toHaveBeenCalled();
-      expect(result).toMatchObject(input);
-    });
-
-    it('updates the existing row when one exists', async () => {
-      mockedPrisma.reviewSetting.findFirst.mockResolvedValue(sampleSetting);
-      mockedPrisma.reviewSetting.update.mockResolvedValue({ ...sampleSetting, ...input });
-
-      const result = await repository.upsert(input);
-
-      expect(mockedPrisma.reviewSetting.update).toHaveBeenCalledWith({
-        where: { id: sampleSetting.id },
-        data: input
+      expect(mockedPrisma.reviewSetting.upsert).toHaveBeenCalledWith({
+        where: { userId },
+        create: { ...input, userId },
+        update: input
       });
-      expect(mockedPrisma.reviewSetting.create).not.toHaveBeenCalled();
       expect(result).toMatchObject(input);
     });
   });

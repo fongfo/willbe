@@ -6,12 +6,16 @@ import type {
 } from './trusted-contact.schema';
 
 export interface TrustedContactRepositoryLike {
-  findAll(): Promise<TrustedContact[]>;
-  findById(id: string): Promise<TrustedContact | null>;
-  create(data: CreateTrustedContactInput): Promise<TrustedContact>;
-  update(id: string, data: UpdateTrustedContactInput): Promise<TrustedContact | null>;
-  delete(id: string): Promise<TrustedContact | null>;
-  markVerified(id: string): Promise<TrustedContact | null>;
+  findAll(userId: string): Promise<TrustedContact[]>;
+  findById(userId: string, id: string): Promise<TrustedContact | null>;
+  create(userId: string, data: CreateTrustedContactInput): Promise<TrustedContact>;
+  update(
+    userId: string,
+    id: string,
+    data: UpdateTrustedContactInput
+  ): Promise<TrustedContact | null>;
+  delete(userId: string, id: string): Promise<TrustedContact | null>;
+  markVerified(userId: string, id: string): Promise<TrustedContact | null>;
 }
 
 const NOT_FOUND_MESSAGE = 'Trusted contact not found';
@@ -19,39 +23,43 @@ const NOT_FOUND_MESSAGE = 'Trusted contact not found';
 export class TrustedContactService {
   constructor(private readonly repository: TrustedContactRepositoryLike) {}
 
-  list(): Promise<TrustedContact[]> {
-    return this.repository.findAll();
+  list(userId: string): Promise<TrustedContact[]> {
+    return this.repository.findAll(userId);
   }
 
-  async getById(id: string): Promise<TrustedContact> {
-    const contact = await this.repository.findById(id);
+  async getById(userId: string, id: string): Promise<TrustedContact> {
+    const contact = await this.repository.findById(userId, id);
     if (!contact) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
     return contact;
   }
 
-  create(input: CreateTrustedContactInput): Promise<TrustedContact> {
-    return this.repository.create(input);
+  create(userId: string, input: CreateTrustedContactInput): Promise<TrustedContact> {
+    return this.repository.create(userId, input);
   }
 
-  async update(id: string, input: UpdateTrustedContactInput): Promise<TrustedContact> {
-    const updated = await this.repository.update(id, input);
+  async update(
+    userId: string,
+    id: string,
+    input: UpdateTrustedContactInput
+  ): Promise<TrustedContact> {
+    const updated = await this.repository.update(userId, id, input);
     if (!updated) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
     return updated;
   }
 
-  async remove(id: string): Promise<void> {
-    const deleted = await this.repository.delete(id);
+  async remove(userId: string, id: string): Promise<void> {
+    const deleted = await this.repository.delete(userId, id);
     if (!deleted) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
   }
 
-  async verify(id: string): Promise<TrustedContact> {
-    const verified = await this.repository.markVerified(id);
+  async verify(userId: string, id: string): Promise<TrustedContact> {
+    const verified = await this.repository.markVerified(userId, id);
     if (!verified) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }

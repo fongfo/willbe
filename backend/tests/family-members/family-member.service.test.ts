@@ -35,6 +35,7 @@ const sampleMember = {
 };
 
 describe('FamilyMemberService', () => {
+  const userId = 'user-1';
   let repository: MockFamilyMemberRepository;
   let service: FamilyMemberService;
 
@@ -48,9 +49,9 @@ describe('FamilyMemberService', () => {
       const members = [sampleMember];
       repository.findAll.mockResolvedValue(members);
 
-      const result = await service.list();
+      const result = await service.list(userId);
 
-      expect(repository.findAll).toHaveBeenCalledTimes(1);
+      expect(repository.findAll).toHaveBeenCalledWith(userId);
       expect(result).toBe(members);
     });
   });
@@ -59,19 +60,19 @@ describe('FamilyMemberService', () => {
     it('returns the member when repository.findById resolves to a record', async () => {
       repository.findById.mockResolvedValue(sampleMember);
 
-      const result = await service.getById(sampleMember.id);
+      const result = await service.getById(userId, sampleMember.id);
 
-      expect(repository.findById).toHaveBeenCalledWith(sampleMember.id);
+      expect(repository.findById).toHaveBeenCalledWith(userId, sampleMember.id);
       expect(result).toBe(sampleMember);
     });
 
     it('throws HttpError with status 404 when repository.findById resolves to null', async () => {
       repository.findById.mockResolvedValue(null);
 
-      await expect(service.getById('missing-id')).rejects.toMatchObject({
+      await expect(service.getById(userId, 'missing-id')).rejects.toMatchObject({
         status: 404
       });
-      await expect(service.getById('missing-id')).rejects.toBeInstanceOf(HttpError);
+      await expect(service.getById(userId, 'missing-id')).rejects.toBeInstanceOf(HttpError);
     });
   });
 
@@ -84,9 +85,9 @@ describe('FamilyMemberService', () => {
       };
       repository.create.mockResolvedValue(sampleMember);
 
-      const result = await service.create(input);
+      const result = await service.create(userId, input);
 
-      expect(repository.create).toHaveBeenCalledWith(input);
+      expect(repository.create).toHaveBeenCalledWith(userId, input);
       expect(result).toBe(sampleMember);
     });
   });
@@ -96,10 +97,10 @@ describe('FamilyMemberService', () => {
       repository.update.mockResolvedValue(null);
 
       await expect(
-        service.update(sampleMember.id, { name: 'New Name' })
+        service.update(userId, sampleMember.id, { name: 'New Name' })
       ).rejects.toMatchObject({ status: 404 });
       await expect(
-        service.update(sampleMember.id, { name: 'New Name' })
+        service.update(userId, sampleMember.id, { name: 'New Name' })
       ).rejects.toBeInstanceOf(HttpError);
     });
 
@@ -107,9 +108,11 @@ describe('FamilyMemberService', () => {
       const updated = { ...sampleMember, name: 'New Name' };
       repository.update.mockResolvedValue(updated);
 
-      const result = await service.update(sampleMember.id, { name: 'New Name' });
+      const result = await service.update(userId, sampleMember.id, { name: 'New Name' });
 
-      expect(repository.update).toHaveBeenCalledWith(sampleMember.id, { name: 'New Name' });
+      expect(repository.update).toHaveBeenCalledWith(userId, sampleMember.id, {
+        name: 'New Name'
+      });
       expect(result).toBe(updated);
     });
   });
@@ -118,8 +121,10 @@ describe('FamilyMemberService', () => {
     it('throws HttpError(404) when repository.delete resolves to null (not-found signal)', async () => {
       repository.delete.mockResolvedValue(null);
 
-      await expect(service.remove(sampleMember.id)).rejects.toMatchObject({ status: 404 });
-      await expect(service.remove(sampleMember.id)).rejects.toBeInstanceOf(HttpError);
+      await expect(service.remove(userId, sampleMember.id)).rejects.toMatchObject({
+        status: 404
+      });
+      await expect(service.remove(userId, sampleMember.id)).rejects.toBeInstanceOf(HttpError);
     });
   });
 });

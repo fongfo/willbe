@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { requireAuth } from '../auth/require-auth';
+import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { TrustedContactRepository } from './trusted-contact.repository';
 import { TrustedContactService } from './trusted-contact.service';
@@ -19,6 +21,8 @@ trustedContactRouter.use(
     legacyHeaders: false
   })
 );
+
+trustedContactRouter.use(requireAuth);
 
 const service = new TrustedContactService(new TrustedContactRepository());
 
@@ -42,16 +46,16 @@ trustedContactRouter.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    const contact = await service.create(parsed.data);
+    const contact = await service.create((req as AuthenticatedRequest).authUser.id, parsed.data);
     res.status(201).json({ success: true, data: contact });
   } catch (error: unknown) {
     handleError(error, res);
   }
 });
 
-trustedContactRouter.get('/', async (_req: Request, res: Response) => {
+trustedContactRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const contacts = await service.list();
+    const contacts = await service.list((req as AuthenticatedRequest).authUser.id);
     res.status(200).json({ success: true, data: contacts });
   } catch (error: unknown) {
     handleError(error, res);
@@ -66,7 +70,10 @@ trustedContactRouter.get('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const contact = await service.getById(parsedParams.data.id);
+    const contact = await service.getById(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id
+    );
     res.status(200).json({ success: true, data: contact });
   } catch (error: unknown) {
     handleError(error, res);
@@ -87,7 +94,11 @@ trustedContactRouter.patch('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const contact = await service.update(parsedParams.data.id, parsedBody.data);
+    const contact = await service.update(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id,
+      parsedBody.data
+    );
     res.status(200).json({ success: true, data: contact });
   } catch (error: unknown) {
     handleError(error, res);
@@ -102,7 +113,7 @@ trustedContactRouter.delete('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    await service.remove(parsedParams.data.id);
+    await service.remove((req as AuthenticatedRequest).authUser.id, parsedParams.data.id);
     res.status(204).send();
   } catch (error: unknown) {
     handleError(error, res);
@@ -117,7 +128,10 @@ trustedContactRouter.post('/:id/verify', async (req: Request, res: Response) => 
   }
 
   try {
-    const contact = await service.verify(parsedParams.data.id);
+    const contact = await service.verify(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id
+    );
     res.status(200).json({ success: true, data: contact });
   } catch (error: unknown) {
     handleError(error, res);

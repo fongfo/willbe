@@ -28,6 +28,7 @@ function otherKnownError(): Prisma.PrismaClientKnownRequestError {
 
 describe('FamilyMemberRepository', () => {
   const repository = new FamilyMemberRepository();
+  const userId = 'user-1';
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,7 +38,7 @@ describe('FamilyMemberRepository', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.familyMember.update as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.update('missing-id', { name: 'New Name' });
+      const result = await repository.update(userId, 'missing-id', { name: 'New Name' });
 
       expect(result).toBeNull();
     });
@@ -45,7 +46,7 @@ describe('FamilyMemberRepository', () => {
     it('rethrows other Prisma errors', async () => {
       (prisma.familyMember.update as jest.Mock).mockRejectedValue(otherKnownError());
 
-      await expect(repository.update('some-id', { name: 'New Name' })).rejects.toThrow(
+      await expect(repository.update(userId, 'some-id', { name: 'New Name' })).rejects.toThrow(
         'Unique constraint failed.'
       );
     });
@@ -55,7 +56,7 @@ describe('FamilyMemberRepository', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.familyMember.delete as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.delete('missing-id');
+      const result = await repository.delete(userId, 'missing-id');
 
       expect(result).toBeNull();
     });
@@ -63,7 +64,9 @@ describe('FamilyMemberRepository', () => {
     it('rethrows other Prisma errors', async () => {
       (prisma.familyMember.delete as jest.Mock).mockRejectedValue(otherKnownError());
 
-      await expect(repository.delete('some-id')).rejects.toThrow('Unique constraint failed.');
+      await expect(repository.delete(userId, 'some-id')).rejects.toThrow(
+        'Unique constraint failed.'
+      );
     });
   });
 });

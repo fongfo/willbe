@@ -18,6 +18,7 @@ function createMockRepositories(): MockRepositories {
 }
 
 describe('ReadinessService', () => {
+  const userId = 'user-1';
   let repositories: MockRepositories;
   let service: ReadinessService;
 
@@ -27,7 +28,7 @@ describe('ReadinessService', () => {
   });
 
   it('produces the full gap set from an empty plan (defaults when no review setting saved)', async () => {
-    const result = await service.assess();
+    const result = await service.assess(userId);
 
     const codes = result.gaps.map((gap) => gap.code);
     expect(codes).toEqual(
@@ -50,7 +51,7 @@ describe('ReadinessService', () => {
       { name: 'Ahmad', detail: null }
     ]);
 
-    const result = await service.assess();
+    const result = await service.assess(userId);
 
     expect(result.gaps.map((gap) => gap.code)).not.toContain('ADD_ADVISOR_CONTACT');
   });
@@ -60,7 +61,7 @@ describe('ReadinessService', () => {
       { detail: 'Beneficiary already nominated' }
     ]);
 
-    const result = await service.assess();
+    const result = await service.assess(userId);
 
     expect(result.gaps.map((gap) => gap.code)).not.toContain('ADD_BENEFICIARY_NOTES');
   });
@@ -71,7 +72,7 @@ describe('ReadinessService', () => {
       connectedProviders: ['GOOGLE_DRIVE']
     });
 
-    const result = await service.assess();
+    const result = await service.assess(userId);
 
     const codes = result.gaps.map((gap) => gap.code);
     expect(codes).toContain('CLARIFY_CUSTOM_REMINDER');
@@ -94,9 +95,18 @@ describe('ReadinessService', () => {
       connectedProviders: ['GOOGLE_DRIVE', 'ONEDRIVE']
     });
 
-    const result = await service.assess();
+    const result = await service.assess(userId);
 
     expect(result.gaps).toEqual([]);
     expect(result.score).toBe(96);
+  });
+
+  it('passes the authenticated user id to each repository', async () => {
+    await service.assess(userId);
+
+    expect(repositories.familyMembers.findAll).toHaveBeenCalledWith(userId);
+    expect(repositories.trustedContacts.findAll).toHaveBeenCalledWith(userId);
+    expect(repositories.assetReferences.findAll).toHaveBeenCalledWith(userId);
+    expect(repositories.reviewSetting.get).toHaveBeenCalledWith(userId);
   });
 });

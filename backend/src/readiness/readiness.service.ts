@@ -14,21 +14,21 @@ const BENEFICIARY_PATTERN = /beneficiary/i;
 // Minimal surface the service needs from each domain repository, so it can be unit
 // tested with plain mocks and stays decoupled from the concrete repository classes.
 export interface ReadinessRepositories {
-  familyMembers: { findAll(): Promise<FamilyMember[]> };
-  trustedContacts: { findAll(): Promise<TrustedContact[]> };
-  assetReferences: { findAll(): Promise<AssetReference[]> };
-  reviewSetting: { get(): Promise<ReviewSetting | null> };
+  familyMembers: { findAll(userId: string): Promise<FamilyMember[]> };
+  trustedContacts: { findAll(userId: string): Promise<TrustedContact[]> };
+  assetReferences: { findAll(userId: string): Promise<AssetReference[]> };
+  reviewSetting: { get(userId: string): Promise<ReviewSetting | null> };
 }
 
 export class ReadinessService {
   constructor(private readonly repositories: ReadinessRepositories) {}
 
-  async assess(): Promise<ReadinessAssessment> {
+  async assess(userId: string): Promise<ReadinessAssessment> {
     const [familyMembers, contacts, assets, reviewSetting] = await Promise.all([
-      this.repositories.familyMembers.findAll(),
-      this.repositories.trustedContacts.findAll(),
-      this.repositories.assetReferences.findAll(),
-      this.repositories.reviewSetting.get()
+      this.repositories.familyMembers.findAll(userId),
+      this.repositories.trustedContacts.findAll(userId),
+      this.repositories.assetReferences.findAll(userId),
+      this.repositories.reviewSetting.get(userId)
     ]);
 
     const input: ReadinessInput = {

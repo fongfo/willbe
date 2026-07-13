@@ -6,11 +6,15 @@ import type {
 } from './asset-reference.schema';
 
 export interface AssetReferenceRepositoryLike {
-  findAll(): Promise<AssetReference[]>;
-  findById(id: string): Promise<AssetReference | null>;
-  create(data: CreateAssetReferenceInput): Promise<AssetReference>;
-  update(id: string, data: UpdateAssetReferenceInput): Promise<AssetReference | null>;
-  delete(id: string): Promise<AssetReference | null>;
+  findAll(userId: string): Promise<AssetReference[]>;
+  findById(userId: string, id: string): Promise<AssetReference | null>;
+  create(userId: string, data: CreateAssetReferenceInput): Promise<AssetReference>;
+  update(
+    userId: string,
+    id: string,
+    data: UpdateAssetReferenceInput
+  ): Promise<AssetReference | null>;
+  delete(userId: string, id: string): Promise<AssetReference | null>;
 }
 
 const NOT_FOUND_MESSAGE = 'Asset reference not found';
@@ -18,32 +22,36 @@ const NOT_FOUND_MESSAGE = 'Asset reference not found';
 export class AssetReferenceService {
   constructor(private readonly repository: AssetReferenceRepositoryLike) {}
 
-  list(): Promise<AssetReference[]> {
-    return this.repository.findAll();
+  list(userId: string): Promise<AssetReference[]> {
+    return this.repository.findAll(userId);
   }
 
-  async getById(id: string): Promise<AssetReference> {
-    const reference = await this.repository.findById(id);
+  async getById(userId: string, id: string): Promise<AssetReference> {
+    const reference = await this.repository.findById(userId, id);
     if (!reference) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
     return reference;
   }
 
-  create(input: CreateAssetReferenceInput): Promise<AssetReference> {
-    return this.repository.create(input);
+  create(userId: string, input: CreateAssetReferenceInput): Promise<AssetReference> {
+    return this.repository.create(userId, input);
   }
 
-  async update(id: string, input: UpdateAssetReferenceInput): Promise<AssetReference> {
-    const updated = await this.repository.update(id, input);
+  async update(
+    userId: string,
+    id: string,
+    input: UpdateAssetReferenceInput
+  ): Promise<AssetReference> {
+    const updated = await this.repository.update(userId, id, input);
     if (!updated) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
     return updated;
   }
 
-  async remove(id: string): Promise<void> {
-    const deleted = await this.repository.delete(id);
+  async remove(userId: string, id: string): Promise<void> {
+    const deleted = await this.repository.delete(userId, id);
     if (!deleted) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }

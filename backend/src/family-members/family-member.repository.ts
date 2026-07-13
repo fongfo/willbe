@@ -14,21 +14,28 @@ function isRecordNotFoundError(error: unknown): boolean {
 }
 
 export class FamilyMemberRepository {
-  findAll(): Promise<FamilyMember[]> {
-    return prisma.familyMember.findMany({ orderBy: { createdAt: 'asc' } });
+  findAll(userId: string): Promise<FamilyMember[]> {
+    return prisma.familyMember.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' }
+    });
   }
 
-  findById(id: string): Promise<FamilyMember | null> {
-    return prisma.familyMember.findUnique({ where: { id } });
+  findById(userId: string, id: string): Promise<FamilyMember | null> {
+    return prisma.familyMember.findUnique({ where: { id_userId: { id, userId } } });
   }
 
-  create(data: CreateFamilyMemberInput): Promise<FamilyMember> {
-    return prisma.familyMember.create({ data });
+  create(userId: string, data: CreateFamilyMemberInput): Promise<FamilyMember> {
+    return prisma.familyMember.create({ data: { ...data, userId } });
   }
 
-  async update(id: string, data: UpdateFamilyMemberInput): Promise<FamilyMember | null> {
+  async update(
+    userId: string,
+    id: string,
+    data: UpdateFamilyMemberInput
+  ): Promise<FamilyMember | null> {
     try {
-      return await prisma.familyMember.update({ where: { id }, data });
+      return await prisma.familyMember.update({ where: { id_userId: { id, userId } }, data });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {
         return null;
@@ -37,9 +44,9 @@ export class FamilyMemberRepository {
     }
   }
 
-  async delete(id: string): Promise<FamilyMember | null> {
+  async delete(userId: string, id: string): Promise<FamilyMember | null> {
     try {
-      return await prisma.familyMember.delete({ where: { id } });
+      return await prisma.familyMember.delete({ where: { id_userId: { id, userId } } });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {
         return null;

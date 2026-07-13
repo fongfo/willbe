@@ -14,6 +14,7 @@ function createMockRepositories(): MockRepositories {
 }
 
 describe('HandoverService', () => {
+  const userId = 'user-1';
   let repositories: MockRepositories;
   let service: HandoverService;
 
@@ -23,7 +24,7 @@ describe('HandoverService', () => {
   });
 
   it('returns an empty view when there is no data', async () => {
-    const result = await service.preview();
+    const result = await service.preview(userId);
 
     expect(result.contacts).toEqual([]);
     expect(result.locations).toEqual([]);
@@ -38,7 +39,7 @@ describe('HandoverService', () => {
       { name: 'Maybank', category: 'BANK', locationHint: '▸ Drive ▸ Banking', detail: 'balance RM9k' }
     ]);
 
-    const result = await service.preview();
+    const result = await service.preview(userId);
 
     expect(result.contacts).toHaveLength(1);
     expect(result.contacts.map((c) => c.name)).toEqual(['Imran']);
@@ -46,5 +47,12 @@ describe('HandoverService', () => {
     expect(result.locations.map((l) => l.documented)).toEqual([true]);
     // The sensitive asset detail must not surface anywhere in the view.
     expect(JSON.stringify(result)).not.toContain('balance');
+  });
+
+  it('passes the authenticated user id to each repository', async () => {
+    await service.preview(userId);
+
+    expect(repositories.trustedContacts.findAll).toHaveBeenCalledWith(userId);
+    expect(repositories.assetReferences.findAll).toHaveBeenCalledWith(userId);
   });
 });
