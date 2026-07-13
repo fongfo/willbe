@@ -92,6 +92,22 @@ The `preview` profile uses internal distribution and produces an Android APK.
 - Completed at: `2026-07-12T09:52:13.935Z`
 - Expires at: `2026-07-26T09:40:12.309Z`
 
+## WB-45 Build 2
+
+- EAS project: `@fongfo/pusaka`
+- EAS project ID: `f6714268-b2de-444d-871c-4a4e006972dc`
+- Build ID: `481b1557-1607-4478-b1cf-e675ffda3be3`
+- Build profile: `preview`
+- Platform: Android
+- Distribution: internal
+- Git commit: `548bbd6f6d9a0ba53185f55e2b588c5ac24f2dfd`
+- APK: `https://expo.dev/artifacts/eas/Xky39JYDOHkJWcP28VSlSjLXhphWwzcCOUroyGSuqOw.apk`
+- Backend API: `https://willbe-staging.up.railway.app/api`
+- AI API: `https://ai-staging-5843.up.railway.app/api`
+- Account provider: Privy staging app `cmqriwky5001t0dlb4153zpfh`
+- Completed at: `2026-07-13T04:52:35.684Z`
+- Expires at: `2026-07-27T04:45:04.578Z`
+
 ## Tester Handoff Template
 
 Share this with testers:
