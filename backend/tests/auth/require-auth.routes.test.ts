@@ -20,6 +20,7 @@ describe('authenticated plan routes', () => {
     '/api/trusted-contacts',
     '/api/asset-references',
     '/api/review-settings',
+    '/api/plan-progress',
     '/api/readiness',
     '/api/handover'
   ])('returns 401 for anonymous GET %s', async (path) => {

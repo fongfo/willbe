@@ -11,17 +11,20 @@ import ConsentScreen from '../src/app/consent';
 import * as assetApi from '../src/asset-references/assetReference.api';
 import * as familyApi from '../src/family-members/familyMember.api';
 import * as gapApi from '../src/readiness/gapExplanations.api';
+import * as planProgressApi from '../src/plan/planProgress.api';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
 jest.mock('../src/readiness/gapExplanations.api');
+jest.mock('../src/plan/planProgress.api');
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
 const mockedGapApi = gapApi as jest.Mocked<typeof gapApi>;
+const mockedPlanProgressApi = planProgressApi as jest.Mocked<typeof planProgressApi>;
 
 beforeEach(() => {
   resetDevAccountAuth();
@@ -29,6 +32,13 @@ beforeEach(() => {
   mockedContactApi.listTrustedContacts.mockResolvedValue([]);
   mockedAssetApi.listAssetReferences.mockResolvedValue([]);
   mockedGapApi.explainGaps.mockImplementation(() => new Promise(() => undefined));
+  mockedPlanProgressApi.getPlanProgress.mockResolvedValue({
+    completedSetupSteps: 0,
+    hasFamilyMembers: false,
+    hasTrustedContacts: false,
+    hasAssetReferences: false,
+    hasCheckInSetup: false
+  });
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -48,13 +58,17 @@ describe('PlaceholderScreen', () => {
 });
 
 describe('tab + stack screens', () => {
-  it.each([
-    [PlanScreen, 'Plan'],
-    [ConsentScreen, 'Consent'],
-  ])('renders the %s screen heading', (Screen, heading) => {
-    render(<Screen />);
+  it('renders the Plan screen heading after loading progress', async () => {
+    render(<PlanScreen />);
 
-    expect(screen.getByText(heading)).toBeTruthy();
+    expect(screen.getByText('Plan')).toBeTruthy();
+    expect(await screen.findByText('0 of 6 steps ready')).toBeTruthy();
+  });
+
+  it('renders the Consent screen heading', () => {
+    render(<ConsentScreen />);
+
+    expect(screen.getByText('Consent')).toBeTruthy();
   });
 
   it('renders the Auth screen heading', () => {

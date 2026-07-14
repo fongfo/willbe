@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
@@ -7,11 +7,55 @@ import {
   cloudProviderOptions,
   frequencyOptions
 } from './checkInOptions';
+import {
+  getReviewSetting,
+  ReviewSettingCloudProvider,
+  ReviewSettingFrequency,
+  saveReviewSetting
+} from './reviewSettings.api';
+
+function toApiFrequency(frequency: CheckInFrequency): ReviewSettingFrequency {
+  if (frequency === 'MONTHLY') {
+    return 'EVERY_3_MONTHS';
+  }
+  if (frequency === 'YEARLY') {
+    return 'EVERY_12_MONTHS';
+  }
+  return 'EVERY_3_MONTHS';
+}
+
+function fromApiFrequency(frequency: ReviewSettingFrequency): CheckInFrequency {
+  if (frequency === 'EVERY_12_MONTHS' || frequency === 'CUSTOM_ANNUAL') {
+    return 'YEARLY';
+  }
+  return frequency === 'EVERY_6_MONTHS' ? 'QUARTERLY' : 'MONTHLY';
+}
+
+function toApiProvider(provider: string): ReviewSettingCloudProvider {
+  if (provider === 'icloud-drive') {
+    return 'ICLOUD';
+  }
+  if (provider === 'onedrive') {
+    return 'ONEDRIVE';
+  }
+  return 'GOOGLE_DRIVE';
+}
+
+function fromApiProvider(provider: ReviewSettingCloudProvider): string {
+  if (provider === 'ICLOUD') {
+    return 'icloud-drive';
+  }
+  if (provider === 'ONEDRIVE') {
+    return 'onedrive';
+  }
+  return 'google-drive';
+}
 
 export default function CheckInCloudScreen() {
   const [frequency, setFrequency] = useState<CheckInFrequency>('QUARTERLY');
   const [selectedProvider, setSelectedProvider] = useState(cloudProviderOptions[0].value);
   const [connectedProvider, setConnectedProvider] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const selectedFrequency = useMemo(
     () => frequencyOptions.find((option) => option.value === frequency),
@@ -21,10 +65,65 @@ export default function CheckInCloudScreen() {
     () => cloudProviderOptions.find((option) => option.value === selectedProvider),
     [selectedProvider]
   );
+  const connectedCloudProvider = useMemo(
+    () => cloudProviderOptions.find((option) => option.value === connectedProvider),
+    [connectedProvider]
+  );
   const isConnected = connectedProvider === selectedProvider;
 
+  useEffect(() => {
+    let active = true;
+
+    async function load(): Promise<void> {
+      try {
+        const setting = await getReviewSetting();
+        if (active) {
+          const savedProvider = setting.connectedProviders[0]
+            ? fromApiProvider(setting.connectedProviders[0])
+            : null;
+          setFrequency(fromApiFrequency(setting.checkInFrequency));
+          setConnectedProvider(savedProvider);
+          setSelectedProvider(savedProvider ?? cloudProviderOptions[0].value);
+          setSaveError(null);
+        }
+      } catch (error: unknown) {
+        if (active) {
+          setSaveError(error instanceof Error ? error.message : 'Unable to load check-in setup');
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function persistSetup(
+    nextFrequency: CheckInFrequency,
+    nextConnectedProvider: string | null
+  ): Promise<void> {
+    try {
+      await saveReviewSetting({
+        checkInFrequency: toApiFrequency(nextFrequency),
+        connectedProviders: nextConnectedProvider ? [toApiProvider(nextConnectedProvider)] : []
+      });
+      setSaveError(null);
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : 'Unable to save check-in setup');
+    }
+  }
+
+  function handleFrequencyChange(nextFrequency: CheckInFrequency): void {
+    setFrequency(nextFrequency);
+    void persistSetup(nextFrequency, connectedProvider);
+  }
+
   function handleConnectionToggle(): void {
-    setConnectedProvider(isConnected ? null : selectedProvider);
+    const nextConnectedProvider = isConnected ? null : selectedProvider;
+    setConnectedProvider(nextConnectedProvider);
+    void persistSetup(frequency, nextConnectedProvider);
   }
 
   return (
@@ -51,7 +150,7 @@ export default function CheckInCloudScreen() {
                   accessibilityLabel={`${option.label} check-in frequency`}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  onPress={() => setFrequency(option.value)}
+                  onPress={() => handleFrequencyChange(option.value)}
                   style={[styles.option, selected && styles.optionSelected]}
                 >
                   <View style={styles.radioWrap}>
@@ -103,13 +202,14 @@ export default function CheckInCloudScreen() {
             variant={isConnected ? 'secondary' : 'primary'}
             style={styles.connectButton}
           />
+          {saveError ? <Text style={styles.error}>{saveError}</Text> : null}
         </Card>
 
         <View style={styles.summary} accessibilityRole="summary">
           <Text style={styles.summaryTitle}>Current setup</Text>
           <Text style={styles.summaryText}>
             Next review cadence: {selectedFrequency?.label}. Cloud status:{' '}
-            {connectedProvider ? `Connected to ${selectedCloudProvider?.label}.` : 'No folder connected yet.'}
+            {connectedCloudProvider ? `Connected to ${connectedCloudProvider.label}.` : 'No folder connected yet.'}
           </Text>
         </View>
 
@@ -256,5 +356,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.muted2
+  },
+  error: {
+    fontSize: fontSizes.small,
+    color: colors.dangerText
   }
 });
