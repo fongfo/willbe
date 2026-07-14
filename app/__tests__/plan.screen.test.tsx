@@ -12,8 +12,13 @@ jest.mock('../src/plan/usePlanProgress', () => ({
       hasCheckInSetup: false
     },
     loading: false,
-    error: null
+    error: null,
+    refresh: jest.fn(async () => undefined)
   })
+}));
+
+jest.mock('../src/navigation/useRefreshOnFocus', () => ({
+  useRefreshOnFocus: jest.fn()
 }));
 
 jest.mock('expo-router', () => ({

@@ -3,6 +3,7 @@ import { useAssetReferences } from '../asset-references/useAssetReferences';
 import { Badge, Card, Screen } from '../components';
 import { useFamilyMembers } from '../family-members/useFamilyMembers';
 import { getRelationLabel } from '../family-members/relations';
+import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useTrustedContacts } from '../trusted-contacts/useTrustedContacts';
 import { buildEmergencyHandover } from './buildEmergencyHandover';
@@ -11,6 +12,9 @@ export default function EmergencyHandoverScreen() {
   const family = useFamilyMembers();
   const contacts = useTrustedContacts();
   const assets = useAssetReferences();
+  useRefreshOnFocus(family.refresh);
+  useRefreshOnFocus(contacts.refresh);
+  useRefreshOnFocus(assets.refresh);
 
   const loading = family.loading || contacts.loading || assets.loading;
   const error = family.error ?? contacts.error ?? assets.error;

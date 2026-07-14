@@ -14,6 +14,9 @@ jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
 jest.mock('../src/readiness/gapExplanations.api');
+jest.mock('../src/navigation/useRefreshOnFocus', () => ({
+  useRefreshOnFocus: jest.fn()
+}));
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;

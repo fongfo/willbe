@@ -1,6 +1,7 @@
 import { Href, router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
+import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import type { PlanSetupProgress } from './planProgress';
 import { getPlanProgressLabel, PLAN_STEPS } from './planSteps';
@@ -43,6 +44,7 @@ export default function PlanStepperScreen({
   loading
 }: PlanStepperScreenProps) {
   const planProgress = usePlanProgress();
+  useRefreshOnFocus(planProgress.refresh);
   const effectiveLoading = loading ?? planProgress.loading;
   const progress = setupProgress ?? planProgress.progress;
   const setupSteps = progress.completedSetupSteps;

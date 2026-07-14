@@ -4,6 +4,9 @@ import CheckInCloudScreen from '../src/check-in/CheckInCloudScreen';
 import * as reviewSettingsApi from '../src/check-in/reviewSettings.api';
 
 jest.mock('../src/check-in/reviewSettings.api');
+jest.mock('../src/navigation/useRefreshOnFocus', () => ({
+  useRefreshOnFocus: jest.fn()
+}));
 
 const mockedReviewSettingsApi = reviewSettingsApi as jest.Mocked<typeof reviewSettingsApi>;
 
