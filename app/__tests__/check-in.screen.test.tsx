@@ -1,6 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import CheckInRoute from '../src/app/check-in';
 import CheckInCloudScreen from '../src/check-in/CheckInCloudScreen';
+import * as reviewSettingsApi from '../src/check-in/reviewSettings.api';
+
+jest.mock('../src/check-in/reviewSettings.api');
+
+const mockedReviewSettingsApi = reviewSettingsApi as jest.Mocked<typeof reviewSettingsApi>;
+
+beforeEach(() => {
+  mockedReviewSettingsApi.getReviewSetting.mockResolvedValue({
+    checkInFrequency: 'EVERY_6_MONTHS',
+    connectedProviders: []
+  });
+  mockedReviewSettingsApi.saveReviewSetting.mockImplementation(async (input) => input);
+});
+
+afterEach(() => jest.clearAllMocks());
 
 describe('CheckInCloudScreen', () => {
   it('renders the default quarterly check-in setup', () => {
@@ -11,15 +26,35 @@ describe('CheckInCloudScreen', () => {
     expect(screen.getByText(/No folder connected yet/)).toBeTruthy();
   });
 
-  it('changes the selected check-in frequency', () => {
+  it('loads an existing saved check-in setup', async () => {
+    mockedReviewSettingsApi.getReviewSetting.mockResolvedValueOnce({
+      checkInFrequency: 'EVERY_12_MONTHS',
+      connectedProviders: ['ONEDRIVE']
+    });
+
+    render(<CheckInCloudScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/Next review cadence: Yearly/)).toBeTruthy()
+    );
+    expect(screen.getByText(/Connected to OneDrive/)).toBeTruthy();
+  });
+
+  it('changes and saves the selected check-in frequency', async () => {
     render(<CheckInCloudScreen />);
 
     fireEvent.press(screen.getByLabelText('Monthly check-in frequency'));
 
     expect(screen.getByText(/Next review cadence: Monthly/)).toBeTruthy();
+    await waitFor(() =>
+      expect(mockedReviewSettingsApi.saveReviewSetting).toHaveBeenCalledWith({
+        checkInFrequency: 'EVERY_3_MONTHS',
+        connectedProviders: []
+      })
+    );
   });
 
-  it('selects and connects a cloud provider', () => {
+  it('selects and connects a cloud provider', async () => {
     render(<CheckInCloudScreen />);
 
     fireEvent.press(screen.getByLabelText('iCloud Drive cloud provider'));
@@ -27,6 +62,27 @@ describe('CheckInCloudScreen', () => {
 
     expect(screen.getByText(/Connected to iCloud Drive/)).toBeTruthy();
     expect(screen.getByText('Disconnect iCloud Drive')).toBeTruthy();
+    await waitFor(() =>
+      expect(mockedReviewSettingsApi.saveReviewSetting).toHaveBeenCalledWith({
+        checkInFrequency: 'EVERY_3_MONTHS',
+        connectedProviders: ['ICLOUD']
+      })
+    );
+  });
+
+  it('surfaces save errors without hiding the local choice', async () => {
+    mockedReviewSettingsApi.saveReviewSetting.mockRejectedValueOnce(
+      new Error('Unable to persist review setting')
+    );
+
+    render(<CheckInCloudScreen />);
+
+    fireEvent.press(screen.getByLabelText('Yearly check-in frequency'));
+
+    expect(screen.getByText(/Next review cadence: Yearly/)).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByText('Unable to persist review setting')).toBeTruthy()
+    );
   });
 
   it('shows the cloud privacy boundary', () => {

@@ -54,7 +54,8 @@ export default function AiAssistantScreen({ assistant }: AiAssistantScreenProps)
   return (
     <Screen>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? spacing.xl : 0}
         style={styles.container}
       >
         <View style={styles.header}>
@@ -229,6 +230,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
+    paddingBottom: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft

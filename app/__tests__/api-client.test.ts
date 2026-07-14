@@ -94,6 +94,25 @@ describe('apiClient', () => {
     );
   });
 
+  it('serialises the body and sets the JSON content-type on PUT', async () => {
+    const fetchFn = mockFetch({
+      json: async () => ({ success: true, data: { saved: true } })
+    });
+
+    await apiClient.put('/review-settings', {
+      checkInFrequency: 'EVERY_3_MONTHS',
+      connectedProviders: []
+    });
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:4000/api/review-settings',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+  });
+
   it('adds the current access token when one is available', async () => {
     const fetchFn = mockFetch({ json: async () => ({ success: true, data: [] }) });
     setApiAccessTokenProvider(async () => 'test-token');

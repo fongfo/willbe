@@ -7,6 +7,7 @@ import { reviewSettingRouter } from './review-settings/review-setting.routes';
 import { readinessRouter } from './readiness/readiness.routes';
 import { handoverRouter } from './handover/handover.routes';
 import { authRouter } from './auth/auth.routes';
+import { planProgressRouter } from './plan-progress/plan-progress.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -17,6 +18,7 @@ export function createApp(): Express {
   app.use('/api/trusted-contacts', trustedContactRouter);
   app.use('/api/asset-references', assetReferenceRouter);
   app.use('/api/review-settings', reviewSettingRouter);
+  app.use('/api/plan-progress', planProgressRouter);
   app.use('/api/readiness', readinessRouter);
   app.use('/api/handover', handoverRouter);
   app.use('/api/auth', authRouter);

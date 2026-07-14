@@ -18,7 +18,7 @@ export interface ApiResponse<T> {
 type Json = object;
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: Json;
   signal?: AbortSignal;
   baseUrl?: string;
@@ -106,6 +106,8 @@ export const apiClient = {
     signal?: AbortSignal
   ): Promise<T | undefined> =>
     request<T>(path, { method: 'POST', body, headers, signal }),
+  put: <T>(path: string, body: Json, signal?: AbortSignal): Promise<T | undefined> =>
+    request<T>(path, { method: 'PUT', body, signal }),
   patch: <T>(path: string, body: Json, signal?: AbortSignal): Promise<T | undefined> =>
     request<T>(path, { method: 'PATCH', body, signal }),
   delete: (path: string, signal?: AbortSignal): Promise<void> =>

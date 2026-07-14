@@ -1,11 +1,16 @@
 import { Href, router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
-import { getPlanProgressLabel, PLAN_STEPS, PlanStep } from './planSteps';
+import type { PlanSetupProgress } from './planProgress';
+import { getPlanProgressLabel, PLAN_STEPS } from './planSteps';
+import type { PlanStep } from './planSteps';
+import { usePlanProgress } from './usePlanProgress';
 
 interface PlanStepperScreenProps {
   onOpenStep?: (route: Href) => void;
+  setupProgress?: PlanSetupProgress;
+  loading?: boolean;
 }
 
 function defaultOpenStep(route: Href): void {
@@ -16,11 +21,32 @@ function getStepBadgeLabel(step: PlanStep): string {
   return step.status === 'ready' ? 'Setup' : 'Review';
 }
 
+function getStepComplete(progress: PlanSetupProgress, step: PlanStep): boolean {
+  if (step.id === 'family-members') {
+    return progress.hasFamilyMembers;
+  }
+  if (step.id === 'trusted-contacts') {
+    return progress.hasTrustedContacts;
+  }
+  if (step.id === 'asset-references') {
+    return progress.hasAssetReferences;
+  }
+  if (step.id === 'check-in') {
+    return progress.hasCheckInSetup;
+  }
+  return false;
+}
+
 export default function PlanStepperScreen({
-  onOpenStep = defaultOpenStep
+  onOpenStep = defaultOpenStep,
+  setupProgress,
+  loading
 }: PlanStepperScreenProps) {
-  const setupSteps = PLAN_STEPS.filter((step) => step.status === 'ready').length;
-  const reviewSteps = PLAN_STEPS.length - setupSteps;
+  const planProgress = usePlanProgress();
+  const effectiveLoading = loading ?? planProgress.loading;
+  const progress = setupProgress ?? planProgress.progress;
+  const setupSteps = progress.completedSetupSteps;
+  const reviewSteps = PLAN_STEPS.filter((step) => step.status === 'review').length;
 
   return (
     <Screen>
@@ -55,6 +81,12 @@ export default function PlanStepperScreen({
             Setup steps collect the handover inputs. Review steps turn them into a score
             and an emergency preview.
           </Text>
+          {effectiveLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.teal} accessibilityLabel="Loading plan progress" />
+              <Text style={styles.loadingText}>Loading setup progress</Text>
+            </View>
+          ) : null}
           <View style={styles.summaryMetrics}>
             <View style={styles.summaryMetric}>
               <Text style={styles.metricValue}>{setupSteps}</Text>
@@ -84,8 +116,16 @@ export default function PlanStepperScreen({
                   <View style={styles.stepHead}>
                     <Text style={styles.stepTitle}>{step.title}</Text>
                     <Badge
-                      label={getStepBadgeLabel(step)}
-                      tone={step.status === 'ready' ? 'success' : 'warn'}
+                      label={
+                        step.status === 'ready' && getStepComplete(progress, step)
+                          ? 'Done'
+                          : getStepBadgeLabel(step)
+                      }
+                      tone={
+                        step.status === 'ready' && getStepComplete(progress, step)
+                          ? 'success'
+                          : 'warn'
+                      }
                     />
                   </View>
                   <Text style={styles.stepDescription}>{step.description}</Text>
@@ -156,6 +196,16 @@ const styles = StyleSheet.create({
   summaryText: {
     fontSize: fontSizes.small,
     lineHeight: 19,
+    color: colors.muted2
+  },
+  loadingRow: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm
+  },
+  loadingText: {
+    fontSize: fontSizes.small,
     color: colors.muted2
   },
   summaryMetrics: {

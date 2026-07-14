@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { KeyboardAvoidingView, Platform } from 'react-native';
 import AssistantTab from '../src/app/(tabs)/assistant';
 import AiAssistantScreen from '../src/ai-assistant/AiAssistantScreen';
 import * as chatApi from '../src/ai-assistant/chat.api';
@@ -70,6 +71,21 @@ describe('AiAssistantScreen', () => {
     fireEvent.press(screen.getByText('Send'));
 
     expect(mockedChatApi.sendChatMessage).not.toHaveBeenCalled();
+  });
+
+  it('uses Android keyboard avoidance so the composer stays visible', () => {
+    const originalOs = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+
+    try {
+      const view = render(<AiAssistantScreen />).UNSAFE_getByType(
+        KeyboardAvoidingView
+      );
+
+      expect(view.props.behavior).toBe('height');
+    } finally {
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
+    }
   });
 
   it('shows API errors without dropping the user message', async () => {

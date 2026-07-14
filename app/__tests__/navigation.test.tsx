@@ -3,23 +3,33 @@ import { renderRouter, screen } from 'expo-router/testing-library';
 import { resetDevAccountAuth } from '../src/account/AccountAuthContext';
 import * as assetApi from '../src/asset-references/assetReference.api';
 import * as familyApi from '../src/family-members/familyMember.api';
+import * as planProgressApi from '../src/plan/planProgress.api';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
+jest.mock('../src/plan/planProgress.api');
 
 jest.setTimeout(15000);
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
+const mockedPlanProgressApi = planProgressApi as jest.Mocked<typeof planProgressApi>;
 
 beforeEach(() => {
   resetDevAccountAuth();
   mockedFamilyApi.listFamilyMembers.mockResolvedValue([]);
   mockedContactApi.listTrustedContacts.mockResolvedValue([]);
   mockedAssetApi.listAssetReferences.mockResolvedValue([]);
+  mockedPlanProgressApi.getPlanProgress.mockResolvedValue({
+    completedSetupSteps: 0,
+    hasFamilyMembers: false,
+    hasTrustedContacts: false,
+    hasAssetReferences: false,
+    hasCheckInSetup: false
+  });
 });
 
 afterEach(() => jest.clearAllMocks());
