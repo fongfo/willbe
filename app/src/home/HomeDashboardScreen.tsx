@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { useAssetReferences } from '../asset-references/useAssetReferences';
 import { Badge, Button, Card, Screen } from '../components';
 import { useFamilyMembers } from '../family-members/useFamilyMembers';
+import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { evaluateReadiness } from '../readiness/evaluateReadiness';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useTrustedContacts } from '../trusted-contacts/useTrustedContacts';
@@ -22,6 +23,9 @@ export default function HomeDashboardScreen({
   const family = useFamilyMembers();
   const contacts = useTrustedContacts();
   const assets = useAssetReferences();
+  useRefreshOnFocus(family.refresh);
+  useRefreshOnFocus(contacts.refresh);
+  useRefreshOnFocus(assets.refresh);
 
   const loading = family.loading || contacts.loading || assets.loading;
   const error = family.error ?? contacts.error ?? assets.error;

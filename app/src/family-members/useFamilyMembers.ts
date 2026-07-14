@@ -16,9 +16,14 @@ interface UseFamilyMembersResult {
   members: FamilyMember[];
   loading: boolean;
   error: string | null;
+  refresh: (options?: RefreshOptions) => Promise<void>;
   add: (input: CreateFamilyMemberInput) => Promise<FamilyMember>;
   update: (id: string, input: UpdateFamilyMemberInput) => Promise<FamilyMember>;
   remove: (id: string) => Promise<void>;
+}
+
+interface RefreshOptions {
+  signal?: AbortSignal;
 }
 
 function toMessage(error: unknown): string {
@@ -33,36 +38,35 @@ export function useFamilyMembers(): UseFamilyMembersResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load once on mount. State is only updated from the async callbacks (never
-  // synchronously in the effect body) and guarded so a late response cannot
-  // update an unmounted component.
+  const refresh = useCallback(async (options: RefreshOptions = {}): Promise<void> => {
+    try {
+      const data = await listFamilyMembers(options.signal);
+      if (!options.signal?.aborted) {
+        setMembers(data);
+        setError(null);
+      }
+    } catch (err: unknown) {
+      if (!options.signal?.aborted) {
+        setError(toMessage(err));
+      }
+    } finally {
+      if (!options.signal?.aborted) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     async function load(): Promise<void> {
-      try {
-        const data = await listFamilyMembers();
-        if (active) {
-          setMembers(data);
-          setError(null);
-        }
-      } catch (err: unknown) {
-        if (active) {
-          setError(toMessage(err));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+      await refresh({ signal: controller.signal });
     }
 
     void load();
 
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [refresh]);
 
   const add = useCallback(
     async (input: CreateFamilyMemberInput): Promise<FamilyMember> => {
@@ -93,5 +97,5 @@ export function useFamilyMembers(): UseFamilyMembersResult {
     setMembers((current) => current.filter((member) => member.id !== id));
   }, []);
 
-  return { members, loading, error, add, update, remove };
+  return { members, loading, error, refresh, add, update, remove };
 }

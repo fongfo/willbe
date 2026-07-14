@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
+import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import {
   CheckInFrequency,
@@ -71,34 +72,38 @@ export default function CheckInCloudScreen() {
   );
   const isConnected = connectedProvider === selectedProvider;
 
+  const refresh = useCallback(async ({ signal }: { signal?: AbortSignal } = {}): Promise<void> => {
+    try {
+      const setting = await getReviewSetting(signal);
+      if (!signal?.aborted) {
+        const savedProvider = setting.connectedProviders[0]
+          ? fromApiProvider(setting.connectedProviders[0])
+          : null;
+        setFrequency(fromApiFrequency(setting.checkInFrequency));
+        setConnectedProvider(savedProvider);
+        setSelectedProvider(savedProvider ?? cloudProviderOptions[0].value);
+        setSaveError(null);
+      }
+    } catch (error: unknown) {
+      if (!signal?.aborted) {
+        setSaveError(error instanceof Error ? error.message : 'Unable to load check-in setup');
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     async function load(): Promise<void> {
-      try {
-        const setting = await getReviewSetting();
-        if (active) {
-          const savedProvider = setting.connectedProviders[0]
-            ? fromApiProvider(setting.connectedProviders[0])
-            : null;
-          setFrequency(fromApiFrequency(setting.checkInFrequency));
-          setConnectedProvider(savedProvider);
-          setSelectedProvider(savedProvider ?? cloudProviderOptions[0].value);
-          setSaveError(null);
-        }
-      } catch (error: unknown) {
-        if (active) {
-          setSaveError(error instanceof Error ? error.message : 'Unable to load check-in setup');
-        }
-      }
+      await refresh({ signal: controller.signal });
     }
 
     void load();
 
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [refresh]);
+
+  useRefreshOnFocus(refresh);
 
   async function persistSetup(
     nextFrequency: CheckInFrequency,

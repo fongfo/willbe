@@ -11,6 +11,9 @@ import type { TrustedContact } from '../src/trusted-contacts/trustedContact.type
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
+jest.mock('../src/navigation/useRefreshOnFocus', () => ({
+  useRefreshOnFocus: jest.fn()
+}));
 jest.mock('expo-router', () => ({
   router: {
     push: jest.fn()

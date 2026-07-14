@@ -16,9 +16,14 @@ interface UseTrustedContactsResult {
   contacts: TrustedContact[];
   loading: boolean;
   error: string | null;
+  refresh: (options?: RefreshOptions) => Promise<void>;
   add: (input: CreateTrustedContactInput) => Promise<TrustedContact>;
   update: (id: string, input: UpdateTrustedContactInput) => Promise<TrustedContact>;
   remove: (id: string) => Promise<void>;
+}
+
+interface RefreshOptions {
+  signal?: AbortSignal;
 }
 
 function toMessage(error: unknown): string {
@@ -33,35 +38,35 @@ export function useTrustedContacts(): UseTrustedContactsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load once on mount. State is only updated from the async callbacks (never
-  // synchronously in the effect body) and guarded against late responses.
+  const refresh = useCallback(async (options: RefreshOptions = {}): Promise<void> => {
+    try {
+      const data = await listTrustedContacts(options.signal);
+      if (!options.signal?.aborted) {
+        setContacts(data);
+        setError(null);
+      }
+    } catch (err: unknown) {
+      if (!options.signal?.aborted) {
+        setError(toMessage(err));
+      }
+    } finally {
+      if (!options.signal?.aborted) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     async function load(): Promise<void> {
-      try {
-        const data = await listTrustedContacts();
-        if (active) {
-          setContacts(data);
-          setError(null);
-        }
-      } catch (err: unknown) {
-        if (active) {
-          setError(toMessage(err));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+      await refresh({ signal: controller.signal });
     }
 
     void load();
 
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [refresh]);
 
   const add = useCallback(
     async (input: CreateTrustedContactInput): Promise<TrustedContact> => {
@@ -92,5 +97,5 @@ export function useTrustedContacts(): UseTrustedContactsResult {
     setContacts((current) => current.filter((contact) => contact.id !== id));
   }, []);
 
-  return { contacts, loading, error, add, update, remove };
+  return { contacts, loading, error, refresh, add, update, remove };
 }

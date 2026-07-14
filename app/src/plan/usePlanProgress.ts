@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../api';
 import type { PlanSetupProgress } from './planProgress';
 import { getPlanProgress } from './planProgress.api';
@@ -7,6 +7,11 @@ interface UsePlanProgressResult {
   progress: PlanSetupProgress;
   loading: boolean;
   error: string | null;
+  refresh: (options?: RefreshOptions) => Promise<void>;
+}
+
+interface RefreshOptions {
+  signal?: AbortSignal;
 }
 
 const EMPTY_PROGRESS: PlanSetupProgress = {
@@ -29,33 +34,35 @@ export function usePlanProgress(): UsePlanProgressResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const refresh = useCallback(async (options: RefreshOptions = {}): Promise<void> => {
+    try {
+      const data = await getPlanProgress(options.signal);
+      if (!options.signal?.aborted) {
+        setProgress(data);
+        setError(null);
+      }
+    } catch (err: unknown) {
+      if (!options.signal?.aborted) {
+        setError(toMessage(err));
+      }
+    } finally {
+      if (!options.signal?.aborted) {
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
     async function load(): Promise<void> {
-      try {
-        const data = await getPlanProgress();
-        if (active) {
-          setProgress(data);
-          setError(null);
-        }
-      } catch (err: unknown) {
-        if (active) {
-          setError(toMessage(err));
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+      await refresh({ signal: controller.signal });
     }
 
     void load();
 
-    return () => {
-      active = false;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [refresh]);
 
-  return { progress, loading, error };
+  return { progress, loading, error, refresh };
 }
