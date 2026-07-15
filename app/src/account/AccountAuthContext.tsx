@@ -97,6 +97,22 @@ function mergeWalletAddress(session: AuthSession, walletAddress?: string): AuthS
   };
 }
 
+function walletAddressFromSessionOrPrivy(
+  session: AuthSession,
+  wallets: { address?: string }[],
+  privyUser: unknown
+): string | undefined {
+  return (
+    session.user.walletAddress ??
+    wallets.find((wallet) => wallet.address)?.address ??
+    walletAddressFromPrivyUser(privyUser)
+  );
+}
+
+function isWalletAlreadyExistsError(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes('wallet already exists');
+}
+
 function DevAccountAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(devSession);
   const sessionRef = useRef<AuthSession | null>(devSession);
@@ -212,25 +228,36 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
     setWalletStatus('pending');
     setWalletError(null);
     try {
-      const existingWallet = wallets[0]?.address;
+      const existingWallet = walletAddressFromSessionOrPrivy(currentSession, wallets, privyUser);
+      if (existingWallet) {
+        const nextSession = mergeWalletAddress(currentSession, existingWallet);
+        setSession(nextSession);
+        setWalletStatus('ready');
+        return;
+      }
+
+      const createdWallet = await withTimeout(
+        create(),
+        'Proof wallet setup timed out. You can retry from Account.'
+      );
       const walletAddress =
-        existingWallet ??
-        walletAddressFromPrivyUser(
-          (
-            await withTimeout(
-              create(),
-              'Proof wallet setup timed out. You can retry from Account.'
-            )
-          ).user
-        );
+        walletAddressFromPrivyUser(createdWallet.user) ??
+        walletAddressFromSessionOrPrivy(currentSession, wallets, privyUser);
       const nextSession = mergeWalletAddress(currentSession, walletAddress);
       setSession(nextSession);
       setWalletStatus(nextSession.user.walletAddress ? 'ready' : 'pending');
     } catch (caughtError: unknown) {
+      const recoveredWallet = walletAddressFromSessionOrPrivy(currentSession, wallets, privyUser);
+      if (recoveredWallet && isWalletAlreadyExistsError(caughtError)) {
+        const nextSession = mergeWalletAddress(currentSession, recoveredWallet);
+        setSession(nextSession);
+        setWalletStatus('ready');
+        return;
+      }
       setWalletStatus('error');
       setWalletError(messageFromError(caughtError));
     }
-  }, [create, wallets]);
+  }, [create, privyUser, wallets]);
 
   const establishSession = useCallback(async (): Promise<void> => {
     const nextSession = await createBackendSession();
