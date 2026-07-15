@@ -54,7 +54,8 @@ export default function AiAssistantScreen({ assistant }: AiAssistantScreenProps)
   return (
     <Screen>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? spacing.xl : 0}
         style={styles.container}
       >
@@ -77,7 +78,9 @@ export default function AiAssistantScreen({ assistant }: AiAssistantScreenProps)
 
         <ScrollView
           contentContainerStyle={styles.messages}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
+          style={styles.messageList}
         >
           {messages.map((message, index) => (
             <Bubble key={`${message.role}-${index}-${message.content}`} message={message} />
@@ -172,6 +175,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: spacing.sm,
     paddingBottom: spacing.lg
+  },
+  messageList: {
+    flex: 1
   },
   bubble: {
     maxWidth: '86%',

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { KeyboardAvoidingView, Platform } from 'react-native';
+import appConfig from '../app.json';
 import AssistantTab from '../src/app/(tabs)/assistant';
 import AiAssistantScreen from '../src/ai-assistant/AiAssistantScreen';
 import * as chatApi from '../src/ai-assistant/chat.api';
@@ -73,7 +74,7 @@ describe('AiAssistantScreen', () => {
     expect(mockedChatApi.sendChatMessage).not.toHaveBeenCalled();
   });
 
-  it('uses Android keyboard avoidance so the composer stays visible', () => {
+  it('relies on Android window resize without applying a second height adjustment', () => {
     const originalOs = Platform.OS;
     Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
 
@@ -82,10 +83,31 @@ describe('AiAssistantScreen', () => {
         KeyboardAvoidingView
       );
 
-      expect(view.props.behavior).toBe('height');
+      expect(view.props.behavior).toBeUndefined();
+      expect(view.props.enabled).toBe(false);
     } finally {
       Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
     }
+  });
+
+  it('keeps padding-based keyboard avoidance on iOS', () => {
+    const originalOs = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+
+    try {
+      const view = render(<AiAssistantScreen />).UNSAFE_getByType(
+        KeyboardAvoidingView
+      );
+
+      expect(view.props.behavior).toBe('padding');
+      expect(view.props.keyboardVerticalOffset).toBeGreaterThan(0);
+    } finally {
+      Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
+    }
+  });
+
+  it('locks Android to resize the app window when the keyboard opens', () => {
+    expect(appConfig.expo.android.softwareKeyboardLayoutMode).toBe('resize');
   });
 
   it('shows API errors without dropping the user message', async () => {
