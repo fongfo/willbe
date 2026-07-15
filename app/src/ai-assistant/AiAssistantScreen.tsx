@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
+  KeyboardEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -17,6 +20,55 @@ import { useAiAssistant } from './useAiAssistant';
 
 interface AiAssistantScreenProps {
   assistant?: ReturnType<typeof useAiAssistant>;
+}
+
+function useAndroidKeyboardInset(): number {
+  const initialWindowHeight = Dimensions.get('window').height;
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const baselineWindowHeightRef = useRef(initialWindowHeight);
+  const currentWindowHeightRef = useRef(initialWindowHeight);
+  const keyboardHeightRef = useRef(0);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    function updateInset(nextKeyboardHeight: number): void {
+      keyboardHeightRef.current = nextKeyboardHeight;
+      const resizedBy = Math.max(
+        0,
+        baselineWindowHeightRef.current - currentWindowHeightRef.current
+      );
+      setKeyboardInset(Math.max(0, nextKeyboardHeight - resizedBy));
+    }
+
+    const dimensionSubscription = Dimensions.addEventListener('change', ({ window }) => {
+      baselineWindowHeightRef.current = Math.max(
+        baselineWindowHeightRef.current,
+        window.height
+      );
+      currentWindowHeightRef.current = window.height;
+      if (keyboardHeightRef.current > 0) {
+        updateInset(keyboardHeightRef.current);
+      }
+    });
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (event: KeyboardEvent) => {
+      updateInset(event.endCoordinates.height);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardHeightRef.current = 0;
+      setKeyboardInset(0);
+    });
+
+    return () => {
+      dimensionSubscription.remove();
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  return Platform.OS === 'android' ? keyboardInset : 0;
 }
 
 function Bubble({ message }: { message: ChatMessage }) {
@@ -40,6 +92,7 @@ export default function AiAssistantScreen({ assistant }: AiAssistantScreenProps)
   const { messages, latestReply, sending, error, send } =
     assistant ?? fallbackAssistant;
   const [draft, setDraft] = useState('');
+  const androidKeyboardInset = useAndroidKeyboardInset();
   const trimmedDraft = draft.trim();
 
   async function handleSend(): Promise<void> {
@@ -107,7 +160,13 @@ export default function AiAssistantScreen({ assistant }: AiAssistantScreenProps)
           ) : null}
         </ScrollView>
 
-        <View style={styles.composer}>
+        <View
+          testID="ai-composer"
+          style={[
+            styles.composer,
+            Platform.OS === 'android' && { paddingBottom: spacing.sm + androidKeyboardInset }
+          ]}
+        >
           <TextInput
             accessibilityLabel="Message AI assistant"
             editable={!sending}
