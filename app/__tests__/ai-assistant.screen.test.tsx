@@ -1,10 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { KeyboardAvoidingView, Platform } from 'react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet
+} from 'react-native';
 import appConfig from '../app.json';
 import AssistantTab from '../src/app/(tabs)/assistant';
 import AiAssistantScreen from '../src/ai-assistant/AiAssistantScreen';
 import * as chatApi from '../src/ai-assistant/chat.api';
 import type { ChatReplyResponse } from '../src/ai-assistant/chat.types';
+import { spacing } from '../src/theme/tokens';
 
 jest.mock('../src/ai-assistant/chat.api');
 
@@ -32,7 +39,86 @@ const reply: ChatReplyResponse = {
   }
 };
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.restoreAllMocks();
+});
+
+function setPlatform(os: 'android' | 'ios'): () => void {
+  const originalOs = Platform.OS;
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: os });
+  return () => Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
+}
+
+function mockAndroidKeyboard(initialWindowHeight = 800) {
+  let windowHeight = initialWindowHeight;
+  const keyboardListeners: Partial<
+    Record<
+      Parameters<typeof Keyboard.addListener>[0],
+      Parameters<typeof Keyboard.addListener>[1]
+    >
+  > = {};
+  let dimensionListener: Parameters<typeof Dimensions.addEventListener>[1] | null = null;
+
+  jest.spyOn(Dimensions, 'get').mockImplementation((dimension) => ({
+    width: 390,
+    height: dimension === 'window' ? windowHeight : initialWindowHeight,
+    scale: 1,
+    fontScale: 1
+  }));
+  jest.spyOn(Dimensions, 'addEventListener').mockImplementation((_type, listener) => {
+    dimensionListener = listener;
+    return { remove: jest.fn() } as unknown as ReturnType<typeof Dimensions.addEventListener>;
+  });
+  jest.spyOn(Keyboard, 'addListener').mockImplementation((eventName, listener) => {
+    keyboardListeners[eventName] = listener;
+    return { remove: jest.fn() } as unknown as ReturnType<typeof Keyboard.addListener>;
+  });
+
+  return {
+    showKeyboard(height: number): void {
+      keyboardListeners.keyboardDidShow?.({
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: {
+          screenX: 0,
+          screenY: windowHeight - height,
+          width: 390,
+          height
+        }
+      });
+    },
+    hideKeyboard(): void {
+      keyboardListeners.keyboardDidHide?.({
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: {
+          screenX: 0,
+          screenY: windowHeight,
+          width: 390,
+          height: 0
+        }
+      });
+    },
+    resizeWindow(height: number): void {
+      windowHeight = height;
+      dimensionListener?.({
+        window: {
+          width: 390,
+          height,
+          scale: 1,
+          fontScale: 1
+        },
+        screen: {
+          width: 390,
+          height: initialWindowHeight,
+          scale: 1,
+          fontScale: 1
+        }
+      });
+    }
+  };
+}
 
 describe('AiAssistantScreen', () => {
   it('renders the assistant intro and compliance notice', () => {
@@ -74,9 +160,8 @@ describe('AiAssistantScreen', () => {
     expect(mockedChatApi.sendChatMessage).not.toHaveBeenCalled();
   });
 
-  it('relies on Android window resize without applying a second height adjustment', () => {
-    const originalOs = Platform.OS;
-    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' });
+  it('keeps Android KeyboardAvoidingView disabled while using a composer inset fallback', () => {
+    const restorePlatform = setPlatform('android');
 
     try {
       const view = render(<AiAssistantScreen />).UNSAFE_getByType(
@@ -86,13 +171,52 @@ describe('AiAssistantScreen', () => {
       expect(view.props.behavior).toBeUndefined();
       expect(view.props.enabled).toBe(false);
     } finally {
-      Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
+      restorePlatform();
+    }
+  });
+
+  it('adds Android composer clearance when the keyboard opens without window resize', () => {
+    const restorePlatform = setPlatform('android');
+    const keyboard = mockAndroidKeyboard();
+
+    try {
+      render(<AiAssistantScreen />);
+
+      act(() => keyboard.showKeyboard(300));
+
+      const composerStyle = StyleSheet.flatten(screen.getByTestId('ai-composer').props.style);
+      expect(composerStyle.paddingBottom).toBe(spacing.sm + 300);
+
+      act(() => keyboard.hideKeyboard());
+
+      const resetStyle = StyleSheet.flatten(screen.getByTestId('ai-composer').props.style);
+      expect(resetStyle.paddingBottom).toBe(spacing.sm);
+    } finally {
+      restorePlatform();
+    }
+  });
+
+  it('only adds the Android keyboard clearance not already handled by window resize', () => {
+    const restorePlatform = setPlatform('android');
+    const keyboard = mockAndroidKeyboard();
+
+    try {
+      render(<AiAssistantScreen />);
+
+      act(() => {
+        keyboard.resizeWindow(600);
+        keyboard.showKeyboard(300);
+      });
+
+      const composerStyle = StyleSheet.flatten(screen.getByTestId('ai-composer').props.style);
+      expect(composerStyle.paddingBottom).toBe(spacing.sm + 100);
+    } finally {
+      restorePlatform();
     }
   });
 
   it('keeps padding-based keyboard avoidance on iOS', () => {
-    const originalOs = Platform.OS;
-    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' });
+    const restorePlatform = setPlatform('ios');
 
     try {
       const view = render(<AiAssistantScreen />).UNSAFE_getByType(
@@ -102,7 +226,7 @@ describe('AiAssistantScreen', () => {
       expect(view.props.behavior).toBe('padding');
       expect(view.props.keyboardVerticalOffset).toBeGreaterThan(0);
     } finally {
-      Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOs });
+      restorePlatform();
     }
   });
 
