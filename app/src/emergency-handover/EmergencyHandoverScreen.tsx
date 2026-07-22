@@ -1,6 +1,7 @@
+import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAssetReferences } from '../asset-references/useAssetReferences';
-import { Badge, Card, Screen } from '../components';
+import { Badge, Button, Card, Screen } from '../components';
 import { useFamilyMembers } from '../family-members/useFamilyMembers';
 import { getRelationLabel } from '../family-members/relations';
 import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
@@ -133,11 +134,16 @@ export default function EmergencyHandoverScreen() {
             </View>
             {handover.gaps.length === 0 ? (
               <View style={styles.readyBox}>
-                <Text style={styles.readyTitle}>Preview ready</Text>
+                <Text style={styles.readyTitle}>Complete</Text>
                 <Text style={styles.readyText}>
                   Your emergency handover has a first contact, backup, family context,
                   and at least one findable asset reference.
                 </Text>
+                <Button
+                  label="Back to completed plan"
+                  onPress={() => router.push('/plan')}
+                  style={styles.readyButton}
+                />
               </View>
             ) : (
               <View style={styles.list}>
@@ -270,5 +276,8 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.small,
     lineHeight: 19,
     color: colors.ink
+  },
+  readyButton: {
+    marginTop: spacing.md
   }
 });

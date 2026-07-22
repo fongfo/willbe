@@ -1,3 +1,4 @@
+import { Href, router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, Screen } from '../components';
@@ -52,7 +53,17 @@ function fromApiProvider(provider: ReviewSettingCloudProvider): string {
   return 'google-drive';
 }
 
-export default function CheckInCloudScreen() {
+interface CheckInCloudScreenProps {
+  onContinue?: (route: Href) => void;
+}
+
+function defaultContinue(route: Href): void {
+  router.push(route);
+}
+
+export default function CheckInCloudScreen({
+  onContinue = defaultContinue
+}: CheckInCloudScreenProps = {}) {
   const [frequency, setFrequency] = useState<CheckInFrequency>('QUARTERLY');
   const [selectedProvider, setSelectedProvider] = useState(cloudProviderOptions[0].value);
   const [connectedProvider, setConnectedProvider] = useState<string | null>(null);
@@ -224,6 +235,13 @@ export default function CheckInCloudScreen() {
             files, sync document contents, or store cloud passwords in this preview.
           </Text>
         </View>
+
+        {isConnected ? (
+          <Button
+            label="Review readiness"
+            onPress={() => onContinue('/readiness')}
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );

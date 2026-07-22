@@ -132,6 +132,7 @@ describe('ReadinessScreen', () => {
     expect(await screen.findByText('100')).toBeTruthy();
     expect(screen.getByText('No critical gaps right now')).toBeTruthy();
     expect(screen.getByText('5 of 5 core checks complete')).toBeTruthy();
+    expect(screen.getByText('Preview emergency handover')).toBeTruthy();
     expect(mockedGapApi.explainGaps).not.toHaveBeenCalled();
   }, 15000);
 

@@ -1,5 +1,7 @@
+import { Href, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from '../components';
 import Screen from '../components/Screen';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { evaluateContacts } from './evaluateContacts';
@@ -8,7 +10,17 @@ import TrustedContactRow from './TrustedContactRow';
 import type { TrustedContact } from './trustedContact.types';
 import { useTrustedContacts } from './useTrustedContacts';
 
-export default function TrustedContactsScreen() {
+interface TrustedContactsScreenProps {
+  onContinue?: (route: Href) => void;
+}
+
+function defaultContinue(route: Href): void {
+  router.push(route);
+}
+
+export default function TrustedContactsScreen({
+  onContinue = defaultContinue
+}: TrustedContactsScreenProps = {}) {
   const { contacts, loading, error, add, update, remove } = useTrustedContacts();
   const [editing, setEditing] = useState<TrustedContact | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -99,6 +111,13 @@ export default function TrustedContactsScreen() {
             await add(input);
           }}
         />
+
+        {!loading && !error && evaluation.level === 'success' && !editing ? (
+          <Button
+            label="Continue to asset references"
+            onPress={() => onContinue('/asset-references')}
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );

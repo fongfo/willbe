@@ -1,7 +1,5 @@
-import type { Href } from 'expo-router';
 import type { AssetReference } from '../asset-references/assetReference.types';
 import type { FamilyMember } from '../family-members/familyMember.types';
-import type { ReadinessEvaluation } from '../readiness/evaluateReadiness';
 import type { TrustedContact } from '../trusted-contacts/trustedContact.types';
 
 export interface DashboardSource {
@@ -15,12 +13,6 @@ export interface DashboardMetric {
   label: string;
   value: string;
   detail: string;
-}
-
-export interface DashboardAction {
-  title: string;
-  detail: string;
-  route: Href;
 }
 
 export function getDashboardMetrics({
@@ -53,40 +45,4 @@ export function getDashboardMetrics({
       detail: locatedAssets.length > 0 ? 'location hint ready' : 'needs location hint'
     }
   ];
-}
-
-export function getDashboardAction(
-  evaluation: ReadinessEvaluation
-): DashboardAction {
-  const [firstGap] = evaluation.gaps;
-
-  if (!firstGap) {
-    return {
-      title: 'Preview emergency handover',
-      detail: 'Your core checks are complete. Review what your family would see.',
-      route: '/emergency-handover'
-    };
-  }
-
-  if (firstGap.id.startsWith('family')) {
-    return {
-      title: 'Add family details',
-      detail: firstGap.detail,
-      route: '/family-members'
-    };
-  }
-
-  if (firstGap.id.startsWith('trusted')) {
-    return {
-      title: 'Strengthen trusted contacts',
-      detail: firstGap.detail,
-      route: '/trusted-contacts'
-    };
-  }
-
-  return {
-    title: 'Add asset references',
-    detail: firstGap.detail,
-    route: '/asset-references'
-  };
 }

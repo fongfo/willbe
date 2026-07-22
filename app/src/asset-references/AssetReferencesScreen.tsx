@@ -1,11 +1,27 @@
+import { Href, router } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from '../components';
 import Screen from '../components/Screen';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import AssetReferenceForm from './AssetReferenceForm';
 import AssetReferenceRow from './AssetReferenceRow';
 import { useAssetReferences } from './useAssetReferences';
 
-export default function AssetReferencesScreen() {
+interface AssetReferencesScreenProps {
+  onContinue?: (route: Href) => void;
+}
+
+function defaultContinue(route: Href): void {
+  router.push(route);
+}
+
+function hasLocationHint(references: ReturnType<typeof useAssetReferences>['references']): boolean {
+  return references.some((reference) => Boolean(reference.locationHint?.trim()));
+}
+
+export default function AssetReferencesScreen({
+  onContinue = defaultContinue
+}: AssetReferencesScreenProps = {}) {
   const { references, loading, error, add } = useAssetReferences();
 
   return (
@@ -46,6 +62,13 @@ export default function AssetReferencesScreen() {
         </View>
 
         <AssetReferenceForm onSubmit={async (input) => void (await add(input))} />
+
+        {!loading && !error && hasLocationHint(references) ? (
+          <Button
+            label="Continue to check-in"
+            onPress={() => onContinue('/check-in')}
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );

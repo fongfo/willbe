@@ -1,5 +1,7 @@
+import { Href, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from '../components';
 import Screen from '../components/Screen';
 import { colors, fontSizes, spacing } from '../theme/tokens';
 import FamilyMemberForm from './FamilyMemberForm';
@@ -7,7 +9,17 @@ import FamilyMemberRow from './FamilyMemberRow';
 import type { FamilyMember } from './familyMember.types';
 import { useFamilyMembers } from './useFamilyMembers';
 
-export default function FamilyMembersScreen() {
+interface FamilyMembersScreenProps {
+  onContinue?: (route: Href) => void;
+}
+
+function defaultContinue(route: Href): void {
+  router.push(route);
+}
+
+export default function FamilyMembersScreen({
+  onContinue = defaultContinue
+}: FamilyMembersScreenProps = {}) {
   const { members, loading, error, add, update, remove } = useFamilyMembers();
   const [editing, setEditing] = useState<FamilyMember | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -76,6 +88,13 @@ export default function FamilyMembersScreen() {
             await add(input);
           }}
         />
+
+        {!loading && !error && members.length > 0 && !editing ? (
+          <Button
+            label="Continue to trusted contacts"
+            onPress={() => onContinue('/trusted-contacts')}
+          />
+        ) : null}
       </ScrollView>
     </Screen>
   );

@@ -1,6 +1,7 @@
+import { router } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAssetReferences } from '../asset-references/useAssetReferences';
-import { Badge, Card, Screen } from '../components';
+import { Badge, Button, Card, Screen } from '../components';
 import { useFamilyMembers } from '../family-members/useFamilyMembers';
 import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
@@ -156,6 +157,11 @@ export default function ReadinessScreen() {
                 <Text style={styles.emptyText}>
                   Keep reviewing the plan when your family, contacts, or documents change.
                 </Text>
+                <Button
+                  label="Preview emergency handover"
+                  onPress={() => router.push('/emergency-handover')}
+                  style={styles.emptyButton}
+                />
               </View>
             ) : (
               <View style={styles.gapList}>
@@ -364,5 +370,8 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.small,
     lineHeight: 19,
     color: colors.ink
+  },
+  emptyButton: {
+    marginTop: spacing.md
   }
 });

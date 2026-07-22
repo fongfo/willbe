@@ -61,7 +61,7 @@ describe('PlanStepperScreen', () => {
     const onOpenStep = jest.fn();
     render(<PlanStepperScreen onOpenStep={onOpenStep} setupProgress={emptyProgress} />);
 
-    fireEvent.press(screen.getByText('Start with family'));
+    fireEvent.press(screen.getByText('Start setup'));
 
     expect(onOpenStep).toHaveBeenCalledWith('/family-members');
   });
@@ -69,15 +69,35 @@ describe('PlanStepperScreen', () => {
   it('shows zero completed setup inputs before user data exists', () => {
     render(<PlanStepperScreen onOpenStep={jest.fn()} setupProgress={emptyProgress} />);
 
-    expect(screen.getByText('0 of 6 steps ready')).toBeTruthy();
-    expect(screen.getByLabelText('0 of 6 setup steps ready')).toBeTruthy();
+    expect(screen.getByText('0 of 4 setup steps ready')).toBeTruthy();
+    expect(screen.getByLabelText('0 of 4 setup steps ready')).toBeTruthy();
     expect(screen.getByText('Setup inputs')).toBeTruthy();
+  });
+
+  it('continues from the first incomplete setup step', () => {
+    const onOpenStep = jest.fn();
+    render(
+      <PlanStepperScreen
+        onOpenStep={onOpenStep}
+        setupProgress={{
+          completedSetupSteps: 2,
+          hasFamilyMembers: true,
+          hasTrustedContacts: true,
+          hasAssetReferences: false,
+          hasCheckInSetup: false
+        }}
+      />
+    );
+
+    fireEvent.press(screen.getByText('Continue setup'));
+
+    expect(onOpenStep).toHaveBeenCalledWith('/asset-references');
   });
 
   it('is exposed through the plan tab route', () => {
     render(<PlanRoute />);
 
-    expect(screen.getByText('Six-step flow')).toBeTruthy();
+    expect(screen.getByText('Setup checklist')).toBeTruthy();
     expect(screen.getByText('Setup inputs')).toBeTruthy();
     expect(screen.getByText('Review outputs')).toBeTruthy();
   });

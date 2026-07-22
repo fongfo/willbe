@@ -11,6 +11,8 @@ import type {
   CreateFamilyMemberInput,
   FamilyMember
 } from '../src/family-members/familyMember.types';
+import * as planProgressApi from '../src/plan/planProgress.api';
+import * as reviewSettingsApi from '../src/check-in/reviewSettings.api';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 import type {
   CreateTrustedContactInput,
@@ -20,14 +22,19 @@ import type {
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
+jest.mock('../src/plan/planProgress.api');
+jest.mock('../src/check-in/reviewSettings.api');
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
+const mockedPlanProgressApi = planProgressApi as jest.Mocked<typeof planProgressApi>;
+const mockedReviewSettingsApi = reviewSettingsApi as jest.Mocked<typeof reviewSettingsApi>;
 
 let familyMembers: FamilyMember[] = [];
 let trustedContacts: TrustedContact[] = [];
 let assetReferences: AssetReference[] = [];
+let hasCheckInSetup = false;
 
 function makeMember(
   input: CreateFamilyMemberInput,
@@ -93,6 +100,7 @@ beforeEach(() => {
   familyMembers = [];
   trustedContacts = [];
   assetReferences = [];
+  hasCheckInSetup = false;
 
   mockedFamilyApi.listFamilyMembers.mockImplementation(async () => familyMembers);
   mockedFamilyApi.createFamilyMember.mockImplementation(async (input) => {
@@ -114,6 +122,28 @@ beforeEach(() => {
     assetReferences = [...assetReferences, created];
     return created;
   });
+
+  mockedPlanProgressApi.getPlanProgress.mockImplementation(async () => ({
+    completedSetupSteps: [
+      familyMembers.length > 0,
+      trustedContacts.length > 0,
+      assetReferences.length > 0,
+      hasCheckInSetup
+    ].filter(Boolean).length,
+    hasFamilyMembers: familyMembers.length > 0,
+    hasTrustedContacts: trustedContacts.length > 0,
+    hasAssetReferences: assetReferences.length > 0,
+    hasCheckInSetup
+  }));
+
+  mockedReviewSettingsApi.getReviewSetting.mockImplementation(async () => ({
+    checkInFrequency: 'EVERY_6_MONTHS',
+    connectedProviders: hasCheckInSetup ? ['ICLOUD'] : []
+  }));
+  mockedReviewSettingsApi.saveReviewSetting.mockImplementation(async (input) => {
+    hasCheckInSetup = input.connectedProviders.length > 0;
+    return input;
+  });
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -128,7 +158,7 @@ describe('Pusaka E2E user journey', () => {
     expect(screen.getByText('0/5 checks')).toBeTruthy();
 
     fireEvent.press(screen.getByText('View plan'));
-    expect(await screen.findByText('Six-step flow')).toBeTruthy();
+    expect(await screen.findByText('Setup checklist')).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText('Open step 1: Family members'));
     expect(await screen.findByText('Your family directory')).toBeTruthy();
@@ -175,14 +205,15 @@ describe('Pusaka E2E user journey', () => {
 
     navigateTo('/home');
     expect(await screen.findByText('100')).toBeTruthy();
-    expect(screen.getByText('Preview emergency handover')).toBeTruthy();
+    expect(screen.getByText('Plan complete')).toBeTruthy();
+    expect(screen.getByText('Preview handover')).toBeTruthy();
 
     navigateTo('/readiness');
     expect(await screen.findByText('No critical gaps right now')).toBeTruthy();
     expect(screen.getByText('5 of 5 core checks complete')).toBeTruthy();
 
     navigateTo('/emergency-handover');
-    expect(await screen.findByText('Preview ready')).toBeTruthy();
+    expect(await screen.findByText('Complete')).toBeTruthy();
     expect(screen.getByText('Amina Rahman')).toBeTruthy();
     expect(screen.getByText('Sara Abdullah')).toBeTruthy();
     expect(screen.getByText('Maybank main account')).toBeTruthy();

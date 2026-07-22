@@ -65,7 +65,7 @@ describe('tab + stack screens', () => {
     render(<PlanScreen />);
 
     expect(screen.getByText('Plan')).toBeTruthy();
-    expect(await screen.findByText('0 of 6 steps ready')).toBeTruthy();
+    expect(await screen.findByText('0 of 4 setup steps ready')).toBeTruthy();
   });
 
   it('renders the Consent screen heading', () => {

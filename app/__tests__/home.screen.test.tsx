@@ -5,12 +5,14 @@ import type { AssetReference } from '../src/asset-references/assetReference.type
 import * as familyApi from '../src/family-members/familyMember.api';
 import type { FamilyMember } from '../src/family-members/familyMember.types';
 import HomeDashboardScreen from '../src/home/HomeDashboardScreen';
+import * as planProgressApi from '../src/plan/planProgress.api';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 import type { TrustedContact } from '../src/trusted-contacts/trustedContact.types';
 
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
+jest.mock('../src/plan/planProgress.api');
 jest.mock('../src/navigation/useRefreshOnFocus', () => ({
   useRefreshOnFocus: jest.fn()
 }));
@@ -23,6 +25,7 @@ jest.mock('expo-router', () => ({
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
+const mockedPlanProgressApi = planProgressApi as jest.Mocked<typeof planProgressApi>;
 
 function makeMember(overrides: Partial<FamilyMember> = {}): FamilyMember {
   return {
@@ -68,15 +71,29 @@ function makeAsset(overrides: Partial<AssetReference> = {}): AssetReference {
 function mockDashboardData({
   familyMembers = [],
   trustedContacts = [],
-  assetReferences = []
+  assetReferences = [],
+  hasCheckInSetup = false
 }: {
   familyMembers?: FamilyMember[];
   trustedContacts?: TrustedContact[];
   assetReferences?: AssetReference[];
+  hasCheckInSetup?: boolean;
 }): void {
   mockedFamilyApi.listFamilyMembers.mockResolvedValue(familyMembers);
   mockedContactApi.listTrustedContacts.mockResolvedValue(trustedContacts);
   mockedAssetApi.listAssetReferences.mockResolvedValue(assetReferences);
+  mockedPlanProgressApi.getPlanProgress.mockResolvedValue({
+    completedSetupSteps: [
+      familyMembers.length > 0,
+      trustedContacts.length > 0,
+      assetReferences.length > 0,
+      hasCheckInSetup
+    ].filter(Boolean).length,
+    hasFamilyMembers: familyMembers.length > 0,
+    hasTrustedContacts: trustedContacts.length > 0,
+    hasAssetReferences: assetReferences.length > 0,
+    hasCheckInSetup
+  });
 }
 
 afterEach(() => jest.clearAllMocks());
@@ -86,7 +103,8 @@ describe('HomeDashboardScreen', () => {
     mockDashboardData({
       familyMembers: [makeMember()],
       trustedContacts: [makeContact(), makeContact({ id: 'c2', role: 'BACKUP' })],
-      assetReferences: [makeAsset()]
+      assetReferences: [makeAsset()],
+      hasCheckInSetup: true
     });
 
     render(<HomeDashboardScreen onNavigate={jest.fn()} />);
@@ -94,7 +112,8 @@ describe('HomeDashboardScreen', () => {
     expect(await screen.findByText('100')).toBeTruthy();
     expect(screen.getAllByText('1').length).toBeGreaterThan(0);
     expect(screen.getByText('2')).toBeTruthy();
-    expect(screen.getByText('Preview emergency handover')).toBeTruthy();
+    expect(screen.getByText('Plan complete')).toBeTruthy();
+    expect(screen.getByText('Preview handover')).toBeTruthy();
   });
 
   it('opens the next best action route', async () => {
@@ -106,11 +125,11 @@ describe('HomeDashboardScreen', () => {
     });
 
     render(<HomeDashboardScreen onNavigate={onNavigate} />);
-    expect(await screen.findByText('Strengthen trusted contacts')).toBeTruthy();
+    expect(await screen.findByText('Add asset references')).toBeTruthy();
 
-    fireEvent.press(screen.getByText('Open next step'));
+    fireEvent.press(screen.getByText('Continue setup'));
 
-    expect(onNavigate).toHaveBeenCalledWith('/trusted-contacts');
+    expect(onNavigate).toHaveBeenCalledWith('/asset-references');
   });
 
   it('links to the plan and readiness dashboards', async () => {
