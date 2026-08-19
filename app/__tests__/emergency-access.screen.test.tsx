@@ -82,7 +82,7 @@ describe('ContactEmergencyModeScreen', () => {
     render(<ContactEmergencyModeScreen />);
 
     expect(await screen.findByText('Contact Home')).toBeTruthy();
-    expect(screen.getByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
+    expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
     fireEvent.press(screen.getByText('Request emergency access'));
     fireEvent.changeText(
       screen.getByLabelText('Emergency access reason detail'),
@@ -130,6 +130,84 @@ describe('ContactEmergencyModeScreen', () => {
     expect(await screen.findByText('Waiting for Review')).toBeTruthy();
     expect(screen.queryByText('Where to Look')).toBeNull();
     expect(mockedEmergencyApi.getContactEmergencyHandover).not.toHaveBeenCalled();
+  });
+
+  it('lets a backup contact confirm secondary review and enters emergency mode', async () => {
+    const secondaryReviewRequest: EmergencyAccessRequestSummary = {
+      ...coolingOffRequest,
+      status: 'SECONDARY_REVIEW',
+      reviewRole: 'BACKUP_REVIEWER'
+    };
+    mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
+      {
+        ...makeAssignment(secondaryReviewRequest),
+        role: 'BACKUP'
+      }
+    ]);
+    mockedEmergencyApi.confirmBackupEmergencyAccessRequest.mockResolvedValue({
+      ...secondaryReviewRequest,
+      status: 'ACTIVE',
+      activatedAt: '2026-08-19T01:00:00.000Z',
+      expiresAt: '2026-08-22T01:00:00.000Z'
+    });
+    mockedEmergencyApi.getContactEmergencyHandover.mockResolvedValue(makeHandover());
+
+    render(<ContactEmergencyModeScreen />);
+
+    expect(await screen.findByText('Backup Confirmation')).toBeTruthy();
+    fireEvent.press(screen.getByText('Confirm and activate'));
+
+    await waitFor(() =>
+      expect(mockedEmergencyApi.confirmBackupEmergencyAccessRequest).toHaveBeenCalledWith('req1')
+    );
+    expect(await screen.findByText('Contacts & First Steps')).toBeTruthy();
+  });
+
+  it('lets a backup contact deny secondary review', async () => {
+    const secondaryReviewRequest: EmergencyAccessRequestSummary = {
+      ...coolingOffRequest,
+      status: 'SECONDARY_REVIEW',
+      reviewRole: 'BACKUP_REVIEWER'
+    };
+    mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
+      {
+        ...makeAssignment(secondaryReviewRequest),
+        role: 'BACKUP'
+      }
+    ]);
+    mockedEmergencyApi.denyBackupEmergencyAccessRequest.mockResolvedValue({
+      ...secondaryReviewRequest,
+      status: 'DENIED',
+      closedAt: '2026-08-19T01:00:00.000Z'
+    });
+
+    render(<ContactEmergencyModeScreen />);
+
+    expect(await screen.findByText('Backup Confirmation')).toBeTruthy();
+    fireEvent.press(screen.getByText('Deny request'));
+
+    await waitFor(() =>
+      expect(mockedEmergencyApi.denyBackupEmergencyAccessRequest).toHaveBeenCalledWith('req1')
+    );
+    expect(await screen.findByText('Request denied')).toBeTruthy();
+  });
+
+  it('does not show backup confirmation for the requesting backup contact', async () => {
+    mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
+      {
+        ...makeAssignment({
+          ...coolingOffRequest,
+          status: 'SECONDARY_REVIEW',
+          reviewRole: 'REQUESTER'
+        }),
+        role: 'BACKUP'
+      }
+    ]);
+
+    render(<ContactEmergencyModeScreen />);
+
+    expect(await screen.findByText('Waiting for Review')).toBeTruthy();
+    expect(screen.queryByText('Backup Confirmation')).toBeNull();
   });
 
   it('shows active contacts, first steps, family context, locations, and close action', async () => {

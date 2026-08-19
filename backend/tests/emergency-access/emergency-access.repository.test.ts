@@ -38,8 +38,10 @@ describe('EmergencyAccessRepository', () => {
   const repository = new EmergencyAccessRepository();
 
   beforeEach(async () => {
+    await prisma.emergencyAccessNotificationEvent.deleteMany();
     await prisma.emergencyAccessAuditEvent.deleteMany();
     await prisma.emergencyAccessRequest.deleteMany();
+    await prisma.emergencyAccessSetting.deleteMany();
     await prisma.trustedContact.deleteMany();
     await prisma.user.deleteMany();
   });
@@ -165,6 +167,7 @@ describe('EmergencyAccessRepository', () => {
 
     expect(assignments).toHaveLength(1);
     expect(assignments[0]?.emergencyAccessRequests?.[0]?.id).toBe(request?.id);
+    expect(assignments[0]?.emergencyAccessRequests?.[0]?.reviewRole).toBe('REQUESTER');
     expect(assignments[0]?.user).not.toHaveProperty('email');
   });
 
@@ -267,5 +270,77 @@ describe('EmergencyAccessRepository', () => {
     const events = await repository.findAuditEvents(request?.id ?? '');
 
     expect(events.map((event) => event.eventType)).toContain('HANDOVER_VIEWED');
+    expect(events.every((event) => event.proofVersion === 'audit-proof-v1')).toBe(true);
+    expect(events.every((event) => typeof event.proofHash === 'string')).toBe(true);
+  });
+
+  it('finds secondary review requests for a verified backup contact only', async () => {
+    const { owner, contactUser, trustedContact } = await createFixture();
+    const backupUser = await prisma.user.create({
+      data: {
+        privyUserId: 'dev:wb54-repo-backup@example.com',
+        email: 'wb54-repo-backup@example.com',
+        name: 'WB54 Repo Backup'
+      }
+    });
+    const backupContact = await prisma.trustedContact.create({
+      data: {
+        userId: owner.id,
+        contactUserId: backupUser.id,
+        name: 'Sara Abdullah',
+        relation: 'SIBLING',
+        role: 'BACKUP',
+        phone: '+60132221188',
+        email: 'wb54-repo-backup@example.com',
+        verificationStatus: 'VERIFIED'
+      }
+    });
+    const request = await repository.createCoolingOffRequest(
+      contactUser.id,
+      {
+        ownerUserId: owner.id,
+        trustedContactId: trustedContact.id,
+        reason: 'UNREACHABLE',
+        confirmed: true
+      },
+      {
+        now: NOW,
+        coolingOffEndsAt: new Date('2026-08-18T00:00:00.000Z')
+      }
+    );
+    await prisma.emergencyAccessRequest.update({
+      where: { id: request?.id ?? '' },
+      data: { status: EmergencyAccessStatus.SECONDARY_REVIEW }
+    });
+    await repository.createCoolingOffRequest(
+      backupUser.id,
+      {
+        ownerUserId: owner.id,
+        trustedContactId: backupContact.id,
+        reason: 'ACCIDENT',
+        confirmed: true
+      },
+      {
+        now: new Date('2026-08-19T01:00:00.000Z'),
+        coolingOffEndsAt: new Date('2026-08-20T01:00:00.000Z')
+      }
+    );
+
+    const visible = await repository.findBackupReviewContext(
+      backupUser.id,
+      request?.id ?? ''
+    );
+    const requesterHidden = await repository.findBackupReviewContext(
+      contactUser.id,
+      request?.id ?? ''
+    );
+    const backupAssignments = await repository.findAssignments(backupUser.id, NOW);
+
+    expect(visible?.backupContact.id).toBe(backupContact.id);
+    expect(requesterHidden).toBeNull();
+    expect(backupAssignments[0]?.emergencyAccessRequests?.[0]?.id).toBe(request?.id);
+    expect(backupAssignments[0]?.emergencyAccessRequests?.[0]?.reviewRole).toBe(
+      'BACKUP_REVIEWER'
+    );
   });
 });

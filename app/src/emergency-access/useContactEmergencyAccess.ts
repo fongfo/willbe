@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api';
 import {
   closeEmergencyAccessRequest,
+  confirmBackupEmergencyAccessRequest,
   createEmergencyAccessRequest,
+  denyBackupEmergencyAccessRequest,
   getContactAccessContext,
   getContactEmergencyHandover
 } from './emergencyAccess.api';
@@ -32,6 +34,8 @@ interface UseContactEmergencyAccessResult {
     input: Omit<CreateEmergencyAccessRequestInput, 'ownerUserId' | 'trustedContactId'>
   ) => Promise<void>;
   closeAccess: () => Promise<void>;
+  confirmBackupReview: () => Promise<void>;
+  denyBackupReview: () => Promise<void>;
 }
 
 function toMessage(error: unknown): string {
@@ -186,6 +190,44 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
     }
   }, [currentRequest]);
 
+  const confirmBackupReview = useCallback(async (): Promise<void> => {
+    if (!currentRequest) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const request = await confirmBackupEmergencyAccessRequest(currentRequest.id);
+      const effective = effectiveRequest(request);
+      setCurrentRequest(effective);
+      setHandover(null);
+      if (effective && shouldFetchHandover(effective)) {
+        await loadHandover(effective);
+      }
+    } catch (err: unknown) {
+      setError(toMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [currentRequest, loadHandover]);
+
+  const denyBackupReview = useCallback(async (): Promise<void> => {
+    if (!currentRequest) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const request = await denyBackupEmergencyAccessRequest(currentRequest.id);
+      setCurrentRequest(effectiveRequest(request));
+      setHandover(null);
+    } catch (err: unknown) {
+      setError(toMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [currentRequest]);
+
   const selectAssignment = useCallback(
     async (assignmentId: string): Promise<void> => {
       const selected = assignments.find((assignment) => assignment.id === assignmentId) ?? null;
@@ -211,6 +253,8 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
     refresh,
     selectAssignment,
     requestAccess,
-    closeAccess
+    closeAccess,
+    confirmBackupReview,
+    denyBackupReview
   };
 }

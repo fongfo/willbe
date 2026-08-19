@@ -26,6 +26,7 @@ export type EmergencyAccessStatus =
 export interface EmergencyAccessRequestSummary {
   id: string;
   status: EmergencyAccessStatus;
+  reviewRole?: 'REQUESTER' | 'BACKUP_REVIEWER';
   reason: EmergencyAccessReason;
   reasonDetail: string | null;
   coolingOffEndsAt: string | null;

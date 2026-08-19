@@ -88,6 +88,10 @@ export default function ContactEmergencyModeScreen() {
   const assignment = emergency.selectedAssignment;
   const currentStatus = emergency.currentRequest?.status ?? null;
   const isWaiting = currentStatus ? WAITING_STATUSES.has(currentStatus) : false;
+  const canBackupReview =
+    assignment?.role === 'BACKUP' &&
+    currentStatus === 'SECONDARY_REVIEW' &&
+    emergency.currentRequest?.reviewRole === 'BACKUP_REVIEWER';
   const canRequest =
     !currentStatus ||
     ['DENIED', 'REJECTED_BY_OWNER', 'SUSPENDED', 'CLOSED', 'EXPIRED'].includes(
@@ -260,6 +264,29 @@ export default function ContactEmergencyModeScreen() {
                 <Text style={styles.detailLine}>
                   Cooling-off ends: {formatDate(emergency.currentRequest?.coolingOffEndsAt ?? null)}
                 </Text>
+              </View>
+            ) : null}
+
+            {canBackupReview ? (
+              <View style={styles.panel}>
+                <Text style={styles.panelTitle}>Backup Confirmation</Text>
+                <Text style={styles.panelText}>
+                  Another trusted contact requested emergency access. Confirm only if the
+                  planner cannot respond and the family needs the plan now.
+                </Text>
+                <View style={styles.actionGroup}>
+                  <Button
+                    disabled={emergency.submitting}
+                    label={emergency.submitting ? 'Confirming...' : 'Confirm and activate'}
+                    onPress={emergency.confirmBackupReview}
+                  />
+                  <Button
+                    disabled={emergency.submitting}
+                    label="Deny request"
+                    onPress={emergency.denyBackupReview}
+                    variant="danger"
+                  />
+                </View>
               </View>
             ) : null}
 
@@ -544,6 +571,9 @@ const styles = StyleSheet.create({
   },
   activeArea: {
     gap: spacing.lg
+  },
+  actionGroup: {
+    gap: spacing.sm
   },
   section: {
     gap: spacing.md,

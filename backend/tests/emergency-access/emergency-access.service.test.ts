@@ -15,9 +15,14 @@ const OWNER_ID = '550e8400-e29b-41d4-a716-446655440000';
 const CONTACT_USER_ID = '550e8400-e29b-41d4-a716-446655440001';
 const CONTACT_ID = '550e8400-e29b-41d4-a716-446655440002';
 const REQUEST_ID = '550e8400-e29b-41d4-a716-446655440003';
+const BACKUP_USER_ID = '550e8400-e29b-41d4-a716-446655440004';
+const BACKUP_CONTACT_ID = '550e8400-e29b-41d4-a716-446655440005';
 
 interface MockRepository {
+  findSettings: jest.Mock;
+  upsertSettings: jest.Mock;
   findVerifiedAssignment: jest.Mock;
+  findVerifiedBackupContacts: jest.Mock;
   findAssignments: jest.Mock;
   findOpenForTrustedContact: jest.Mock;
   createCoolingOffRequest: jest.Mock;
@@ -25,9 +30,12 @@ interface MockRepository {
   findByIdForOwner: jest.Mock;
   findByIdForContact: jest.Mock;
   findActiveByIdForContact: jest.Mock;
+  findBackupReviewContext: jest.Mock;
   transitionStatus: jest.Mock;
+  transitionStatusWithEvents: jest.Mock;
   recordAuditEvent: jest.Mock;
   findAuditEvents: jest.Mock;
+  findNotificationEvents: jest.Mock;
 }
 
 function makeRequest(
@@ -74,7 +82,17 @@ function makeAssignment(
 
 function createRepository(): MockRepository {
   return {
+    findSettings: jest.fn().mockResolvedValue({ requireBackupConfirmation: true }),
+    upsertSettings: jest.fn().mockResolvedValue({ requireBackupConfirmation: true }),
     findVerifiedAssignment: jest.fn().mockResolvedValue(makeAssignment()),
+    findVerifiedBackupContacts: jest.fn().mockResolvedValue([
+      {
+        id: BACKUP_CONTACT_ID,
+        contactUserId: BACKUP_USER_ID,
+        name: 'Sara Abdullah',
+        role: 'BACKUP'
+      }
+    ]),
     findAssignments: jest.fn().mockResolvedValue([]),
     findOpenForTrustedContact: jest.fn().mockResolvedValue(null),
     createCoolingOffRequest: jest.fn().mockResolvedValue(makeRequest()),
@@ -105,9 +123,20 @@ function createRepository(): MockRepository {
         verificationStatus: 'VERIFIED'
       }
     } satisfies EmergencyAccessRequestWithContact),
+    findBackupReviewContext: jest.fn().mockResolvedValue({
+      request: makeRequest(EmergencyAccessStatus.SECONDARY_REVIEW),
+      backupContact: {
+        id: BACKUP_CONTACT_ID,
+        contactUserId: BACKUP_USER_ID,
+        name: 'Sara Abdullah',
+        role: 'BACKUP'
+      }
+    }),
     transitionStatus: jest.fn().mockResolvedValue(makeRequest()),
+    transitionStatusWithEvents: jest.fn().mockResolvedValue(makeRequest()),
     recordAuditEvent: jest.fn().mockResolvedValue(undefined),
-    findAuditEvents: jest.fn().mockResolvedValue([] as EmergencyAccessAuditEventModel[])
+    findAuditEvents: jest.fn().mockResolvedValue([] as EmergencyAccessAuditEventModel[]),
+    findNotificationEvents: jest.fn().mockResolvedValue([])
   };
 }
 
@@ -154,6 +183,19 @@ describe('EmergencyAccessService', () => {
     handoverService.preview.mockClear();
     handoverService.preview.mockResolvedValue(makeHandoverView());
     service = new EmergencyAccessService(repository, () => NOW, handoverService);
+  });
+
+  it('reads default emergency access settings and updates owner settings', async () => {
+    repository.findSettings.mockResolvedValue(null);
+
+    await expect(service.getSettings(OWNER_ID)).resolves.toEqual({
+      requireBackupConfirmation: true
+    });
+    await service.updateSettings(OWNER_ID, { requireBackupConfirmation: false });
+
+    expect(repository.upsertSettings).toHaveBeenCalledWith(OWNER_ID, {
+      requireBackupConfirmation: false
+    });
   });
 
   it('creates a cooling-off request for a verified bound contact', async () => {
@@ -265,15 +307,17 @@ describe('EmergencyAccessService', () => {
   it('allows owner rejection during cooling off', async () => {
     await service.rejectOwnerRequest(OWNER_ID, REQUEST_ID);
 
-    expect(repository.transitionStatus).toHaveBeenCalledWith(
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
       REQUEST_ID,
       OWNER_ID,
       {
         status: EmergencyAccessStatus.REJECTED_BY_OWNER,
         closedAt: NOW
       },
-      'OWNER_REJECTED',
-      {},
+      [{ eventType: 'OWNER_REJECTED' }],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'OWNER_REQUEST_REJECTED' })
+      ]),
       [
         EmergencyAccessStatus.REQUESTED,
         EmergencyAccessStatus.COOLING_OFF,
@@ -283,7 +327,7 @@ describe('EmergencyAccessService', () => {
   });
 
   it('returns 409 when a concurrent update wins before owner rejection', async () => {
-    repository.transitionStatus.mockResolvedValue(null);
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
 
     await expect(service.rejectOwnerRequest(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
       status: 409
@@ -306,27 +350,37 @@ describe('EmergencyAccessService', () => {
     });
   });
 
+  it('returns 404 when the owner cannot access a revoke request', async () => {
+    repository.findByIdForOwner.mockResolvedValue(null);
+
+    await expect(service.revokeOwnerRequest(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 404
+    });
+  });
+
   it('allows owner revoke only for active access', async () => {
     repository.findByIdForOwner.mockResolvedValue(makeRequest(EmergencyAccessStatus.ACTIVE));
 
     await service.revokeOwnerRequest(OWNER_ID, REQUEST_ID);
 
-    expect(repository.transitionStatus).toHaveBeenCalledWith(
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
       REQUEST_ID,
       OWNER_ID,
       {
         status: EmergencyAccessStatus.SUSPENDED,
         closedAt: NOW
       },
-      'OWNER_REVOKED',
-      {},
+      [{ eventType: 'OWNER_REVOKED' }],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'ACCESS_REVOKED' })
+      ]),
       [EmergencyAccessStatus.ACTIVE]
     );
   });
 
   it('returns 409 when a concurrent update wins before owner revoke', async () => {
     repository.findByIdForOwner.mockResolvedValue(makeRequest(EmergencyAccessStatus.ACTIVE));
-    repository.transitionStatus.mockResolvedValue(null);
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
 
     await expect(service.revokeOwnerRequest(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
       status: 409
@@ -394,6 +448,14 @@ describe('EmergencyAccessService', () => {
     });
   });
 
+  it('returns 404 when the contact cannot access a close request', async () => {
+    repository.findByIdForContact.mockResolvedValue(null);
+
+    await expect(service.closeContactRequest(CONTACT_USER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 404
+    });
+  });
+
   it('expires instead of closing active access after the expiry time', async () => {
     repository.findByIdForContact.mockResolvedValue({
       ...makeRequest(EmergencyAccessStatus.ACTIVE),
@@ -452,10 +514,22 @@ describe('EmergencyAccessService', () => {
     expect(handoverService.preview).not.toHaveBeenCalled();
   });
 
-  it('activates a cooling-off request and sets an expiry', async () => {
+  it('returns 500 when the handover service is not configured', async () => {
+    const serviceWithoutHandover = new EmergencyAccessService(repository, () => NOW);
+
+    await expect(
+      serviceWithoutHandover.getActiveContactHandover(CONTACT_USER_ID, REQUEST_ID)
+    ).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('activates a secondary-review request and sets an expiry', async () => {
+    repository.findByIdForOwner.mockResolvedValue(
+      makeRequest(EmergencyAccessStatus.SECONDARY_REVIEW)
+    );
+
     await service.activateForReview(OWNER_ID, REQUEST_ID);
 
-    expect(repository.transitionStatus).toHaveBeenCalledWith(
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
       REQUEST_ID,
       OWNER_ID,
       {
@@ -463,14 +537,16 @@ describe('EmergencyAccessService', () => {
         activatedAt: NOW,
         expiresAt: new Date('2026-08-22T00:00:00.000Z')
       },
-      'ACCESS_ACTIVATED',
-      {},
-      [EmergencyAccessStatus.COOLING_OFF, EmergencyAccessStatus.SECONDARY_REVIEW]
+      [{ eventType: 'ACCESS_ACTIVATED' }],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'ACCESS_ACTIVATED' })
+      ]),
+      [EmergencyAccessStatus.SECONDARY_REVIEW]
     );
   });
 
   it('returns 409 when a concurrent update wins before activation', async () => {
-    repository.transitionStatus.mockResolvedValue(null);
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
 
     await expect(service.activateForReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
       status: 409
@@ -485,6 +561,208 @@ describe('EmergencyAccessService', () => {
     });
   });
 
+  it('returns 404 when the owner cannot access activation', async () => {
+    repository.findByIdForOwner.mockResolvedValue(null);
+
+    await expect(service.activateForReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 404
+    });
+  });
+
+  it('blocks direct activation from cooling off', async () => {
+    repository.findByIdForOwner.mockResolvedValue(makeRequest(EmergencyAccessStatus.COOLING_OFF));
+
+    await expect(service.activateForReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
+  it('moves an elapsed cooling-off request into secondary review and notifies backup contacts', async () => {
+    repository.findByIdForOwner.mockResolvedValue({
+      ...makeRequest(EmergencyAccessStatus.COOLING_OFF),
+      coolingOffEndsAt: new Date('2026-08-18T00:00:00.000Z')
+    });
+    repository.transitionStatusWithEvents.mockResolvedValue(
+      makeRequest(EmergencyAccessStatus.SECONDARY_REVIEW)
+    );
+
+    await service.startSecondaryReview(OWNER_ID, REQUEST_ID);
+
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
+      REQUEST_ID,
+      OWNER_ID,
+      { status: EmergencyAccessStatus.SECONDARY_REVIEW },
+      [
+        {
+          eventType: 'SECONDARY_REVIEW_STARTED',
+          metadata: { backupContactCount: '1' }
+        }
+      ],
+      expect.arrayContaining([
+        expect.objectContaining({
+          trustedContactId: BACKUP_CONTACT_ID,
+          eventType: 'BACKUP_CONFIRMATION_REQUESTED'
+        })
+      ]),
+      [EmergencyAccessStatus.COOLING_OFF]
+    );
+  });
+
+  it('blocks secondary review before the cooling-off period ends', async () => {
+    repository.findByIdForOwner.mockResolvedValue(makeRequest(EmergencyAccessStatus.COOLING_OFF));
+
+    await expect(service.startSecondaryReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
+  it('returns 404 when secondary review is not owned by the planner', async () => {
+    repository.findByIdForOwner.mockResolvedValue(null);
+
+    await expect(service.startSecondaryReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 404
+    });
+  });
+
+  it('blocks secondary review from unsupported statuses', async () => {
+    repository.findByIdForOwner.mockResolvedValue(makeRequest(EmergencyAccessStatus.ACTIVE));
+
+    await expect(service.startSecondaryReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
+  it('requires a verified backup contact before secondary review', async () => {
+    repository.findByIdForOwner.mockResolvedValue({
+      ...makeRequest(EmergencyAccessStatus.COOLING_OFF),
+      coolingOffEndsAt: new Date('2026-08-18T00:00:00.000Z')
+    });
+    repository.findVerifiedBackupContacts.mockResolvedValue([]);
+
+    await expect(service.startSecondaryReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
+  it('returns 409 when a concurrent update wins before secondary review', async () => {
+    repository.findByIdForOwner.mockResolvedValue({
+      ...makeRequest(EmergencyAccessStatus.COOLING_OFF),
+      coolingOffEndsAt: new Date('2026-08-18T00:00:00.000Z')
+    });
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
+
+    await expect(service.startSecondaryReview(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
+  it('activates without backup confirmation when owner settings disable it', async () => {
+    repository.findSettings.mockResolvedValue({ requireBackupConfirmation: false });
+    repository.findByIdForOwner.mockResolvedValue({
+      ...makeRequest(EmergencyAccessStatus.COOLING_OFF),
+      coolingOffEndsAt: new Date('2026-08-18T00:00:00.000Z')
+    });
+
+    await service.startSecondaryReview(OWNER_ID, REQUEST_ID);
+
+    expect(repository.findVerifiedBackupContacts).not.toHaveBeenCalled();
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
+      REQUEST_ID,
+      OWNER_ID,
+      expect.objectContaining({ status: EmergencyAccessStatus.ACTIVE }),
+      [{ eventType: 'ACCESS_ACTIVATED' }],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'ACCESS_ACTIVATED' })
+      ]),
+      [EmergencyAccessStatus.COOLING_OFF]
+    );
+  });
+
+  it('lets a verified backup contact confirm secondary review and activate access', async () => {
+    repository.transitionStatusWithEvents.mockResolvedValue(makeRequest(EmergencyAccessStatus.ACTIVE));
+
+    await service.confirmBackupReview(BACKUP_USER_ID, REQUEST_ID);
+
+    expect(repository.findBackupReviewContext).toHaveBeenCalledWith(BACKUP_USER_ID, REQUEST_ID);
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
+      REQUEST_ID,
+      BACKUP_USER_ID,
+      {
+        status: EmergencyAccessStatus.ACTIVE,
+        activatedAt: NOW,
+        expiresAt: new Date('2026-08-22T00:00:00.000Z')
+      },
+      [
+        {
+          eventType: 'BACKUP_CONFIRMED',
+          metadata: { backupContactId: BACKUP_CONTACT_ID }
+        },
+        { eventType: 'ACCESS_ACTIVATED' }
+      ],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'ACCESS_ACTIVATED' })
+      ]),
+      [EmergencyAccessStatus.SECONDARY_REVIEW]
+    );
+  });
+
+  it('returns 404 when backup confirmation is not authorized', async () => {
+    repository.findBackupReviewContext.mockResolvedValue(null);
+
+    await expect(service.confirmBackupReview(BACKUP_USER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 404
+    });
+  });
+
+  it('returns 409 when a concurrent update wins before backup confirmation', async () => {
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
+
+    await expect(service.confirmBackupReview(BACKUP_USER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
+  it('lets a verified backup contact deny secondary review', async () => {
+    repository.transitionStatusWithEvents.mockResolvedValue(makeRequest(EmergencyAccessStatus.DENIED));
+
+    await service.denyBackupReview(BACKUP_USER_ID, REQUEST_ID);
+
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
+      REQUEST_ID,
+      BACKUP_USER_ID,
+      {
+        status: EmergencyAccessStatus.DENIED,
+        closedAt: NOW
+      },
+      [
+        {
+          eventType: 'BACKUP_DENIED',
+          metadata: { backupContactId: BACKUP_CONTACT_ID }
+        }
+      ],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'BACKUP_CONFIRMATION_DENIED' })
+      ]),
+      [EmergencyAccessStatus.SECONDARY_REVIEW]
+    );
+  });
+
+  it('returns 404 when backup denial is not authorized', async () => {
+    repository.findBackupReviewContext.mockResolvedValue(null);
+
+    await expect(service.denyBackupReview(BACKUP_USER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 404
+    });
+  });
+
+  it('returns 409 when a concurrent update wins before backup denial', async () => {
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
+
+    await expect(service.denyBackupReview(BACKUP_USER_ID, REQUEST_ID)).rejects.toMatchObject({
+      status: 409
+    });
+  });
+
   it('expires active access after the expiry time', async () => {
     repository.findByIdForOwner.mockResolvedValue({
       ...makeRequest(EmergencyAccessStatus.ACTIVE),
@@ -493,15 +771,17 @@ describe('EmergencyAccessService', () => {
 
     await service.expireIfNeeded(OWNER_ID, REQUEST_ID);
 
-    expect(repository.transitionStatus).toHaveBeenCalledWith(
+    expect(repository.transitionStatusWithEvents).toHaveBeenCalledWith(
       REQUEST_ID,
       OWNER_ID,
       {
         status: EmergencyAccessStatus.EXPIRED,
         closedAt: NOW
       },
-      'ACCESS_EXPIRED',
-      {},
+      [{ eventType: 'ACCESS_EXPIRED' }],
+      expect.arrayContaining([
+        expect.objectContaining({ eventType: 'ACCESS_EXPIRED' })
+      ]),
       [EmergencyAccessStatus.ACTIVE]
     );
   });
@@ -511,7 +791,7 @@ describe('EmergencyAccessService', () => {
       ...makeRequest(EmergencyAccessStatus.ACTIVE),
       expiresAt: new Date('2026-08-18T00:00:00.000Z')
     });
-    repository.transitionStatus.mockResolvedValue(null);
+    repository.transitionStatusWithEvents.mockResolvedValue(null);
 
     await expect(service.expireIfNeeded(OWNER_ID, REQUEST_ID)).rejects.toMatchObject({
       status: 409
@@ -531,9 +811,11 @@ describe('EmergencyAccessService', () => {
     await service.listContactContext(CONTACT_USER_ID);
     await service.listOwnerRequests(OWNER_ID);
     await service.auditEvents(REQUEST_ID);
+    await service.notificationEvents(REQUEST_ID);
 
     expect(repository.findAssignments).toHaveBeenCalledWith(CONTACT_USER_ID, NOW);
     expect(repository.findOwnerRequests).toHaveBeenCalledWith(OWNER_ID);
     expect(repository.findAuditEvents).toHaveBeenCalledWith(REQUEST_ID);
+    expect(repository.findNotificationEvents).toHaveBeenCalledWith(REQUEST_ID);
   });
 });

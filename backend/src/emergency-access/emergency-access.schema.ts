@@ -18,3 +18,13 @@ export const createEmergencyAccessRequestSchema = z
 export type CreateEmergencyAccessRequestInput = z.infer<
   typeof createEmergencyAccessRequestSchema
 >;
+
+export const updateEmergencyAccessSettingsSchema = z
+  .object({
+    requireBackupConfirmation: z.boolean()
+  })
+  .strict();
+
+export type UpdateEmergencyAccessSettingsInput = z.infer<
+  typeof updateEmergencyAccessSettingsSchema
+>;
