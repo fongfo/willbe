@@ -52,6 +52,8 @@ interface PrivyUserLike {
 
 const AccountAuthContext = createContext<AccountAuthContextValue | null>(null);
 const PRIVY_REQUEST_TIMEOUT_MS = 20000;
+const WALLET_DISCOVERY_ATTEMPTS = 5;
+const WALLET_DISCOVERY_DELAY_MS = 50;
 let devSession: AuthSession | null = null;
 
 function messageFromError(error: unknown): string {
@@ -71,6 +73,12 @@ function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
       .then(resolve)
       .catch(reject)
       .finally(() => clearTimeout(timeout));
+  });
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, milliseconds);
   });
 }
 
@@ -111,6 +119,19 @@ function walletAddressFromSessionOrPrivy(
 
 function isWalletAlreadyExistsError(error: unknown): boolean {
   return error instanceof Error && error.message.toLowerCase().includes('wallet already exists');
+}
+
+async function waitForDiscoverableWallet(
+  readWalletAddress: () => string | undefined
+): Promise<string | undefined> {
+  for (let attempt = 0; attempt < WALLET_DISCOVERY_ATTEMPTS; attempt += 1) {
+    const walletAddress = readWalletAddress();
+    if (walletAddress) {
+      return walletAddress;
+    }
+    await delay(WALLET_DISCOVERY_DELAY_MS);
+  }
+  return readWalletAddress();
 }
 
 function DevAccountAuthProvider({ children }: { children: ReactNode }) {
@@ -169,6 +190,8 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
   const { sendCode, loginWithCode } = useLoginWithEmail();
   const { getIdentityToken } = useIdentityToken();
   const { wallets, create } = useEmbeddedEthereumWallet();
+  const walletsRef = useRef(wallets);
+  const privyUserRef = useRef<unknown>(privyUser);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [restoreAttemptedFor, setRestoreAttemptedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -192,6 +215,14 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
     setApiAccessTokenProvider(() => getAccessToken());
     return () => setApiAccessTokenProvider(null);
   }, [getAccessToken]);
+
+  useEffect(() => {
+    walletsRef.current = wallets;
+  }, [wallets]);
+
+  useEffect(() => {
+    privyUserRef.current = privyUser;
+  }, [privyUser]);
 
   const createBackendSession = useCallback(async (): Promise<AuthSession> => {
     if (sessionRequestRef.current) {
@@ -228,7 +259,13 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
     setWalletStatus('pending');
     setWalletError(null);
     try {
-      const existingWallet = walletAddressFromSessionOrPrivy(currentSession, wallets, privyUser);
+      const existingWallet = await waitForDiscoverableWallet(() =>
+        walletAddressFromSessionOrPrivy(
+          currentSession,
+          walletsRef.current,
+          privyUserRef.current
+        )
+      );
       if (existingWallet) {
         const nextSession = mergeWalletAddress(currentSession, existingWallet);
         setSession(nextSession);
@@ -242,12 +279,20 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
       );
       const walletAddress =
         walletAddressFromPrivyUser(createdWallet.user) ??
-        walletAddressFromSessionOrPrivy(currentSession, wallets, privyUser);
+        walletAddressFromSessionOrPrivy(
+          currentSession,
+          walletsRef.current,
+          privyUserRef.current
+        );
       const nextSession = mergeWalletAddress(currentSession, walletAddress);
       setSession(nextSession);
       setWalletStatus(nextSession.user.walletAddress ? 'ready' : 'pending');
     } catch (caughtError: unknown) {
-      const recoveredWallet = walletAddressFromSessionOrPrivy(currentSession, wallets, privyUser);
+      const recoveredWallet = walletAddressFromSessionOrPrivy(
+        currentSession,
+        walletsRef.current,
+        privyUserRef.current
+      );
       if (recoveredWallet && isWalletAlreadyExistsError(caughtError)) {
         const nextSession = mergeWalletAddress(currentSession, recoveredWallet);
         setSession(nextSession);
@@ -257,7 +302,7 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
       setWalletStatus('error');
       setWalletError(messageFromError(caughtError));
     }
-  }, [create, privyUser, wallets]);
+  }, [create]);
 
   const establishSession = useCallback(async (): Promise<void> => {
     const nextSession = await createBackendSession();
