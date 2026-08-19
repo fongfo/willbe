@@ -11,6 +11,8 @@ import type {
   CreateFamilyMemberInput,
   FamilyMember
 } from '../src/family-members/familyMember.types';
+import * as handoverInstructionApi from '../src/handover-instructions/handoverInstruction.api';
+import type { HandoverInstruction } from '../src/handover-instructions/handoverInstruction.types';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 import type {
   CreateTrustedContactInput,
@@ -20,14 +22,20 @@ import type {
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
+jest.mock('../src/handover-instructions/handoverInstruction.api');
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
+const mockedInstructionApi = handoverInstructionApi as jest.Mocked<typeof handoverInstructionApi>;
 
 let familyMembers: FamilyMember[] = [];
 let trustedContacts: TrustedContact[] = [];
 let assetReferences: AssetReference[] = [];
+let handoverInstruction: HandoverInstruction = {
+  message: null,
+  firstSteps: []
+};
 
 function makeMember(
   input: CreateFamilyMemberInput,
@@ -93,6 +101,10 @@ beforeEach(() => {
   familyMembers = [];
   trustedContacts = [];
   assetReferences = [];
+  handoverInstruction = {
+    message: null,
+    firstSteps: []
+  };
 
   mockedFamilyApi.listFamilyMembers.mockImplementation(async () => familyMembers);
   mockedFamilyApi.createFamilyMember.mockImplementation(async (input) => {
@@ -113,6 +125,17 @@ beforeEach(() => {
     const created = makeAsset(input, assetReferences.length + 1);
     assetReferences = [...assetReferences, created];
     return created;
+  });
+
+  mockedInstructionApi.getHandoverInstruction.mockImplementation(
+    async () => handoverInstruction
+  );
+  mockedInstructionApi.saveHandoverInstruction.mockImplementation(async (input) => {
+    handoverInstruction = {
+      message: input.message ?? null,
+      firstSteps: input.firstSteps
+    };
+    return handoverInstruction;
   });
 });
 

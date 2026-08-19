@@ -1,5 +1,6 @@
 import type { AssetReference } from '../asset-references/assetReference.types';
 import type { FamilyMember } from '../family-members/familyMember.types';
+import type { HandoverInstruction } from '../handover-instructions/handoverInstruction.types';
 import type { TrustedContact } from '../trusted-contacts/trustedContact.types';
 
 export interface HandoverGap {
@@ -9,6 +10,10 @@ export interface HandoverGap {
 }
 
 export interface EmergencyHandoverPreview {
+  instruction: {
+    message: string | null;
+    firstSteps: string[];
+  };
   protectedNames: string[];
   primaryContact: TrustedContact | null;
   backupContacts: TrustedContact[];
@@ -19,6 +24,7 @@ export interface EmergencyHandoverPreview {
 
 interface EmergencyHandoverInput {
   familyMembers: readonly FamilyMember[];
+  handoverInstruction?: HandoverInstruction | null;
   trustedContacts: readonly TrustedContact[];
   assetReferences: readonly AssetReference[];
 }
@@ -29,6 +35,7 @@ function hasLocation(reference: AssetReference): boolean {
 
 export function buildEmergencyHandover({
   familyMembers,
+  handoverInstruction,
   trustedContacts,
   assetReferences
 }: EmergencyHandoverInput): EmergencyHandoverPreview {
@@ -41,6 +48,8 @@ export function buildEmergencyHandover({
   );
   const documentedAssets = assetReferences.filter(hasLocation);
   const undocumentedAssets = assetReferences.filter((reference) => !hasLocation(reference));
+  const firstSteps =
+    handoverInstruction?.firstSteps.map((step) => step.trim()).filter(Boolean) ?? [];
   const gaps: HandoverGap[] = [];
 
   if (familyMembers.length === 0) {
@@ -76,6 +85,10 @@ export function buildEmergencyHandover({
   }
 
   return {
+    instruction: {
+      message: handoverInstruction?.message?.trim() || null,
+      firstSteps
+    },
     protectedNames: familyMembers.map((member) => member.name),
     primaryContact,
     backupContacts,

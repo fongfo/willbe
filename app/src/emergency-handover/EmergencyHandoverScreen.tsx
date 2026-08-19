@@ -1,28 +1,145 @@
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAssetReferences } from '../asset-references/useAssetReferences';
-import { Badge, Card, Screen } from '../components';
+import { Badge, Button, Card, Screen } from '../components';
 import { useFamilyMembers } from '../family-members/useFamilyMembers';
 import { getRelationLabel } from '../family-members/relations';
+import { useHandoverInstruction } from '../handover-instructions/useHandoverInstruction';
+import type {
+  HandoverInstruction,
+  SaveHandoverInstructionInput
+} from '../handover-instructions/handoverInstruction.types';
 import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useTrustedContacts } from '../trusted-contacts/useTrustedContacts';
 import { buildEmergencyHandover } from './buildEmergencyHandover';
 
+function stepAt(steps: readonly string[], index: number): string {
+  return steps[index] ?? '';
+}
+
+interface HandoverInstructionEditorProps {
+  instruction: Pick<HandoverInstruction, 'message' | 'firstSteps'>;
+  save: (input: SaveHandoverInstructionInput) => Promise<HandoverInstruction>;
+}
+
+function HandoverInstructionEditor({
+  instruction,
+  save
+}: HandoverInstructionEditorProps) {
+  const [message, setMessage] = useState(instruction.message ?? '');
+  const [stepOne, setStepOne] = useState(stepAt(instruction.firstSteps, 0));
+  const [stepTwo, setStepTwo] = useState(stepAt(instruction.firstSteps, 1));
+  const [stepThree, setStepThree] = useState(stepAt(instruction.firstSteps, 2));
+  const [instructionError, setInstructionError] = useState<string | null>(null);
+  const [savingInstruction, setSavingInstruction] = useState(false);
+  const savedFirstSteps = instruction.firstSteps.filter((step) => step.trim().length > 0);
+
+  async function handleInstructionSave(): Promise<void> {
+    const firstSteps = [stepOne, stepTwo, stepThree]
+      .map((step) => step.trim())
+      .filter(Boolean);
+
+    setSavingInstruction(true);
+    setInstructionError(null);
+    try {
+      await save({
+        message: message.trim() || null,
+        firstSteps
+      });
+    } catch (err: unknown) {
+      setInstructionError(
+        err instanceof Error ? err.message : 'Unable to save handover message'
+      );
+    } finally {
+      setSavingInstruction(false);
+    }
+  }
+
+  return (
+    <Card style={styles.sectionCard}>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Message for trusted contacts</Text>
+        <Badge
+          label={instruction.message || savedFirstSteps.length > 0 ? 'Saved' : 'Draft'}
+          tone={instruction.message || savedFirstSteps.length > 0 ? 'success' : 'warn'}
+        />
+      </View>
+      <Text style={styles.bodyText}>
+        Write the calm note and first actions your trusted contacts should see
+        after verified emergency access.
+      </Text>
+      <TextInput
+        accessibilityLabel="Handover message"
+        multiline
+        onChangeText={setMessage}
+        placeholder="e.g. Take a breath. Call Sara first, then open the family folder."
+        placeholderTextColor={colors.muted}
+        style={[styles.input, styles.messageInput]}
+        value={message}
+      />
+      <Text style={styles.label}>First steps</Text>
+      <TextInput
+        accessibilityLabel="First step 1"
+        onChangeText={setStepOne}
+        placeholder="Call the primary trusted contact"
+        placeholderTextColor={colors.muted}
+        style={styles.input}
+        value={stepOne}
+      />
+      <TextInput
+        accessibilityLabel="First step 2"
+        onChangeText={setStepTwo}
+        placeholder="Open the saved family folder"
+        placeholderTextColor={colors.muted}
+        style={styles.input}
+        value={stepTwo}
+      />
+      <TextInput
+        accessibilityLabel="First step 3"
+        onChangeText={setStepThree}
+        placeholder="Contact the lawyer or advisor listed below"
+        placeholderTextColor={colors.muted}
+        style={styles.input}
+        value={stepThree}
+      />
+      {instructionError ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {instructionError}
+        </Text>
+      ) : null}
+      <Button
+        disabled={savingInstruction}
+        label={savingInstruction ? 'Saving message...' : 'Save handover message'}
+        onPress={handleInstructionSave}
+      />
+    </Card>
+  );
+}
+
 export default function EmergencyHandoverScreen() {
   const family = useFamilyMembers();
   const contacts = useTrustedContacts();
   const assets = useAssetReferences();
+  const instructionHook = useHandoverInstruction();
   useRefreshOnFocus(family.refresh);
   useRefreshOnFocus(contacts.refresh);
   useRefreshOnFocus(assets.refresh);
+  useRefreshOnFocus(instructionHook.refresh);
 
-  const loading = family.loading || contacts.loading || assets.loading;
-  const error = family.error ?? contacts.error ?? assets.error;
+  const loading = family.loading || contacts.loading || assets.loading || instructionHook.loading;
+  const error = family.error ?? contacts.error ?? assets.error ?? instructionHook.error;
   const handover = buildEmergencyHandover({
     familyMembers: family.members,
+    handoverInstruction: instructionHook.instruction,
     trustedContacts: contacts.contacts,
     assetReferences: assets.references
   });
+  const editorKey = `${handover.instruction.message ?? ''}|${handover.instruction.firstSteps.join('|')}`;
+  const savedFirstSteps = useMemo(
+    () => handover.instruction.firstSteps.filter((step) => step.trim().length > 0),
+    [handover.instruction.firstSteps]
+  );
 
   return (
     <Screen>
@@ -48,6 +165,36 @@ export default function EmergencyHandoverScreen() {
                 It never displays account numbers, balances, passwords, or private keys.
               </Text>
             </Card>
+
+            <HandoverInstructionEditor
+              key={editorKey}
+              instruction={handover.instruction}
+              save={instructionHook.save}
+            />
+
+            {handover.instruction.message || savedFirstSteps.length > 0 ? (
+              <Card style={styles.messagePreviewCard}>
+                {handover.instruction.message ? (
+                  <>
+                    <Text style={styles.previewEyebrow}>Message they will see</Text>
+                    <Text style={styles.messageText}>{handover.instruction.message}</Text>
+                  </>
+                ) : null}
+                {savedFirstSteps.length > 0 ? (
+                  <View style={styles.previewSteps}>
+                    <Text style={styles.previewEyebrow}>First steps</Text>
+                    {savedFirstSteps.map((step, index) => (
+                      <View key={`${step}-${index}`} style={styles.stepRow}>
+                        <View style={styles.stepNumber}>
+                          <Text style={styles.stepNumberText}>{index + 1}</Text>
+                        </View>
+                        <Text style={styles.stepText}>{step}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </Card>
+            ) : null}
 
             <Card style={styles.sectionCard}>
               <View style={styles.sectionHead}>
@@ -214,6 +361,26 @@ const styles = StyleSheet.create({
   contactBlock: {
     gap: spacing.xs
   },
+  input: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.ink,
+    backgroundColor: colors.white
+  },
+  messageInput: {
+    minHeight: 96,
+    textAlignVertical: 'top'
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.muted2
+  },
   primaryName: {
     fontSize: 20,
     fontWeight: '800',
@@ -234,6 +401,51 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.small,
     lineHeight: 19,
     color: colors.muted2
+  },
+  messagePreviewCard: {
+    gap: spacing.md,
+    backgroundColor: colors.ink,
+    borderColor: colors.ink
+  },
+  previewEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: colors.gold
+  },
+  messageText: {
+    fontSize: 17,
+    lineHeight: 25,
+    color: colors.white,
+    fontStyle: 'italic'
+  },
+  previewSteps: {
+    gap: spacing.sm
+  },
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold
+  },
+  stepNumberText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.ink
+  },
+  stepText: {
+    flex: 1,
+    fontSize: fontSizes.small,
+    lineHeight: 20,
+    color: colors.white
   },
   empty: {
     fontSize: fontSizes.small,

@@ -29,7 +29,13 @@ export interface HandoverSummary {
   documentedCount: number;
 }
 
+export interface HandoverInstructionView {
+  message: string | null;
+  firstSteps: string[];
+}
+
 export interface HandoverView {
+  instruction: HandoverInstructionView;
   contacts: HandoverContact[];
   locations: HandoverLocation[];
   steps: string[];

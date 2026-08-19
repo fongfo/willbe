@@ -2,6 +2,7 @@ import type { TrustedContactModel as TrustedContact } from '../generated/prisma/
 import type { AssetReferenceModel as AssetReference } from '../generated/prisma/models';
 import type {
   HandoverContact,
+  HandoverInstructionView,
   HandoverLocation,
   HandoverView
 } from './handover.types';
@@ -74,20 +75,33 @@ function buildSteps(
   return steps;
 }
 
+function toInstruction(
+  instruction?: HandoverInstructionView | null
+): HandoverInstructionView {
+  return {
+    message: instruction?.message?.trim() || null,
+    firstSteps: instruction?.firstSteps?.map((step) => step.trim()).filter(Boolean) ?? []
+  };
+}
+
 // Pure assembly of the emergency handover view from already-fetched records.
 export function buildHandover(
   contacts: readonly TrustedContact[],
-  assets: readonly AssetReference[]
+  assets: readonly AssetReference[],
+  instruction?: HandoverInstructionView | null
 ): HandoverView {
   const orderedContacts = orderContacts(contacts.map(toContact));
   const locations = assets.map(toLocation);
   const documentedCount = locations.filter((location) => location.documented).length;
   const undocumentedCount = locations.length - documentedCount;
+  const safeInstruction = toInstruction(instruction);
+  const fallbackSteps = buildSteps(orderedContacts, documentedCount, undocumentedCount);
 
   return {
+    instruction: safeInstruction,
     contacts: orderedContacts,
     locations,
-    steps: buildSteps(orderedContacts, documentedCount, undocumentedCount),
+    steps: safeInstruction.firstSteps.length > 0 ? safeInstruction.firstSteps : fallbackSteps,
     summary: {
       contactCount: orderedContacts.length,
       locationCount: locations.length,
