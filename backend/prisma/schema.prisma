@@ -48,6 +48,26 @@ enum VerificationStatus {
   VERIFIED
 }
 
+enum EmergencyAccessReason {
+  ACCIDENT
+  DEATH
+  SERIOUS_ILLNESS
+  UNREACHABLE
+  OTHER
+}
+
+enum EmergencyAccessStatus {
+  REQUESTED
+  COOLING_OFF
+  SECONDARY_REVIEW
+  ACTIVE
+  DENIED
+  REJECTED_BY_OWNER
+  SUSPENDED
+  CLOSED
+  EXPIRED
+}
+
 model TrustedContact {
   id                 String             @id @default(uuid())
   userId             String
@@ -63,6 +83,7 @@ model TrustedContact {
   updatedAt          DateTime           @updatedAt
   user               User               @relation("TrustedContactOwner", fields: [userId], references: [id], onDelete: Cascade)
   contactUser        User?              @relation("TrustedContactLogin", fields: [contactUserId], references: [id], onDelete: SetNull)
+  emergencyAccessRequests EmergencyAccessRequest[]
 
   @@unique([id, userId])
   @@index([contactUserId])
@@ -133,6 +154,47 @@ model HandoverInstruction {
   @@map("handover_instructions")
 }
 
+model EmergencyAccessRequest {
+  id               String                @id @default(uuid())
+  ownerUserId      String
+  trustedContactId String
+  requesterUserId  String?
+  reason           EmergencyAccessReason
+  reasonDetail     String?
+  status           EmergencyAccessStatus @default(REQUESTED)
+  ownerNotifiedAt  DateTime?
+  coolingOffEndsAt DateTime?
+  activatedAt      DateTime?
+  expiresAt        DateTime?
+  closedAt         DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  owner            User                  @relation("EmergencyAccessOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  trustedContact   TrustedContact        @relation(fields: [trustedContactId, ownerUserId], references: [id, userId], onDelete: Cascade)
+  requester        User?                 @relation("EmergencyAccessRequester", fields: [requesterUserId], references: [id], onDelete: SetNull)
+  auditEvents      EmergencyAccessAuditEvent[]
+
+  @@index([ownerUserId, status])
+  @@index([trustedContactId, status])
+  @@index([requesterUserId, status])
+  @@map("emergency_access_requests")
+}
+
+model EmergencyAccessAuditEvent {
+  id              String                 @id @default(uuid())
+  accessRequestId String
+  actorUserId     String?
+  eventType       String
+  metadata        Json?
+  createdAt       DateTime               @default(now())
+  accessRequest   EmergencyAccessRequest @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
+  actor           User?                  @relation("EmergencyAccessAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([accessRequestId, createdAt])
+  @@index([actorUserId])
+  @@map("emergency_access_audit_events")
+}
+
 model User {
   id            String   @id @default(uuid())
   privyUserId   String   @unique
@@ -147,6 +209,9 @@ model User {
   assetReferences AssetReference[]
   reviewSetting ReviewSetting?
   handoverInstruction HandoverInstruction?
+  ownedEmergencyAccessRequests EmergencyAccessRequest[] @relation("EmergencyAccessOwner")
+  requestedEmergencyAccessRequests EmergencyAccessRequest[] @relation("EmergencyAccessRequester")
+  emergencyAccessAuditEvents EmergencyAccessAuditEvent[] @relation("EmergencyAccessAuditActor")
 
   @@map("users")
 }
