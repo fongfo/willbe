@@ -9,8 +9,36 @@ import type {
 } from '../generated/prisma/models';
 import type { CreateEmergencyAccessRequestInput } from './emergency-access.schema';
 
+type ContactContextRequest = Pick<
+  EmergencyAccessRequest,
+  | 'id'
+  | 'status'
+  | 'reason'
+  | 'reasonDetail'
+  | 'coolingOffEndsAt'
+  | 'activatedAt'
+  | 'expiresAt'
+  | 'closedAt'
+  | 'createdAt'
+>;
+
+function effectiveRequestStatus(
+  request: ContactContextRequest,
+  now: Date
+): EmergencyAccessStatus {
+  if (
+    request.status === EmergencyAccessStatus.ACTIVE &&
+    request.expiresAt &&
+    request.expiresAt <= now
+  ) {
+    return EmergencyAccessStatus.EXPIRED;
+  }
+  return request.status;
+}
+
 export interface TrustedContactAccessAssignment extends TrustedContact {
   user: Pick<User, 'id' | 'name'>;
+  emergencyAccessRequests?: ContactContextRequest[];
 }
 
 export interface EmergencyAccessRequestWithContact extends EmergencyAccessRequest {
@@ -52,8 +80,8 @@ export class EmergencyAccessRepository {
     });
   }
 
-  findAssignments(contactUserId: string): Promise<TrustedContactAccessAssignment[]> {
-    return prisma.trustedContact.findMany({
+  async findAssignments(contactUserId: string, now: Date = new Date()): Promise<TrustedContactAccessAssignment[]> {
+    const assignments = await prisma.trustedContact.findMany({
       where: {
         contactUserId,
         verificationStatus: VerificationStatus.VERIFIED
@@ -64,10 +92,33 @@ export class EmergencyAccessRepository {
             id: true,
             name: true
           }
+        },
+        emergencyAccessRequests: {
+          where: { requesterUserId: contactUserId },
+          select: {
+            id: true,
+            status: true,
+            reason: true,
+            reasonDetail: true,
+            coolingOffEndsAt: true,
+            activatedAt: true,
+            expiresAt: true,
+            closedAt: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
       },
       orderBy: { updatedAt: 'desc' }
     });
+    return assignments.map((assignment) => ({
+      ...assignment,
+      emergencyAccessRequests: assignment.emergencyAccessRequests?.map((request) => ({
+        ...request,
+        status: effectiveRequestStatus(request, now)
+      }))
+    }));
   }
 
   findOpenForTrustedContact(
@@ -190,6 +241,54 @@ export class EmergencyAccessRepository {
             verificationStatus: true
           }
         }
+      }
+    });
+  }
+
+  findActiveByIdForContact(
+    contactUserId: string,
+    id: string,
+    now: Date
+  ): Promise<EmergencyAccessRequestWithContact | null> {
+    return prisma.emergencyAccessRequest.findFirst({
+      where: {
+        id,
+        requesterUserId: contactUserId,
+        status: EmergencyAccessStatus.ACTIVE,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        trustedContact: {
+          contactUserId,
+          verificationStatus: VerificationStatus.VERIFIED
+        }
+      },
+      include: {
+        trustedContact: {
+          select: {
+            id: true,
+            name: true,
+            relation: true,
+            role: true,
+            phone: true,
+            email: true,
+            verificationStatus: true
+          }
+        }
+      }
+    });
+  }
+
+  async recordAuditEvent(
+    accessRequestId: string,
+    actorUserId: string,
+    eventType: string,
+    metadata: EmergencyAccessAuditMetadata = {}
+  ): Promise<EmergencyAccessAuditEvent> {
+    return prisma.emergencyAccessAuditEvent.create({
+      data: {
+        accessRequestId,
+        actorUserId,
+        eventType,
+        metadata
       }
     });
   }

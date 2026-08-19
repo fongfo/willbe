@@ -48,6 +48,15 @@ async function createCoolingOffRequest(app = createApp()) {
   };
 }
 
+async function createActiveRequest(app = createApp()) {
+  const context = await createCoolingOffRequest(app);
+  await withAuth(
+    request(app).post(`/api/emergency-access/owner/requests/${context.requestId}/activate`),
+    OWNER_ACCESS_TOKEN
+  );
+  return context;
+}
+
 describe('Emergency access routes (/api/emergency-access)', () => {
   beforeEach(async () => {
     await prisma.emergencyAccessAuditEvent.deleteMany();
@@ -278,6 +287,104 @@ describe('Emergency access routes (/api/emergency-access)', () => {
     expect(detail.body.data.status).toBe('ACTIVE');
     expect(closed.status).toBe(200);
     expect(closed.body.data.status).toBe('CLOSED');
+  });
+
+  it('returns active Level 2 handover data to the bound contact only', async () => {
+    const app = createApp();
+    const { requestId } = await createActiveRequest(app);
+    await withAuth(request(app).post('/api/family-members'), OWNER_ACCESS_TOKEN).send({
+      name: 'Amina Rahman',
+      relation: 'CHILD',
+      detail: 'School pickup is usually at 3pm.'
+    });
+    await withAuth(request(app).post('/api/trusted-contacts'), OWNER_ACCESS_TOKEN).send({
+      name: 'Unverified Backup',
+      relation: 'OTHER',
+      role: 'BACKUP',
+      phone: '+60999999999',
+      email: 'backup@example.com'
+    });
+    await withAuth(request(app).put('/api/handover-instruction'), OWNER_ACCESS_TOKEN).send({
+      message: 'Take a breath, then call Sara.',
+      firstSteps: ['Call Sara', 'Open Drive / Family']
+    });
+    await withAuth(request(app).post('/api/asset-references'), OWNER_ACCESS_TOKEN).send({
+      name: 'Maybank main account',
+      category: 'BANK',
+      locationHint: 'Drive / Family / Banking',
+      detail: 'Account 1234, balance RM250k'
+    });
+
+    const res = await withAuth(
+      request(app).get(`/api/emergency-access/contact/requests/${requestId}/handover`),
+      CONTACT_ACCESS_TOKEN
+    );
+    const auditEvents = await prisma.emergencyAccessAuditEvent.findMany({
+      where: { accessRequestId: requestId },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.instruction.message).toBe('Take a breath, then call Sara.');
+    expect(res.body.data.family[0]).toEqual({
+      name: 'Amina Rahman',
+      relation: 'CHILD',
+      detail: null
+    });
+    expect(res.body.data.contacts[0].name).toBe('Imran Rahman');
+    expect(JSON.stringify(res.body.data)).not.toContain('Unverified Backup');
+    expect(JSON.stringify(res.body.data)).not.toContain('School pickup');
+    expect(res.body.data.locations[0]).not.toHaveProperty('detail');
+    expect(JSON.stringify(res.body.data)).not.toContain('RM250k');
+    expect(auditEvents.map((event) => event.eventType)).toContain('HANDOVER_VIEWED');
+  });
+
+  it('blocks handover payload when access is not active', async () => {
+    const app = createApp();
+    const { requestId } = await createCoolingOffRequest(app);
+
+    const res = await withAuth(
+      request(app).get(`/api/emergency-access/contact/requests/${requestId}/handover`),
+      CONTACT_ACCESS_TOKEN
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('blocks handover payload after active access expires', async () => {
+    const app = createApp();
+    const { requestId } = await createCoolingOffRequest(app);
+    await prisma.emergencyAccessRequest.update({
+      where: { id: requestId },
+      data: {
+        status: EmergencyAccessStatus.ACTIVE,
+        activatedAt: new Date('2026-08-18T00:00:00.000Z'),
+        expiresAt: new Date('2026-08-18T01:00:00.000Z')
+      }
+    });
+
+    const res = await withAuth(
+      request(app).get(`/api/emergency-access/contact/requests/${requestId}/handover`),
+      CONTACT_ACCESS_TOKEN
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('blocks handover payload for another logged-in contact', async () => {
+    const app = createApp();
+    const { requestId } = await createActiveRequest(app);
+
+    const res = await withAuth(
+      request(app).get(`/api/emergency-access/contact/requests/${requestId}/handover`),
+      OTHER_CONTACT_ACCESS_TOKEN
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
   });
 
   it('blocks contact reads after the trusted contact is no longer verified', async () => {

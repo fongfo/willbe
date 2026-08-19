@@ -2,7 +2,12 @@ import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { requireAuth } from '../auth/require-auth';
 import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import { AssetReferenceRepository } from '../asset-references/asset-reference.repository';
+import { FamilyMemberRepository } from '../family-members/family-member.repository';
+import { HandoverInstructionRepository } from '../handover-instructions/handover-instruction.repository';
+import { HandoverService } from '../handover/handover.service';
 import { HttpError } from '../shared/http-error';
+import { TrustedContactRepository } from '../trusted-contacts/trusted-contact.repository';
 import { EmergencyAccessRepository } from './emergency-access.repository';
 import type {
   EmergencyAccessRequestWithContact,
@@ -27,9 +32,19 @@ emergencyAccessRouter.use(
 
 emergencyAccessRouter.use(requireAuth);
 
-const service = new EmergencyAccessService(new EmergencyAccessRepository());
+const service = new EmergencyAccessService(
+  new EmergencyAccessRepository(),
+  () => new Date(),
+  new HandoverService({
+    familyMembers: new FamilyMemberRepository(),
+    trustedContacts: new TrustedContactRepository(),
+    assetReferences: new AssetReferenceRepository(),
+    handoverInstructions: new HandoverInstructionRepository()
+  })
+);
 
 function serializeAssignment(assignment: TrustedContactAccessAssignment) {
+  const latestRequest = assignment.emergencyAccessRequests?.[0] ?? null;
   return {
     id: assignment.id,
     ownerUserId: assignment.userId,
@@ -39,7 +54,8 @@ function serializeAssignment(assignment: TrustedContactAccessAssignment) {
     phone: assignment.phone,
     email: assignment.email,
     verificationStatus: assignment.verificationStatus,
-    planner: assignment.user
+    planner: assignment.user,
+    latestRequest
   };
 }
 
@@ -124,6 +140,26 @@ emergencyAccessRouter.get('/contact/requests/:id', async (req: Request, res: Res
     handleError(error, res);
   }
 });
+
+emergencyAccessRouter.get(
+  '/contact/requests/:id/handover',
+  async (req: Request, res: Response) => {
+    const id = parseId(req, res);
+    if (!id) {
+      return;
+    }
+
+    try {
+      const view = await service.getActiveContactHandover(
+        (req as AuthenticatedRequest).authUser.id,
+        id
+      );
+      res.status(200).json({ success: true, data: view });
+    } catch (error: unknown) {
+      handleError(error, res);
+    }
+  }
+);
 
 emergencyAccessRouter.post(
   '/contact/requests/:id/close',

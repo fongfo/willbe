@@ -25,6 +25,7 @@ export default function RootLayout() {
             name="emergency-handover"
             options={{ headerShown: true, title: 'Emergency handover' }}
           />
+          <Stack.Screen name="contact-emergency" options={{ headerShown: false }} />
         </Stack>
         <AuthGate />
       </AccountAuthProvider>

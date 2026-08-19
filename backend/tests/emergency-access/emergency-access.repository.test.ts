@@ -144,4 +144,128 @@ describe('EmergencyAccessRepository', () => {
     expect(visible?.id).toBe(request?.id);
     expect(hidden).toBeNull();
   });
+
+  it('returns the latest contact request in verified assignments', async () => {
+    const { owner, contactUser, trustedContact } = await createFixture();
+    const request = await repository.createCoolingOffRequest(
+      contactUser.id,
+      {
+        ownerUserId: owner.id,
+        trustedContactId: trustedContact.id,
+        reason: 'UNREACHABLE',
+        confirmed: true
+      },
+      {
+        now: NOW,
+        coolingOffEndsAt: new Date('2026-08-20T00:00:00.000Z')
+      }
+    );
+
+    const assignments = await repository.findAssignments(contactUser.id);
+
+    expect(assignments).toHaveLength(1);
+    expect(assignments[0]?.emergencyAccessRequests?.[0]?.id).toBe(request?.id);
+    expect(assignments[0]?.user).not.toHaveProperty('email');
+  });
+
+  it('marks expired active latest requests as expired in contact context', async () => {
+    const { owner, contactUser, trustedContact } = await createFixture();
+    const request = await repository.createCoolingOffRequest(
+      contactUser.id,
+      {
+        ownerUserId: owner.id,
+        trustedContactId: trustedContact.id,
+        reason: 'UNREACHABLE',
+        confirmed: true
+      },
+      {
+        now: NOW,
+        coolingOffEndsAt: new Date('2026-08-20T00:00:00.000Z')
+      }
+    );
+    await prisma.emergencyAccessRequest.update({
+      where: { id: request?.id ?? '' },
+      data: {
+        status: EmergencyAccessStatus.ACTIVE,
+        activatedAt: new Date('2026-08-18T00:00:00.000Z'),
+        expiresAt: new Date('2026-08-18T01:00:00.000Z')
+      }
+    });
+
+    const assignments = await repository.findAssignments(contactUser.id, NOW);
+
+    expect(assignments[0]?.emergencyAccessRequests?.[0]?.status).toBe('EXPIRED');
+  });
+
+  it('requires active, unexpired contact access before returning handover context', async () => {
+    const { owner, contactUser, trustedContact } = await createFixture();
+    const request = await repository.createCoolingOffRequest(
+      contactUser.id,
+      {
+        ownerUserId: owner.id,
+        trustedContactId: trustedContact.id,
+        reason: 'SERIOUS_ILLNESS',
+        confirmed: true
+      },
+      {
+        now: NOW,
+        coolingOffEndsAt: new Date('2026-08-20T00:00:00.000Z')
+      }
+    );
+
+    const beforeActive = await repository.findActiveByIdForContact(
+      contactUser.id,
+      request?.id ?? '',
+      NOW
+    );
+    await prisma.emergencyAccessRequest.update({
+      where: { id: request?.id ?? '' },
+      data: {
+        status: EmergencyAccessStatus.ACTIVE,
+        activatedAt: NOW,
+        expiresAt: new Date('2026-08-20T00:00:00.000Z')
+      }
+    });
+    const active = await repository.findActiveByIdForContact(
+      contactUser.id,
+      request?.id ?? '',
+      NOW
+    );
+    const expired = await repository.findActiveByIdForContact(
+      contactUser.id,
+      request?.id ?? '',
+      new Date('2026-08-21T00:00:00.000Z')
+    );
+
+    expect(beforeActive).toBeNull();
+    expect(active?.ownerUserId).toBe(owner.id);
+    expect(expired).toBeNull();
+  });
+
+  it('records an audit event for contact handover views', async () => {
+    const { owner, contactUser, trustedContact } = await createFixture();
+    const request = await repository.createCoolingOffRequest(
+      contactUser.id,
+      {
+        ownerUserId: owner.id,
+        trustedContactId: trustedContact.id,
+        reason: 'ACCIDENT',
+        confirmed: true
+      },
+      {
+        now: NOW,
+        coolingOffEndsAt: new Date('2026-08-20T00:00:00.000Z')
+      }
+    );
+
+    await repository.recordAuditEvent(
+      request?.id ?? '',
+      contactUser.id,
+      'HANDOVER_VIEWED',
+      { ownerUserId: owner.id }
+    );
+    const events = await repository.findAuditEvents(request?.id ?? '');
+
+    expect(events.map((event) => event.eventType)).toContain('HANDOVER_VIEWED');
+  });
 });
