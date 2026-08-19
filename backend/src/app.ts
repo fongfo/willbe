@@ -7,6 +7,7 @@ import { reviewSettingRouter } from './review-settings/review-setting.routes';
 import { readinessRouter } from './readiness/readiness.routes';
 import { handoverRouter } from './handover/handover.routes';
 import { handoverInstructionRouter } from './handover-instructions/handover-instruction.routes';
+import { emergencyAccessRouter } from './emergency-access/emergency-access.routes';
 import { authRouter } from './auth/auth.routes';
 import { planProgressRouter } from './plan-progress/plan-progress.routes';
 
@@ -23,6 +24,7 @@ export function createApp(): Express {
   app.use('/api/readiness', readinessRouter);
   app.use('/api/handover', handoverRouter);
   app.use('/api/handover-instruction', handoverInstructionRouter);
+  app.use('/api/emergency-access', emergencyAccessRouter);
   app.use('/api/auth', authRouter);
 
   return app;
