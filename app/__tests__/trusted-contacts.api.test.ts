@@ -1,7 +1,9 @@
 import { apiClient } from '../src/api';
 import {
+  bindTrustedContact,
   createTrustedContact,
   deleteTrustedContact,
+  listAssignedTrustedContactPlans,
   listTrustedContacts,
   updateTrustedContact
 } from '../src/trusted-contacts/trustedContact.api';
@@ -20,6 +22,7 @@ const mockedApi = apiClient as unknown as {
 
 const contact: TrustedContact = {
   id: 'c1',
+  contactUserId: null,
   name: 'Imran Rahman',
   relation: 'SPOUSE',
   role: 'PRIMARY',
@@ -43,6 +46,38 @@ describe('listTrustedContacts', () => {
   it('defaults to an empty array', async () => {
     mockedApi.get.mockResolvedValue(undefined);
     await expect(listTrustedContacts()).resolves.toEqual([]);
+  });
+});
+
+describe('listAssignedTrustedContactPlans', () => {
+  it('returns the contact assignments from the API', async () => {
+    const assignments = [
+      {
+        id: 'c1',
+        ownerUserId: 'owner-1',
+        planner: { id: 'owner-1', name: 'Aisyah Rahman', email: 'aisyah@example.com' },
+        name: 'Imran Rahman',
+        relation: 'SPOUSE' as const,
+        role: 'PRIMARY' as const,
+        phone: '+60123456789',
+        email: 'imran@example.com',
+        verificationStatus: 'VERIFIED' as const,
+        createdAt: '2026-07-02T00:00:00.000Z',
+        updatedAt: '2026-07-02T00:00:00.000Z'
+      }
+    ];
+    mockedApi.get.mockResolvedValue(assignments);
+
+    await expect(listAssignedTrustedContactPlans()).resolves.toEqual(assignments);
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      '/trusted-contacts/assigned-plans',
+      undefined
+    );
+  });
+
+  it('defaults assigned plans to an empty array', async () => {
+    mockedApi.get.mockResolvedValue(undefined);
+    await expect(listAssignedTrustedContactPlans()).resolves.toEqual([]);
   });
 });
 
@@ -106,6 +141,35 @@ describe('updateTrustedContact', () => {
         phone: '+60123456789'
       })
     ).rejects.toThrow('no data');
+  });
+});
+
+describe('bindTrustedContact', () => {
+  it('posts to the bind endpoint and returns the bound contact', async () => {
+    const bound = {
+      id: contact.id,
+      ownerUserId: 'owner-1',
+      name: contact.name,
+      relation: contact.relation,
+      role: contact.role,
+      phone: contact.phone,
+      email: contact.email,
+      verificationStatus: contact.verificationStatus,
+      createdAt: contact.createdAt,
+      updatedAt: contact.updatedAt
+    };
+    mockedApi.post.mockResolvedValue(bound);
+
+    const result = await bindTrustedContact('c1');
+
+    expect(result).toEqual(bound);
+    expect(mockedApi.post).toHaveBeenCalledWith('/trusted-contacts/c1/bind', {}, undefined);
+  });
+
+  it('throws when the bind API returns no data', async () => {
+    mockedApi.post.mockResolvedValue(undefined);
+
+    await expect(bindTrustedContact('c1')).rejects.toThrow('no data');
   });
 });
 

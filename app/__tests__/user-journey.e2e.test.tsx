@@ -13,6 +13,8 @@ import type {
 } from '../src/family-members/familyMember.types';
 import * as planProgressApi from '../src/plan/planProgress.api';
 import * as reviewSettingsApi from '../src/check-in/reviewSettings.api';
+import * as handoverInstructionApi from '../src/handover-instructions/handoverInstruction.api';
+import type { HandoverInstruction } from '../src/handover-instructions/handoverInstruction.types';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 import type {
   CreateTrustedContactInput,
@@ -24,17 +26,23 @@ jest.mock('../src/trusted-contacts/trustedContact.api');
 jest.mock('../src/asset-references/assetReference.api');
 jest.mock('../src/plan/planProgress.api');
 jest.mock('../src/check-in/reviewSettings.api');
+jest.mock('../src/handover-instructions/handoverInstruction.api');
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
 const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
 const mockedPlanProgressApi = planProgressApi as jest.Mocked<typeof planProgressApi>;
 const mockedReviewSettingsApi = reviewSettingsApi as jest.Mocked<typeof reviewSettingsApi>;
+const mockedInstructionApi = handoverInstructionApi as jest.Mocked<typeof handoverInstructionApi>;
 
 let familyMembers: FamilyMember[] = [];
 let trustedContacts: TrustedContact[] = [];
 let assetReferences: AssetReference[] = [];
 let hasCheckInSetup = false;
+let handoverInstruction: HandoverInstruction = {
+  message: null,
+  firstSteps: []
+};
 
 function makeMember(
   input: CreateFamilyMemberInput,
@@ -101,6 +109,10 @@ beforeEach(() => {
   trustedContacts = [];
   assetReferences = [];
   hasCheckInSetup = false;
+  handoverInstruction = {
+    message: null,
+    firstSteps: []
+  };
 
   mockedFamilyApi.listFamilyMembers.mockImplementation(async () => familyMembers);
   mockedFamilyApi.createFamilyMember.mockImplementation(async (input) => {
@@ -143,6 +155,17 @@ beforeEach(() => {
   mockedReviewSettingsApi.saveReviewSetting.mockImplementation(async (input) => {
     hasCheckInSetup = input.connectedProviders.length > 0;
     return input;
+  });
+
+  mockedInstructionApi.getHandoverInstruction.mockImplementation(
+    async () => handoverInstruction
+  );
+  mockedInstructionApi.saveHandoverInstruction.mockImplementation(async (input) => {
+    handoverInstruction = {
+      message: input.message ?? null,
+      firstSteps: input.firstSteps
+    };
+    return handoverInstruction;
   });
 });
 

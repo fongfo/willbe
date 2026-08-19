@@ -2,6 +2,7 @@ import { prisma } from '../db/client';
 import { Prisma } from '../generated/prisma/client';
 import { VerificationStatus } from '../generated/prisma/enums';
 import type { TrustedContactModel as TrustedContact } from '../generated/prisma/models';
+import type { TrustedContactAssignment } from './trusted-contact.service';
 import type {
   CreateTrustedContactInput,
   UpdateTrustedContactInput
@@ -27,6 +28,26 @@ export class TrustedContactRepository {
 
   findById(userId: string, id: string): Promise<TrustedContact | null> {
     return prisma.trustedContact.findUnique({ where: { id_userId: { id, userId } } });
+  }
+
+  findByIdForBinding(id: string): Promise<TrustedContact | null> {
+    return prisma.trustedContact.findUnique({ where: { id } });
+  }
+
+  findAssignmentsForContactUser(contactUserId: string): Promise<TrustedContactAssignment[]> {
+    return prisma.trustedContact.findMany({
+      where: { contactUserId, verificationStatus: VerificationStatus.VERIFIED },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
   }
 
   create(userId: string, data: CreateTrustedContactInput): Promise<TrustedContact> {
@@ -59,11 +80,14 @@ export class TrustedContactRepository {
     }
   }
 
-  async markVerified(userId: string, id: string): Promise<TrustedContact | null> {
+  async bindToUser(id: string, contactUserId: string): Promise<TrustedContact | null> {
     try {
       return await prisma.trustedContact.update({
-        where: { id_userId: { id, userId } },
-        data: { verificationStatus: VerificationStatus.VERIFIED }
+        where: { id },
+        data: {
+          contactUserId,
+          verificationStatus: VerificationStatus.VERIFIED
+        }
       });
     } catch (error: unknown) {
       if (isRecordNotFoundError(error)) {

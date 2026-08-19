@@ -7,12 +7,13 @@ interface ScreenProps {
   children: ReactNode;
   /** Disable the default horizontal/vertical padding for full-bleed layouts. */
   padded?: boolean;
+  safeStyle?: ViewStyle;
   style?: ViewStyle;
 }
 
-export default function Screen({ children, padded = true, style }: ScreenProps) {
+export default function Screen({ children, padded = true, safeStyle, style }: ScreenProps) {
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, safeStyle]}>
       <View style={[styles.body, padded && styles.padded, style]}>{children}</View>
     </SafeAreaView>
   );

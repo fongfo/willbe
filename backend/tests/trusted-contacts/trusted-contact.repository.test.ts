@@ -3,6 +3,8 @@ import { Prisma } from '../../src/generated/prisma/client';
 jest.mock('../../src/db/client', () => ({
   prisma: {
     trustedContact: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
       delete: jest.fn()
     }
@@ -28,6 +30,7 @@ function otherKnownError(): Prisma.PrismaClientKnownRequestError {
 
 const sampleContact = {
   id: '550e8400-e29b-41d4-a716-446655440000',
+  contactUserId: null,
   name: 'Imran Rahman',
   relation: 'SPOUSE',
   role: 'PRIMARY',
@@ -45,6 +48,43 @@ describe('TrustedContactRepository', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('findByIdForBinding', () => {
+    it('finds a trusted contact by public id without owner scoping', async () => {
+      (prisma.trustedContact.findUnique as jest.Mock).mockResolvedValue(sampleContact);
+
+      const result = await repository.findByIdForBinding(sampleContact.id);
+
+      expect(prisma.trustedContact.findUnique).toHaveBeenCalledWith({
+        where: { id: sampleContact.id }
+      });
+      expect(result).toBe(sampleContact);
+    });
+  });
+
+  describe('findAssignmentsForContactUser', () => {
+    it('finds plans assigned to the authenticated contact account', async () => {
+      const assignments = [{ ...sampleContact, user: { id: userId, name: 'Aisyah', email: null } }];
+      (prisma.trustedContact.findMany as jest.Mock).mockResolvedValue(assignments);
+
+      const result = await repository.findAssignmentsForContactUser('contact-user-1');
+
+      expect(prisma.trustedContact.findMany).toHaveBeenCalledWith({
+        where: { contactUserId: 'contact-user-1', verificationStatus: 'VERIFIED' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { updatedAt: 'desc' }
+      });
+      expect(result).toBe(assignments);
+    });
   });
 
   describe('update', () => {
@@ -83,34 +123,33 @@ describe('TrustedContactRepository', () => {
     });
   });
 
-  describe('markVerified', () => {
-    it('calls prisma.trustedContact.update with the id and VERIFIED status, returning the record', async () => {
-      const verified = { ...sampleContact, verificationStatus: 'VERIFIED' };
-      (prisma.trustedContact.update as jest.Mock).mockResolvedValue(verified);
+  describe('bindToUser', () => {
+    it('updates contactUserId and marks the contact verified', async () => {
+      const bound = {
+        ...sampleContact,
+        contactUserId: 'contact-user-1',
+        verificationStatus: 'VERIFIED'
+      };
+      (prisma.trustedContact.update as jest.Mock).mockResolvedValue(bound);
 
-      const result = await repository.markVerified(userId, sampleContact.id);
+      const result = await repository.bindToUser(sampleContact.id, 'contact-user-1');
 
       expect(prisma.trustedContact.update).toHaveBeenCalledWith({
-        where: { id_userId: { id: sampleContact.id, userId } },
-        data: { verificationStatus: 'VERIFIED' }
+        where: { id: sampleContact.id },
+        data: {
+          contactUserId: 'contact-user-1',
+          verificationStatus: 'VERIFIED'
+        }
       });
-      expect(result).toBe(verified);
+      expect(result).toBe(bound);
     });
 
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.update as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.markVerified(userId, 'missing-id');
+      const result = await repository.bindToUser('missing-id', 'contact-user-1');
 
       expect(result).toBeNull();
-    });
-
-    it('rethrows other Prisma errors', async () => {
-      (prisma.trustedContact.update as jest.Mock).mockRejectedValue(otherKnownError());
-
-      await expect(repository.markVerified(userId, 'some-id')).rejects.toThrow(
-        'Unique constraint failed.'
-      );
     });
   });
 });

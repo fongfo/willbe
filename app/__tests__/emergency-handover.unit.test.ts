@@ -57,6 +57,7 @@ describe('buildEmergencyHandover', () => {
 
     expect(result.primaryContact?.name).toBe('Nur');
     expect(result.backupContacts.map((contact) => contact.id)).toEqual(['c1']);
+    expect(result.instruction).toEqual({ message: null, firstSteps: [] });
     expect(result.gaps).toHaveLength(0);
   });
 
@@ -85,5 +86,22 @@ describe('buildEmergencyHandover', () => {
       'backup-contact',
       'asset-location'
     ]);
+  });
+
+  it('keeps the planner message and first steps in the preview', () => {
+    const result = buildEmergencyHandover({
+      familyMembers: [makeMember()],
+      handoverInstruction: {
+        message: '  Take a breath.  ',
+        firstSteps: ['  Call Sara  ', 'Open Drive / Family']
+      },
+      trustedContacts: [makeContact(), makeContact({ id: 'c2', role: 'BACKUP' })],
+      assetReferences: [makeAsset()]
+    });
+
+    expect(result.instruction).toEqual({
+      message: 'Take a breath.',
+      firstSteps: ['Call Sara', 'Open Drive / Family']
+    });
   });
 });

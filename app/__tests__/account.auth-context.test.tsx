@@ -144,6 +144,25 @@ describe('AccountAuthProvider wallet sync', () => {
     expect(mockPrivyState.create).not.toHaveBeenCalled();
   });
 
+  it('waits for delayed embedded wallets before creating a new one', async () => {
+    mockPrivyState.create.mockRejectedValue(new Error('create should not run'));
+    setTimeout(() => {
+      mockPrivyState.wallets.push({
+        address: '0x6666666666666666666666666666666666666666'
+      });
+    }, 10);
+
+    render(
+      <AccountAuthProvider>
+        <AuthProbe />
+      </AccountAuthProvider>
+    );
+
+    expect(await screen.findByText('0x6666666666666666666666666666666666666666')).toBeTruthy();
+    expect(screen.getByText('ready')).toBeTruthy();
+    expect(mockPrivyState.create).not.toHaveBeenCalled();
+  });
+
   it('creates a wallet for new users when no existing wallet is discoverable', async () => {
     render(
       <AccountAuthProvider>

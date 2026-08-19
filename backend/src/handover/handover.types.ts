@@ -23,13 +23,27 @@ export interface HandoverLocation {
   documented: boolean;
 }
 
+export interface HandoverFamilyMember {
+  name: string;
+  relation: Relation;
+  detail: string | null;
+}
+
 export interface HandoverSummary {
   contactCount: number;
+  familyMemberCount: number;
   locationCount: number;
   documentedCount: number;
 }
 
+export interface HandoverInstructionView {
+  message: string | null;
+  firstSteps: string[];
+}
+
 export interface HandoverView {
+  instruction: HandoverInstructionView;
+  family: HandoverFamilyMember[];
   contacts: HandoverContact[];
   locations: HandoverLocation[];
   steps: string[];

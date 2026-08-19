@@ -5,6 +5,8 @@ import type { AuthenticatedRequest } from '../auth/authenticated-request';
 import { HttpError } from '../shared/http-error';
 import { TrustedContactRepository } from '../trusted-contacts/trusted-contact.repository';
 import { AssetReferenceRepository } from '../asset-references/asset-reference.repository';
+import { FamilyMemberRepository } from '../family-members/family-member.repository';
+import { HandoverInstructionRepository } from '../handover-instructions/handover-instruction.repository';
 import { HandoverService } from './handover.service';
 
 export const handoverRouter = Router();
@@ -21,8 +23,10 @@ handoverRouter.use(
 handoverRouter.use(requireAuth);
 
 const service = new HandoverService({
+  familyMembers: new FamilyMemberRepository(),
   trustedContacts: new TrustedContactRepository(),
-  assetReferences: new AssetReferenceRepository()
+  assetReferences: new AssetReferenceRepository(),
+  handoverInstructions: new HandoverInstructionRepository()
 });
 
 function handleError(error: unknown, res: Response): void {

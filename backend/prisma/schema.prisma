@@ -48,9 +48,36 @@ enum VerificationStatus {
   VERIFIED
 }
 
+enum EmergencyAccessReason {
+  ACCIDENT
+  DEATH
+  SERIOUS_ILLNESS
+  UNREACHABLE
+  OTHER
+}
+
+enum EmergencyAccessStatus {
+  REQUESTED
+  COOLING_OFF
+  SECONDARY_REVIEW
+  ACTIVE
+  DENIED
+  REJECTED_BY_OWNER
+  SUSPENDED
+  CLOSED
+  EXPIRED
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+}
+
 model TrustedContact {
   id                 String             @id @default(uuid())
   userId             String
+  contactUserId      String?
   name               String
   relation           Relation
   role               ContactRole
@@ -60,11 +87,26 @@ model TrustedContact {
   detail             String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User               @relation("TrustedContactOwner", fields: [userId], references: [id], onDelete: Cascade)
+  contactUser        User?              @relation("TrustedContactLogin", fields: [contactUserId], references: [id], onDelete: SetNull)
+  emergencyAccessRequests EmergencyAccessRequest[]
+  emergencyAccessNotificationEvents EmergencyAccessNotificationEvent[]
 
   @@unique([id, userId])
+  @@index([contactUserId])
   @@index([userId])
   @@map("trusted_contacts")
+}
+
+model EmergencyAccessSetting {
+  id                        String   @id @default(uuid())
+  userId                    String   @unique
+  requireBackupConfirmation Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("emergency_access_settings")
 }
 
 enum AssetCategory {
@@ -118,6 +160,82 @@ model ReviewSetting {
   @@map("review_settings")
 }
 
+model HandoverInstruction {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  message    String?
+  firstSteps String[] @default([])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("handover_instructions")
+}
+
+model EmergencyAccessRequest {
+  id               String                @id @default(uuid())
+  ownerUserId      String
+  trustedContactId String
+  requesterUserId  String?
+  reason           EmergencyAccessReason
+  reasonDetail     String?
+  status           EmergencyAccessStatus @default(REQUESTED)
+  ownerNotifiedAt  DateTime?
+  coolingOffEndsAt DateTime?
+  activatedAt      DateTime?
+  expiresAt        DateTime?
+  closedAt         DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  owner            User                  @relation("EmergencyAccessOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  trustedContact   TrustedContact        @relation(fields: [trustedContactId, ownerUserId], references: [id, userId], onDelete: Cascade)
+  requester        User?                 @relation("EmergencyAccessRequester", fields: [requesterUserId], references: [id], onDelete: SetNull)
+  auditEvents      EmergencyAccessAuditEvent[]
+  notificationEvents EmergencyAccessNotificationEvent[]
+
+  @@index([ownerUserId, status])
+  @@index([trustedContactId, status])
+  @@index([requesterUserId, status])
+  @@map("emergency_access_requests")
+}
+
+model EmergencyAccessAuditEvent {
+  id              String                 @id @default(uuid())
+  accessRequestId String
+  actorUserId     String?
+  eventType       String
+  metadata        Json?
+  proofVersion    String                 @default("audit-proof-v1")
+  proofHash       String?
+  createdAt       DateTime               @default(now())
+  accessRequest   EmergencyAccessRequest @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
+  actor           User?                  @relation("EmergencyAccessAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([accessRequestId, createdAt])
+  @@index([actorUserId])
+  @@index([proofHash])
+  @@map("emergency_access_audit_events")
+}
+
+model EmergencyAccessNotificationEvent {
+  id              String                 @id @default(uuid())
+  accessRequestId String
+  recipientUserId String?
+  trustedContactId String?
+  channel         NotificationChannel
+  eventType       String
+  metadata        Json?
+  createdAt       DateTime               @default(now())
+  accessRequest   EmergencyAccessRequest @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
+  recipient       User?                  @relation("EmergencyAccessNotificationRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  trustedContact  TrustedContact?        @relation(fields: [trustedContactId], references: [id], onDelete: SetNull)
+
+  @@index([accessRequestId, eventType])
+  @@index([recipientUserId])
+  @@index([trustedContactId])
+  @@map("emergency_access_notification_events")
+}
+
 model User {
   id            String   @id @default(uuid())
   privyUserId   String   @unique
@@ -127,9 +245,16 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   familyMembers FamilyMember[]
-  trustedContacts TrustedContact[]
+  trustedContacts TrustedContact[] @relation("TrustedContactOwner")
+  emergencyContactAssignments TrustedContact[] @relation("TrustedContactLogin")
   assetReferences AssetReference[]
   reviewSetting ReviewSetting?
+  handoverInstruction HandoverInstruction?
+  emergencyAccessSetting EmergencyAccessSetting?
+  ownedEmergencyAccessRequests EmergencyAccessRequest[] @relation("EmergencyAccessOwner")
+  requestedEmergencyAccessRequests EmergencyAccessRequest[] @relation("EmergencyAccessRequester")
+  emergencyAccessAuditEvents EmergencyAccessAuditEvent[] @relation("EmergencyAccessAuditActor")
+  emergencyAccessNotificationEvents EmergencyAccessNotificationEvent[] @relation("EmergencyAccessNotificationRecipient")
 
   @@map("users")
 }

@@ -1,13 +1,21 @@
 import type { TrustedContactModel as TrustedContact } from '../generated/prisma/models';
 import type { AssetReferenceModel as AssetReference } from '../generated/prisma/models';
+import type { FamilyMemberModel as FamilyMember } from '../generated/prisma/models';
 import type {
   HandoverContact,
+  HandoverFamilyMember,
+  HandoverInstructionView,
   HandoverLocation,
   HandoverView
 } from './handover.types';
 
 // PRIMARY contacts are called before BACKUP contacts. A lower rank sorts first.
 const ROLE_ORDER: Record<string, number> = { PRIMARY: 0, BACKUP: 1 };
+
+interface BuildHandoverOptions {
+  familyDetailMode?: 'include' | 'omit';
+  contactVisibility?: 'all' | 'verified';
+}
 
 function hasText(value: string | null): boolean {
   return value !== null && value.trim().length > 0;
@@ -33,6 +41,17 @@ function toLocation(asset: AssetReference): HandoverLocation {
     category: asset.category,
     locationHint: asset.locationHint,
     documented: hasText(asset.locationHint)
+  };
+}
+
+function toFamilyMember(
+  member: FamilyMember,
+  familyDetailMode: 'include' | 'omit'
+): HandoverFamilyMember {
+  return {
+    name: member.name,
+    relation: member.relation,
+    detail: familyDetailMode === 'include' ? member.detail : null
   };
 }
 
@@ -74,22 +93,45 @@ function buildSteps(
   return steps;
 }
 
+function toInstruction(
+  instruction?: HandoverInstructionView | null
+): HandoverInstructionView {
+  return {
+    message: instruction?.message?.trim() || null,
+    firstSteps: instruction?.firstSteps?.map((step) => step.trim()).filter(Boolean) ?? []
+  };
+}
+
 // Pure assembly of the emergency handover view from already-fetched records.
 export function buildHandover(
   contacts: readonly TrustedContact[],
-  assets: readonly AssetReference[]
+  familyMembers: readonly FamilyMember[],
+  assets: readonly AssetReference[],
+  instruction?: HandoverInstructionView | null,
+  options: BuildHandoverOptions = {}
 ): HandoverView {
-  const orderedContacts = orderContacts(contacts.map(toContact));
+  const safeContacts =
+    options.contactVisibility === 'verified'
+      ? contacts.filter((contact) => contact.verificationStatus === 'VERIFIED')
+      : contacts;
+  const familyDetailMode = options.familyDetailMode ?? 'include';
+  const orderedContacts = orderContacts(safeContacts.map(toContact));
+  const family = familyMembers.map((member) => toFamilyMember(member, familyDetailMode));
   const locations = assets.map(toLocation);
   const documentedCount = locations.filter((location) => location.documented).length;
   const undocumentedCount = locations.length - documentedCount;
+  const safeInstruction = toInstruction(instruction);
+  const fallbackSteps = buildSteps(orderedContacts, documentedCount, undocumentedCount);
 
   return {
+    instruction: safeInstruction,
+    family,
     contacts: orderedContacts,
     locations,
-    steps: buildSteps(orderedContacts, documentedCount, undocumentedCount),
+    steps: safeInstruction.firstSteps.length > 0 ? safeInstruction.firstSteps : fallbackSteps,
     summary: {
       contactCount: orderedContacts.length,
+      familyMemberCount: family.length,
       locationCount: locations.length,
       documentedCount
     }
