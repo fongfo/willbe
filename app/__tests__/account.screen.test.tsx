@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { AccountCenterView } from '../src/account/AccountScreen';
 import AuthScreen from '../src/account/AuthScreen';
@@ -67,7 +67,42 @@ describe('AuthScreen', () => {
 
     expect(await screen.findByText('Verify and continue')).toBeTruthy();
     expect(screen.getByText('Code sent to aisyah.rahman@gmail.com')).toBeTruthy();
+    expect(screen.getByText('Resend code in 30s')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Resend code in 30s' }).props.accessibilityState.disabled
+    ).toBe(true);
     expect(sendEmailCode).toHaveBeenCalledWith('aisyah.rahman@gmail.com');
+  });
+
+  it('allows resending the code after the countdown expires', async () => {
+    jest.useFakeTimers();
+    try {
+      render(<AuthScreen />);
+
+      fireEvent.changeText(screen.getByLabelText('Email'), 'aisyah.rahman@gmail.com');
+      fireEvent.press(screen.getByText('Continue with email'));
+      await screen.findByText('Resend code in 30s');
+
+      for (let second = 0; second < 30; second += 1) {
+        act(() => {
+          jest.advanceTimersByTime(1000);
+        });
+      }
+
+      expect(await screen.findByText('Resend code')).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'Resend code' }).props.accessibilityState.disabled
+      ).toBe(false);
+
+      fireEvent.press(screen.getByText('Resend code'));
+
+      await waitFor(() => {
+        expect(sendEmailCode).toHaveBeenCalledTimes(2);
+      });
+      expect(await screen.findByText('Resend code in 30s')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('verifies the code for new registration or existing login', async () => {
@@ -99,7 +134,7 @@ describe('AuthScreen', () => {
     fireEvent.press(screen.getByText('Verify and continue'));
 
     expect(await screen.findByText('That code did not work.')).toBeTruthy();
-    expect(screen.getByText('Change')).toBeTruthy();
+    expect(screen.getByText('Change email')).toBeTruthy();
   });
 });
 

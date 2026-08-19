@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -16,6 +16,7 @@ type AuthStep = 'email' | 'code';
 type LoadingStep = 'send' | 'verify' | null;
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError && error.status === 429) {
@@ -32,12 +33,14 @@ export default function AuthScreen() {
   const [emailTouched, setEmailTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingStep, setLoadingStep] = useState<LoadingStep>(null);
+  const [resendRemainingSeconds, setResendRemainingSeconds] = useState(0);
 
   const normalizedEmail = email.trim();
   const emailIsValid = emailPattern.test(normalizedEmail);
   const showEmailError = emailTouched && normalizedEmail.length > 0 && !emailIsValid;
   const codeIsValid = code.trim().length >= 4;
   const canSubmit = !loadingStep && (step === 'email' ? emailIsValid : codeIsValid);
+  const canResendCode = emailIsValid && !loadingStep && resendRemainingSeconds === 0;
   const helperText = useMemo(() => {
     if (showEmailError) {
       return 'Use a valid email address, like aisyah@example.com.';
@@ -47,6 +50,18 @@ export default function AuthScreen() {
     }
     return 'We will send a one-time verification code.';
   }, [normalizedEmail, showEmailError]);
+
+  useEffect(() => {
+    if (step !== 'code' || resendRemainingSeconds === 0) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      setResendRemainingSeconds((remainingSeconds) => Math.max(remainingSeconds - 1, 0));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [resendRemainingSeconds, step]);
 
   async function handleSubmit(): Promise<void> {
     setEmailTouched(true);
@@ -59,6 +74,7 @@ export default function AuthScreen() {
     try {
       if (step === 'email') {
         await sendEmailCode(normalizedEmail);
+        setResendRemainingSeconds(RESEND_COOLDOWN_SECONDS);
         setStep('code');
         return;
       }
@@ -85,10 +101,11 @@ export default function AuthScreen() {
     setStep('email');
     setCode('');
     setError(null);
+    setResendRemainingSeconds(0);
   }
 
   async function handleResendCode(): Promise<void> {
-    if (!emailIsValid || loadingStep) {
+    if (!canResendCode) {
       return;
     }
 
@@ -96,6 +113,7 @@ export default function AuthScreen() {
     setLoadingStep('send');
     try {
       await sendEmailCode(normalizedEmail);
+      setResendRemainingSeconds(RESEND_COOLDOWN_SECONDS);
     } catch (caughtError: unknown) {
       setError(
         errorMessage(caughtError, 'We could not resend the code. Check your connection and try again.')
@@ -169,7 +187,7 @@ export default function AuthScreen() {
                   onPress={handleChangeEmail}
                   style={styles.linkButton}
                 >
-                  <Text style={styles.linkText}>Change</Text>
+                  <Text style={styles.linkText}>Change email</Text>
                 </Pressable>
               </View>
               <TextInput
@@ -186,13 +204,18 @@ export default function AuthScreen() {
                 textContentType="oneTimeCode"
                 value={code}
               />
-                <Pressable
+              <Pressable
                 accessibilityRole="button"
-                disabled={Boolean(loadingStep)}
+                accessibilityState={{ disabled: !canResendCode }}
+                disabled={!canResendCode}
                 onPress={handleResendCode}
                 style={styles.resendButton}
               >
-                <Text style={styles.resendText}>Resend code</Text>
+                <Text style={[styles.resendText, !canResendCode && styles.resendTextDisabled]}>
+                  {resendRemainingSeconds > 0
+                    ? `Resend code in ${resendRemainingSeconds}s`
+                    : 'Resend code'}
+                </Text>
               </Pressable>
             </View>
           ) : null}
@@ -343,6 +366,9 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.small,
     fontWeight: '700',
     color: colors.teal
+  },
+  resendTextDisabled: {
+    color: colors.muted2
   },
   notice: {
     padding: spacing.md,
