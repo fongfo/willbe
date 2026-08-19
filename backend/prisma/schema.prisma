@@ -51,6 +51,7 @@ enum VerificationStatus {
 model TrustedContact {
   id                 String             @id @default(uuid())
   userId             String
+  contactUserId      String?
   name               String
   relation           Relation
   role               ContactRole
@@ -60,9 +61,11 @@ model TrustedContact {
   detail             String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User               @relation("TrustedContactOwner", fields: [userId], references: [id], onDelete: Cascade)
+  contactUser        User?              @relation("TrustedContactLogin", fields: [contactUserId], references: [id], onDelete: SetNull)
 
   @@unique([id, userId])
+  @@index([contactUserId])
   @@index([userId])
   @@map("trusted_contacts")
 }
@@ -127,7 +130,8 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   familyMembers FamilyMember[]
-  trustedContacts TrustedContact[]
+  trustedContacts TrustedContact[] @relation("TrustedContactOwner")
+  emergencyContactAssignments TrustedContact[] @relation("TrustedContactLogin")
   assetReferences AssetReference[]
   reviewSetting ReviewSetting?
 

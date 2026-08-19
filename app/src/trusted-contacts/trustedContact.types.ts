@@ -13,6 +13,7 @@ export type VerificationStatus = 'PENDING' | 'VERIFIED';
 
 export interface TrustedContact {
   id: string;
+  contactUserId?: string | null;
   name: string;
   relation: Relation;
   role: ContactRole;
@@ -20,6 +21,37 @@ export interface TrustedContact {
   email: string | null;
   verificationStatus: VerificationStatus;
   detail: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignedTrustedContactPlan {
+  id: string;
+  ownerUserId: string;
+  planner: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  };
+  name: string;
+  relation: Relation;
+  role: ContactRole;
+  phone: string;
+  email: string | null;
+  verificationStatus: VerificationStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BoundTrustedContact {
+  id: string;
+  ownerUserId: string;
+  name: string;
+  relation: Relation;
+  role: ContactRole;
+  phone: string;
+  email: string | null;
+  verificationStatus: VerificationStatus;
   createdAt: string;
   updatedAt: string;
 }
