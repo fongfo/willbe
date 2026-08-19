@@ -3,8 +3,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Badge, Button, Card, Screen } from '../components';
 import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
+import { getSetupJourneyAction } from './planJourney';
 import type { PlanSetupProgress } from './planProgress';
-import { getPlanProgressLabel, PLAN_STEPS } from './planSteps';
+import { getPlanProgressLabel, PLAN_STEPS, REVIEW_OUTPUTS, SETUP_STEPS } from './planSteps';
 import type { PlanStep } from './planSteps';
 import { usePlanProgress } from './usePlanProgress';
 
@@ -48,40 +49,41 @@ export default function PlanStepperScreen({
   const effectiveLoading = loading ?? planProgress.loading;
   const progress = setupProgress ?? planProgress.progress;
   const setupSteps = progress.completedSetupSteps;
-  const reviewSteps = PLAN_STEPS.filter((step) => step.status === 'review').length;
+  const setupComplete = setupSteps === SETUP_STEPS.length;
+  const nextAction = getSetupJourneyAction(progress);
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.heading}>Plan</Text>
         <Text style={styles.lede}>
-          Work through the six-step Pusaka flow, then revisit the review steps when
-          your family details change.
+          Work through the setup checklist, then use the review outputs when your
+          family details change.
         </Text>
 
         <Card style={styles.summaryCard}>
           <View style={styles.summaryHead}>
             <View>
-              <Text style={styles.summaryLabel}>Six-step flow</Text>
+              <Text style={styles.summaryLabel}>Setup checklist</Text>
               <Text style={styles.summaryTitle}>{getPlanProgressLabel(setupSteps)}</Text>
             </View>
-            <Badge label="MVP" tone="success" />
+            <Badge label={setupComplete ? 'Complete' : 'In progress'} tone={setupComplete ? 'success' : 'warn'} />
           </View>
           <View
-            accessibilityLabel={`${setupSteps} of ${PLAN_STEPS.length} setup steps ready`}
+            accessibilityLabel={`${setupSteps} of ${SETUP_STEPS.length} setup steps ready`}
             accessibilityRole="progressbar"
             style={styles.progressTrack}
           >
             <View
               style={[
                 styles.progressFill,
-                { width: `${(setupSteps / PLAN_STEPS.length) * 100}%` }
+                { width: `${(setupSteps / SETUP_STEPS.length) * 100}%` }
               ]}
             />
           </View>
           <Text style={styles.summaryText}>
-            Setup steps collect the handover inputs. Review steps turn them into a score
-            and an emergency preview.
+            Setup inputs collect the handover details. Review outputs turn those
+            inputs into a score and emergency preview.
           </Text>
           {effectiveLoading ? (
             <View style={styles.loadingRow}>
@@ -95,7 +97,7 @@ export default function PlanStepperScreen({
               <Text style={styles.metricLabel}>Setup inputs</Text>
             </View>
             <View style={styles.summaryMetric}>
-              <Text style={styles.metricValue}>{reviewSteps}</Text>
+              <Text style={styles.metricValue}>{REVIEW_OUTPUTS.length}</Text>
               <Text style={styles.metricLabel}>Review outputs</Text>
             </View>
           </View>
@@ -138,8 +140,8 @@ export default function PlanStepperScreen({
         </View>
 
         <Button
-          label="Start with family"
-          onPress={() => onOpenStep(PLAN_STEPS[0].route)}
+          label={nextAction.label}
+          onPress={() => onOpenStep(nextAction.route)}
           style={styles.primaryAction}
         />
       </ScrollView>

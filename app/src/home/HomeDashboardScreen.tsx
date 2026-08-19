@@ -4,10 +4,12 @@ import { useAssetReferences } from '../asset-references/useAssetReferences';
 import { Badge, Button, Card, Screen } from '../components';
 import { useFamilyMembers } from '../family-members/useFamilyMembers';
 import { useRefreshOnFocus } from '../navigation/useRefreshOnFocus';
+import { getPlanJourneyAction } from '../plan/planJourney';
+import { usePlanProgress } from '../plan/usePlanProgress';
 import { evaluateReadiness } from '../readiness/evaluateReadiness';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useTrustedContacts } from '../trusted-contacts/useTrustedContacts';
-import { getDashboardAction, getDashboardMetrics } from './homeDashboard';
+import { getDashboardMetrics } from './homeDashboard';
 
 interface HomeDashboardScreenProps {
   onNavigate?: (route: Href) => void;
@@ -23,18 +25,20 @@ export default function HomeDashboardScreen({
   const family = useFamilyMembers();
   const contacts = useTrustedContacts();
   const assets = useAssetReferences();
+  const planProgress = usePlanProgress();
   useRefreshOnFocus(family.refresh);
   useRefreshOnFocus(contacts.refresh);
   useRefreshOnFocus(assets.refresh);
+  useRefreshOnFocus(planProgress.refresh);
 
-  const loading = family.loading || contacts.loading || assets.loading;
-  const error = family.error ?? contacts.error ?? assets.error;
+  const loading = family.loading || contacts.loading || assets.loading || planProgress.loading;
+  const error = family.error ?? contacts.error ?? assets.error ?? planProgress.error;
   const evaluation = evaluateReadiness({
     familyMembers: family.members,
     trustedContacts: contacts.contacts,
     assetReferences: assets.references
   });
-  const nextAction = getDashboardAction(evaluation);
+  const nextAction = getPlanJourneyAction(planProgress.progress, evaluation);
   const metrics = getDashboardMetrics({
     familyMembers: family.members,
     trustedContacts: contacts.contacts,
@@ -90,11 +94,13 @@ export default function HomeDashboardScreen({
             </View>
 
             <Card style={styles.nextCard}>
-              <Text style={styles.sectionLabel}>Next best action</Text>
+              <Text style={styles.sectionLabel}>
+                {nextAction.state === 'complete' ? 'Complete' : 'Next best action'}
+              </Text>
               <Text style={styles.nextTitle}>{nextAction.title}</Text>
               <Text style={styles.nextDetail}>{nextAction.detail}</Text>
               <Button
-                label="Open next step"
+                label={nextAction.label}
                 onPress={() => onNavigate(nextAction.route)}
                 style={styles.nextButton}
               />
@@ -102,7 +108,7 @@ export default function HomeDashboardScreen({
 
             <View style={styles.actions}>
               <Button
-                label="View plan"
+                label={nextAction.state === 'complete' ? 'View completed plan' : 'View plan'}
                 onPress={() => onNavigate('/plan')}
                 variant="secondary"
               />

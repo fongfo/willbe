@@ -103,7 +103,8 @@ describe('EmergencyHandoverScreen', () => {
     expect(screen.getByText('Take a breath, then call Sara.')).toBeTruthy();
     expect(screen.getByText('Open Drive / Family')).toBeTruthy();
     expect(screen.getByText('Drive / Family / Banking')).toBeTruthy();
-    expect(screen.getByText('Preview ready')).toBeTruthy();
+    expect(screen.getByText('Complete')).toBeTruthy();
+    expect(screen.getByText('Back to completed plan')).toBeTruthy();
   });
 
   it('saves the planner handover message and first steps', async () => {

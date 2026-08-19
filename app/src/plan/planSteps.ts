@@ -11,7 +11,7 @@ export interface PlanStep {
   status: PlanStepStatus;
 }
 
-export const PLAN_STEPS: PlanStep[] = [
+export const SETUP_STEPS: PlanStep[] = [
   {
     id: 'family-members',
     stepNumber: 1,
@@ -43,7 +43,10 @@ export const PLAN_STEPS: PlanStep[] = [
     description: 'Set the review rhythm and connect a document folder.',
     route: '/check-in',
     status: 'ready'
-  },
+  }
+];
+
+export const REVIEW_OUTPUTS: PlanStep[] = [
   {
     id: 'readiness',
     stepNumber: 5,
@@ -62,6 +65,8 @@ export const PLAN_STEPS: PlanStep[] = [
   }
 ];
 
+export const PLAN_STEPS: PlanStep[] = [...SETUP_STEPS, ...REVIEW_OUTPUTS];
+
 export function getPlanProgressLabel(completedSteps: number): string {
-  return `${completedSteps} of ${PLAN_STEPS.length} steps ready`;
+  return `${completedSteps} of ${SETUP_STEPS.length} setup steps ready`;
 }
