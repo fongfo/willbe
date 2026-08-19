@@ -1,5 +1,6 @@
 import type { TrustedContactModel as TrustedContact } from '../generated/prisma/models';
 import type { AssetReferenceModel as AssetReference } from '../generated/prisma/models';
+import type { HandoverInstructionView } from './handover.types';
 import { buildHandover } from './handover.builder';
 import type { HandoverView } from './handover.types';
 
@@ -8,17 +9,19 @@ import type { HandoverView } from './handover.types';
 export interface HandoverRepositories {
   trustedContacts: { findAll(userId: string): Promise<TrustedContact[]> };
   assetReferences: { findAll(userId: string): Promise<AssetReference[]> };
+  handoverInstructions: { get(userId: string): Promise<HandoverInstructionView | null> };
 }
 
 export class HandoverService {
   constructor(private readonly repositories: HandoverRepositories) {}
 
   async preview(userId: string): Promise<HandoverView> {
-    const [contacts, assets] = await Promise.all([
+    const [contacts, assets, instruction] = await Promise.all([
       this.repositories.trustedContacts.findAll(userId),
-      this.repositories.assetReferences.findAll(userId)
+      this.repositories.assetReferences.findAll(userId),
+      this.repositories.handoverInstructions.get(userId)
     ]);
 
-    return buildHandover(contacts, assets);
+    return buildHandover(contacts, assets, instruction);
   }
 }

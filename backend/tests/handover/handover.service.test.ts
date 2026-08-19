@@ -4,12 +4,14 @@ import type { HandoverRepositories } from '../../src/handover/handover.service';
 interface MockRepositories extends HandoverRepositories {
   trustedContacts: { findAll: jest.Mock };
   assetReferences: { findAll: jest.Mock };
+  handoverInstructions: { get: jest.Mock };
 }
 
 function createMockRepositories(): MockRepositories {
   return {
     trustedContacts: { findAll: jest.fn().mockResolvedValue([]) },
-    assetReferences: { findAll: jest.fn().mockResolvedValue([]) }
+    assetReferences: { findAll: jest.fn().mockResolvedValue([]) },
+    handoverInstructions: { get: jest.fn().mockResolvedValue(null) }
   };
 }
 
@@ -54,5 +56,6 @@ describe('HandoverService', () => {
 
     expect(repositories.trustedContacts.findAll).toHaveBeenCalledWith(userId);
     expect(repositories.assetReferences.findAll).toHaveBeenCalledWith(userId);
+    expect(repositories.handoverInstructions.get).toHaveBeenCalledWith(userId);
   });
 });

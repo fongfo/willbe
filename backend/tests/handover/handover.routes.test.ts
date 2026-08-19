@@ -5,6 +5,7 @@ import { OTHER_ACCESS_TOKEN, withAuth } from '../support/auth';
 
 describe('Handover routes (/api/handover)', () => {
   beforeEach(async () => {
+    await prisma.handoverInstruction.deleteMany();
     await prisma.assetReference.deleteMany();
     await prisma.trustedContact.deleteMany();
     await prisma.user.deleteMany();
@@ -23,6 +24,7 @@ describe('Handover routes (/api/handover)', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.contacts).toEqual([]);
     expect(res.body.data.locations).toEqual([]);
+    expect(res.body.data.instruction).toEqual({ message: null, firstSteps: [] });
     expect(res.body.data.steps).toEqual([]);
   });
 
@@ -52,6 +54,10 @@ describe('Handover routes (/api/handover)', () => {
       name: 'DBS Singapore account',
       category: 'BANK'
     });
+    await withAuth(request(app).put('/api/handover-instruction')).send({
+      message: 'Take a breath, then call Imran.',
+      firstSteps: ['Call Imran', 'Open Drive / Family']
+    });
 
     const res = await withAuth(request(app).get('/api/handover'));
 
@@ -65,7 +71,13 @@ describe('Handover routes (/api/handover)', () => {
       locationCount: 2,
       documentedCount: 1
     });
-    expect(res.body.data.steps.length).toBeGreaterThan(0);
+    expect(res.body.data.instruction).toEqual(
+      expect.objectContaining({
+        message: 'Take a breath, then call Imran.',
+        firstSteps: ['Call Imran', 'Open Drive / Family']
+      })
+    );
+    expect(res.body.data.steps).toEqual(['Call Imran', 'Open Drive / Family']);
     // The sensitive asset detail must never appear in the handover payload.
     expect(JSON.stringify(res.body)).not.toContain('SENSITIVE-ACCT-XYZ');
     expect(JSON.stringify(res.body)).not.toContain('250000');

@@ -119,9 +119,27 @@ describe('buildHandover', () => {
   it('returns an empty view (no contacts, locations, or steps) for an empty plan', () => {
     const result = buildHandover([], []);
 
+    expect(result.instruction).toEqual({ message: null, firstSteps: [] });
     expect(result.contacts).toEqual([]);
     expect(result.locations).toEqual([]);
     expect(result.steps).toEqual([]);
     expect(result.summary).toEqual({ contactCount: 0, locationCount: 0, documentedCount: 0 });
+  });
+
+  it('uses saved first steps before derived fallback steps', () => {
+    const result = buildHandover(
+      [contact({ id: 'p1', name: 'Imran', role: 'PRIMARY' })],
+      [asset({ id: 'a1', locationHint: 'here' })],
+      {
+        message: 'Take a breath.',
+        firstSteps: ['Call Imran', 'Open the family folder']
+      }
+    );
+
+    expect(result.instruction).toEqual({
+      message: 'Take a breath.',
+      firstSteps: ['Call Imran', 'Open the family folder']
+    });
+    expect(result.steps).toEqual(['Call Imran', 'Open the family folder']);
   });
 });
