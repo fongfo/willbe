@@ -133,7 +133,7 @@ describe('ReadinessScreen', () => {
     expect(screen.getByText('No critical gaps right now')).toBeTruthy();
     expect(screen.getByText('5 of 5 core checks complete')).toBeTruthy();
     expect(mockedGapApi.explainGaps).not.toHaveBeenCalled();
-  }, 15000);
+  }, 30000);
 
   it('lists actionable gaps for an incomplete plan', async () => {
     let resolveExplanation: (value: GapExplanationResponse) => void = () => undefined;

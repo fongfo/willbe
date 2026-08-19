@@ -6,6 +6,7 @@ function contact(overrides: Partial<TrustedContact>): TrustedContact {
   return {
     id: 'c1',
     userId: 'user-1',
+    contactUserId: null,
     name: 'Imran Rahman',
     relation: 'SPOUSE',
     role: 'PRIMARY',

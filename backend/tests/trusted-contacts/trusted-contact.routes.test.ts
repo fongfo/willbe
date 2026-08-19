@@ -3,6 +3,8 @@ import { createApp } from '../../src/app';
 import { prisma } from '../../src/db/client';
 import { withAuth } from '../support/auth';
 
+const IMRAN_ACCESS_TOKEN = 'dev:imran%40example.com:Imran%20Rahman';
+
 describe('Trusted Contact routes (/api/trusted-contacts)', () => {
   beforeEach(async () => {
     await prisma.trustedContact.deleteMany();
@@ -89,6 +91,66 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
+    });
+  });
+
+  describe('GET /api/trusted-contacts/assigned-plans', () => {
+    it('returns only plans bound to the authenticated contact account', async () => {
+      const app = createApp();
+      const ownerContact = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      await withAuth(
+        request(app).post(`/api/trusted-contacts/${ownerContact.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      );
+
+      const res = await withAuth(
+        request(app).get('/api/trusted-contacts/assigned-plans'),
+        IMRAN_ACCESS_TOKEN
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0]).toEqual(
+        expect.objectContaining({
+          id: ownerContact.body.data.id,
+          ownerUserId: expect.any(String),
+          name: 'Imran Rahman',
+          verificationStatus: 'VERIFIED'
+        })
+      );
+      expect(res.body.data[0].planner).toEqual(
+        expect.objectContaining({
+          name: 'Aisyah Rahman',
+          email: 'aisyah.rahman@gmail.com'
+        })
+      );
+      expect(res.body.data[0]).not.toHaveProperty('detail');
+    });
+
+    it('does not return unbound trusted contacts', async () => {
+      const app = createApp();
+      await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).get('/api/trusted-contacts/assigned-plans'),
+        IMRAN_ACCESS_TOKEN
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
     });
   });
 
@@ -248,7 +310,7 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
   });
 
   describe('POST /api/trusted-contacts/:id/verify', () => {
-    it('returns 200 with verificationStatus VERIFIED when the contact exists', async () => {
+    it('returns 410 because contacts must now verify from their own account', async () => {
       const app = createApp();
       const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
         name: 'Imran Rahman',
@@ -261,19 +323,19 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
         request(app).post(`/api/trusted-contacts/${created.body.data.id}/verify`)
       );
 
-      expect(res.status).toBe(200);
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.verificationStatus).toBe('VERIFIED');
+      expect(res.status).toBe(410);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toContain('contact account');
     });
 
-    it('returns a 404 envelope when the id does not exist', async () => {
+    it('returns 410 even when the id does not exist so owners cannot verify contacts', async () => {
       const app = createApp();
 
       const res = await withAuth(
         request(app).post('/api/trusted-contacts/550e8400-e29b-41d4-a716-446655440000/verify')
       );
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(410);
       expect(res.body.success).toBe(false);
     });
 
@@ -282,6 +344,92 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
 
       const res = await withAuth(
         request(app).post('/api/trusted-contacts/not-a-uuid/verify')
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
+  describe('POST /api/trusted-contacts/:id/bind', () => {
+    it('binds and verifies a trusted contact when the authenticated email matches', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.verificationStatus).toBe('VERIFIED');
+      expect(res.body.data.ownerUserId).toEqual(expect.any(String));
+      expect(res.body.data).not.toHaveProperty('detail');
+      expect(res.body.data).not.toHaveProperty('contactUserId');
+    });
+
+    it('rejects binding when the authenticated email does not match', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        'dev:sara%40example.com:Sara%20Abdullah'
+      );
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects binding a contact that is already bound to another user', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      const otherUser = await prisma.user.create({
+        data: {
+          privyUserId: 'dev:other-imran-binding',
+          email: 'imran@example.com',
+          name: 'Other Imran'
+        }
+      });
+      await prisma.trustedContact.update({
+        where: { id: created.body.data.id },
+        data: { contactUserId: otherUser.id }
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      );
+
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('returns 400 when the id is malformed', async () => {
+      const app = createApp();
+
+      const res = await withAuth(
+        request(app).post('/api/trusted-contacts/not-a-uuid/bind'),
+        IMRAN_ACCESS_TOKEN
       );
 
       expect(res.status).toBe(400);

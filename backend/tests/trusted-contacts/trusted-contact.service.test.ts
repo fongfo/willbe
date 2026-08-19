@@ -1,34 +1,39 @@
 import { TrustedContactService } from '../../src/trusted-contacts/trusted-contact.service';
 import { HttpError } from '../../src/shared/http-error';
 
-// NOTE on not-found modeling: this test suite models "not found" for update/remove/verify
-// by having the mocked repository's `update`/`delete`/`markVerified` resolve to `null`,
-// mirroring the same not-found signal used by `findById`. The service is expected to check
-// for a `null` result and translate it into `HttpError(404)`, rather than relying on a
-// Prisma-specific `P2025` error code.
+// NOTE on not-found modeling: this test suite models "not found" for update/remove
+// by having the mocked repository's `update`/`delete` resolve to `null`, mirroring
+// the same not-found signal used by `findById`. The service is expected to check
+// for a `null` result and translate it into `HttpError(404)`, rather than relying
+// on a Prisma-specific `P2025` error code.
 
 interface MockTrustedContactRepository {
   findAll: jest.Mock;
   findById: jest.Mock;
+  findByIdForBinding: jest.Mock;
+  findAssignmentsForContactUser: jest.Mock;
   create: jest.Mock;
   update: jest.Mock;
   delete: jest.Mock;
-  markVerified: jest.Mock;
+  bindToUser: jest.Mock;
 }
 
 function createMockRepository(): MockTrustedContactRepository {
   return {
     findAll: jest.fn(),
     findById: jest.fn(),
+    findByIdForBinding: jest.fn(),
+    findAssignmentsForContactUser: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
-    markVerified: jest.fn()
+    bindToUser: jest.fn()
   };
 }
 
 const sampleContact = {
   id: '550e8400-e29b-41d4-a716-446655440000',
+  contactUserId: null,
   name: 'Imran Rahman',
   relation: 'SPOUSE',
   role: 'PRIMARY',
@@ -59,6 +64,18 @@ describe('TrustedContactService', () => {
 
       expect(repository.findAll).toHaveBeenCalledWith(userId);
       expect(result).toBe(contacts);
+    });
+  });
+
+  describe('listAssignments', () => {
+    it('returns contact assignments for the authenticated contact user', async () => {
+      const assignments = [{ ...sampleContact, user: { id: userId, name: 'Aisyah', email: null } }];
+      repository.findAssignmentsForContactUser.mockResolvedValue(assignments);
+
+      const result = await service.listAssignments('contact-user-1');
+
+      expect(repository.findAssignmentsForContactUser).toHaveBeenCalledWith('contact-user-1');
+      expect(result).toBe(assignments);
     });
   });
 
@@ -135,22 +152,67 @@ describe('TrustedContactService', () => {
     });
   });
 
-  describe('verify', () => {
-    it('throws HttpError(404) when repository.markVerified resolves to null (not-found signal)', async () => {
-      repository.markVerified.mockResolvedValue(null);
+  describe('bindAuthenticatedContact', () => {
+    it('binds and verifies when the authenticated email matches the trusted contact email', async () => {
+      const contact = { ...sampleContact, email: 'IMRAN@example.com' };
+      const bound = {
+        ...contact,
+        contactUserId: 'contact-user-1',
+        verificationStatus: 'VERIFIED'
+      };
+      repository.findByIdForBinding.mockResolvedValue(contact);
+      repository.bindToUser.mockResolvedValue(bound);
 
-      await expect(service.verify(userId, 'missing-id')).rejects.toMatchObject({ status: 404 });
-      await expect(service.verify(userId, 'missing-id')).rejects.toBeInstanceOf(HttpError);
+      const result = await service.bindAuthenticatedContact(
+        sampleContact.id,
+        'contact-user-1',
+        'imran@example.com'
+      );
+
+      expect(repository.bindToUser).toHaveBeenCalledWith(sampleContact.id, 'contact-user-1');
+      expect(result).toBe(bound);
     });
 
-    it('returns the verified contact when repository.markVerified resolves to a record', async () => {
-      const verified = { ...sampleContact, verificationStatus: 'VERIFIED' };
-      repository.markVerified.mockResolvedValue(verified);
+    it('returns the existing verified binding for the same authenticated user', async () => {
+      const contact = {
+        ...sampleContact,
+        email: 'imran@example.com',
+        contactUserId: 'contact-user-1',
+        verificationStatus: 'VERIFIED'
+      };
+      repository.findByIdForBinding.mockResolvedValue(contact);
 
-      const result = await service.verify(userId, sampleContact.id);
+      const result = await service.bindAuthenticatedContact(
+        sampleContact.id,
+        'contact-user-1',
+        'imran@example.com'
+      );
 
-      expect(repository.markVerified).toHaveBeenCalledWith(userId, sampleContact.id);
-      expect(result).toBe(verified);
+      expect(repository.bindToUser).not.toHaveBeenCalled();
+      expect(result).toBe(contact);
+    });
+
+    it('rejects binding when the authenticated email does not match', async () => {
+      repository.findByIdForBinding.mockResolvedValue({
+        ...sampleContact,
+        email: 'imran@example.com'
+      });
+
+      await expect(
+        service.bindAuthenticatedContact(sampleContact.id, 'contact-user-1', 'other@example.com')
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('rejects binding when the contact is already bound to another user', async () => {
+      repository.findByIdForBinding.mockResolvedValue({
+        ...sampleContact,
+        email: 'imran@example.com',
+        contactUserId: 'someone-else'
+      });
+
+      await expect(
+        service.bindAuthenticatedContact(sampleContact.id, 'contact-user-1', 'imran@example.com')
+      ).rejects.toMatchObject({ status: 409 });
     });
   });
 });

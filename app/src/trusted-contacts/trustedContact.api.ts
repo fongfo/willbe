@@ -1,5 +1,7 @@
 import { apiClient } from '../api';
 import type {
+  AssignedTrustedContactPlan,
+  BoundTrustedContact,
   CreateTrustedContactInput,
   TrustedContact,
   UpdateTrustedContactInput
@@ -12,6 +14,17 @@ export async function listTrustedContacts(
   signal?: AbortSignal
 ): Promise<TrustedContact[]> {
   const data = await apiClient.get<TrustedContact[]>(RESOURCE, signal);
+  return data ?? [];
+}
+
+/** Fetches plans where the authenticated user is the verified trusted contact. */
+export async function listAssignedTrustedContactPlans(
+  signal?: AbortSignal
+): Promise<AssignedTrustedContactPlan[]> {
+  const data = await apiClient.get<AssignedTrustedContactPlan[]>(
+    `${RESOURCE}/assigned-plans`,
+    signal
+  );
   return data ?? [];
 }
 
@@ -36,6 +49,18 @@ export async function updateTrustedContact(
   const data = await apiClient.patch<TrustedContact>(`${RESOURCE}/${id}`, input, signal);
   if (!data) {
     throw new Error('Trusted contact update returned no data');
+  }
+  return data;
+}
+
+/** Binds an invited trusted contact record to the authenticated contact account. */
+export async function bindTrustedContact(
+  id: string,
+  signal?: AbortSignal
+): Promise<BoundTrustedContact> {
+  const data = await apiClient.post<BoundTrustedContact>(`${RESOURCE}/${id}/bind`, {}, signal);
+  if (!data) {
+    throw new Error('Trusted contact binding returned no data');
   }
   return data;
 }

@@ -228,6 +228,18 @@ describe('createTrustedContactSchema', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('rejects a body that attempts to set contactUserId directly', () => {
+    const result = createTrustedContactSchema.safeParse({
+      name: 'Imran Rahman',
+      relation: 'SPOUSE',
+      role: 'PRIMARY',
+      phone: '+60123456789',
+      contactUserId: 'user-1'
+    });
+
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('updateTrustedContactSchema', () => {
@@ -273,6 +285,14 @@ describe('updateTrustedContactSchema', () => {
   it('rejects a body that attempts to set verificationStatus directly', () => {
     const result = updateTrustedContactSchema.safeParse({
       verificationStatus: 'VERIFIED'
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a body that attempts to set contactUserId directly', () => {
+    const result = updateTrustedContactSchema.safeParse({
+      contactUserId: 'user-1'
     });
 
     expect(result.success).toBe(false);
