@@ -61,3 +61,33 @@ export async function closeEmergencyAccessRequest(
   }
   return data;
 }
+
+export async function confirmBackupEmergencyAccessRequest(
+  requestId: string,
+  signal?: AbortSignal
+): Promise<EmergencyAccessRequestSummary> {
+  const data = await apiClient.post<EmergencyAccessRequestSummary>(
+    `${RESOURCE}/contact/requests/${requestId}/backup-confirm`,
+    {},
+    signal
+  );
+  if (!data) {
+    throw new Error('Backup confirmation returned no data');
+  }
+  return data;
+}
+
+export async function denyBackupEmergencyAccessRequest(
+  requestId: string,
+  signal?: AbortSignal
+): Promise<EmergencyAccessRequestSummary> {
+  const data = await apiClient.post<EmergencyAccessRequestSummary>(
+    `${RESOURCE}/contact/requests/${requestId}/backup-deny`,
+    {},
+    signal
+  );
+  if (!data) {
+    throw new Error('Backup denial returned no data');
+  }
+  return data;
+}

@@ -1,7 +1,9 @@
 import { apiClient } from '../src/api';
 import {
   closeEmergencyAccessRequest,
+  confirmBackupEmergencyAccessRequest,
   createEmergencyAccessRequest,
+  denyBackupEmergencyAccessRequest,
   getContactAccessContext,
   getContactEmergencyHandover
 } from '../src/emergency-access/emergencyAccess.api';
@@ -69,6 +71,27 @@ describe('emergencyAccess.api', () => {
     );
   });
 
+  it('confirms and denies backup emergency review', async () => {
+    mockedApi.post.mockResolvedValueOnce({ id: 'req1', status: 'ACTIVE' });
+    mockedApi.post.mockResolvedValueOnce({ id: 'req1', status: 'DENIED' });
+
+    await confirmBackupEmergencyAccessRequest('req1');
+    await denyBackupEmergencyAccessRequest('req1');
+
+    expect(mockedApi.post).toHaveBeenNthCalledWith(
+      1,
+      '/emergency-access/contact/requests/req1/backup-confirm',
+      {},
+      undefined
+    );
+    expect(mockedApi.post).toHaveBeenNthCalledWith(
+      2,
+      '/emergency-access/contact/requests/req1/backup-deny',
+      {},
+      undefined
+    );
+  });
+
   it('throws when mutation endpoints return no data', async () => {
     mockedApi.post.mockResolvedValue(undefined);
 
@@ -81,5 +104,7 @@ describe('emergencyAccess.api', () => {
       })
     ).rejects.toThrow('no data');
     await expect(closeEmergencyAccessRequest('req1')).rejects.toThrow('no data');
+    await expect(confirmBackupEmergencyAccessRequest('req1')).rejects.toThrow('no data');
+    await expect(denyBackupEmergencyAccessRequest('req1')).rejects.toThrow('no data');
   });
 });

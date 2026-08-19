@@ -16,7 +16,8 @@ import type {
 import { EmergencyAccessService } from './emergency-access.service';
 import {
   createEmergencyAccessRequestSchema,
-  idParamSchema
+  idParamSchema,
+  updateEmergencyAccessSettingsSchema
 } from './emergency-access.schema';
 
 export const emergencyAccessRouter = Router();
@@ -74,6 +75,12 @@ function serializeRequest<T extends EmergencyAccessRequestWithContact>(request: 
   };
 }
 
+function serializeSettings(settings: { requireBackupConfirmation: boolean }) {
+  return {
+    requireBackupConfirmation: settings.requireBackupConfirmation
+  };
+}
+
 function firstIssueMessage(error: { issues: { message: string }[] }): string {
   return error.issues[0]?.message ?? 'Invalid request';
 }
@@ -101,6 +108,33 @@ emergencyAccessRouter.get('/contact/context', async (req: Request, res: Response
       (req as AuthenticatedRequest).authUser.id
     );
     res.status(200).json({ success: true, data: assignments.map(serializeAssignment) });
+  } catch (error: unknown) {
+    handleError(error, res);
+  }
+});
+
+emergencyAccessRouter.get('/owner/settings', async (req: Request, res: Response) => {
+  try {
+    const settings = await service.getSettings((req as AuthenticatedRequest).authUser.id);
+    res.status(200).json({ success: true, data: serializeSettings(settings) });
+  } catch (error: unknown) {
+    handleError(error, res);
+  }
+});
+
+emergencyAccessRouter.put('/owner/settings', async (req: Request, res: Response) => {
+  const parsed = updateEmergencyAccessSettingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: firstIssueMessage(parsed.error) });
+    return;
+  }
+
+  try {
+    const settings = await service.updateSettings(
+      (req as AuthenticatedRequest).authUser.id,
+      parsed.data
+    );
+    res.status(200).json({ success: true, data: serializeSettings(settings) });
   } catch (error: unknown) {
     handleError(error, res);
   }
@@ -181,6 +215,46 @@ emergencyAccessRouter.post(
   }
 );
 
+emergencyAccessRouter.post(
+  '/contact/requests/:id/backup-confirm',
+  async (req: Request, res: Response) => {
+    const id = parseId(req, res);
+    if (!id) {
+      return;
+    }
+
+    try {
+      const request = await service.confirmBackupReview(
+        (req as AuthenticatedRequest).authUser.id,
+        id
+      );
+      res.status(200).json({ success: true, data: request });
+    } catch (error: unknown) {
+      handleError(error, res);
+    }
+  }
+);
+
+emergencyAccessRouter.post(
+  '/contact/requests/:id/backup-deny',
+  async (req: Request, res: Response) => {
+    const id = parseId(req, res);
+    if (!id) {
+      return;
+    }
+
+    try {
+      const request = await service.denyBackupReview(
+        (req as AuthenticatedRequest).authUser.id,
+        id
+      );
+      res.status(200).json({ success: true, data: request });
+    } catch (error: unknown) {
+      handleError(error, res);
+    }
+  }
+);
+
 emergencyAccessRouter.get('/owner/requests', async (req: Request, res: Response) => {
   try {
     const requests = await service.listOwnerRequests(
@@ -222,6 +296,26 @@ emergencyAccessRouter.post(
 
     try {
       const request = await service.revokeOwnerRequest(
+        (req as AuthenticatedRequest).authUser.id,
+        id
+      );
+      res.status(200).json({ success: true, data: request });
+    } catch (error: unknown) {
+      handleError(error, res);
+    }
+  }
+);
+
+emergencyAccessRouter.post(
+  '/owner/requests/:id/secondary-review',
+  async (req: Request, res: Response) => {
+    const id = parseId(req, res);
+    if (!id) {
+      return;
+    }
+
+    try {
+      const request = await service.startSecondaryReview(
         (req as AuthenticatedRequest).authUser.id,
         id
       );
