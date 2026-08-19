@@ -8,6 +8,7 @@ import type {
   EmergencyAccessRequestWithContact,
   TrustedContactAccessAssignment
 } from '../../src/emergency-access/emergency-access.repository';
+import type { HandoverView } from '../../src/handover/handover.types';
 
 const NOW = new Date('2026-08-19T00:00:00.000Z');
 const OWNER_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -23,7 +24,9 @@ interface MockRepository {
   findOwnerRequests: jest.Mock;
   findByIdForOwner: jest.Mock;
   findByIdForContact: jest.Mock;
+  findActiveByIdForContact: jest.Mock;
   transitionStatus: jest.Mock;
+  recordAuditEvent: jest.Mock;
   findAuditEvents: jest.Mock;
 }
 
@@ -89,18 +92,68 @@ function createRepository(): MockRepository {
         verificationStatus: 'VERIFIED'
       }
     } satisfies EmergencyAccessRequestWithContact),
+    findActiveByIdForContact: jest.fn().mockResolvedValue({
+      ...makeRequest(EmergencyAccessStatus.ACTIVE),
+      expiresAt: new Date('2026-08-20T00:00:00.000Z'),
+      trustedContact: {
+        id: CONTACT_ID,
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com',
+        verificationStatus: 'VERIFIED'
+      }
+    } satisfies EmergencyAccessRequestWithContact),
     transitionStatus: jest.fn().mockResolvedValue(makeRequest()),
+    recordAuditEvent: jest.fn().mockResolvedValue(undefined),
     findAuditEvents: jest.fn().mockResolvedValue([] as EmergencyAccessAuditEventModel[])
+  };
+}
+
+function makeHandoverView(): HandoverView {
+  return {
+    instruction: { message: 'Call Sara first.', firstSteps: ['Call Sara'] },
+    family: [{ name: 'Amina', relation: 'CHILD', detail: null }],
+    contacts: [
+      {
+        name: 'Sara',
+        relation: 'SIBLING',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'sara@example.com'
+      }
+    ],
+    locations: [
+      {
+        name: 'Maybank folder',
+        category: 'BANK',
+        locationHint: 'Drive / Family / Banking',
+        documented: true
+      }
+    ],
+    steps: ['Call Sara'],
+    summary: {
+      contactCount: 1,
+      familyMemberCount: 1,
+      locationCount: 1,
+      documentedCount: 1
+    }
   };
 }
 
 describe('EmergencyAccessService', () => {
   let repository: MockRepository;
   let service: EmergencyAccessService;
+  const handoverService = {
+    preview: jest.fn().mockResolvedValue(makeHandoverView())
+  };
 
   beforeEach(() => {
     repository = createRepository();
-    service = new EmergencyAccessService(repository, () => NOW);
+    handoverService.preview.mockClear();
+    handoverService.preview.mockResolvedValue(makeHandoverView());
+    service = new EmergencyAccessService(repository, () => NOW, handoverService);
   });
 
   it('creates a cooling-off request for a verified bound contact', async () => {
@@ -341,6 +394,64 @@ describe('EmergencyAccessService', () => {
     });
   });
 
+  it('expires instead of closing active access after the expiry time', async () => {
+    repository.findByIdForContact.mockResolvedValue({
+      ...makeRequest(EmergencyAccessStatus.ACTIVE),
+      expiresAt: new Date('2026-08-18T00:00:00.000Z'),
+      trustedContact: {
+        id: CONTACT_ID,
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com',
+        verificationStatus: 'VERIFIED'
+      }
+    } satisfies EmergencyAccessRequestWithContact);
+
+    await service.closeContactRequest(CONTACT_USER_ID, REQUEST_ID);
+
+    expect(repository.transitionStatus).toHaveBeenCalledWith(
+      REQUEST_ID,
+      CONTACT_USER_ID,
+      {
+        status: EmergencyAccessStatus.EXPIRED,
+        closedAt: NOW
+      },
+      'ACCESS_EXPIRED',
+      {},
+      [EmergencyAccessStatus.ACTIVE]
+    );
+  });
+
+  it('returns active handover data for a bound contact and records a view audit event', async () => {
+    const result = await service.getActiveContactHandover(CONTACT_USER_ID, REQUEST_ID);
+
+    expect(repository.findActiveByIdForContact).toHaveBeenCalledWith(
+      CONTACT_USER_ID,
+      REQUEST_ID,
+      NOW
+    );
+    expect(handoverService.preview).toHaveBeenCalledWith(OWNER_ID, { mode: 'contact' });
+    expect(repository.recordAuditEvent).toHaveBeenCalledWith(
+      REQUEST_ID,
+      CONTACT_USER_ID,
+      'HANDOVER_VIEWED',
+      { ownerUserId: OWNER_ID }
+    );
+    expect(result.family).toHaveLength(1);
+    expect(result.family[0]?.name).toBe('Amina');
+  });
+
+  it('blocks handover reads for missing, inactive, expired, or unauthorized requests', async () => {
+    repository.findActiveByIdForContact.mockResolvedValue(null);
+
+    await expect(
+      service.getActiveContactHandover(CONTACT_USER_ID, REQUEST_ID)
+    ).rejects.toMatchObject({ status: 403 });
+    expect(handoverService.preview).not.toHaveBeenCalled();
+  });
+
   it('activates a cooling-off request and sets an expiry', async () => {
     await service.activateForReview(OWNER_ID, REQUEST_ID);
 
@@ -421,7 +532,7 @@ describe('EmergencyAccessService', () => {
     await service.listOwnerRequests(OWNER_ID);
     await service.auditEvents(REQUEST_ID);
 
-    expect(repository.findAssignments).toHaveBeenCalledWith(CONTACT_USER_ID);
+    expect(repository.findAssignments).toHaveBeenCalledWith(CONTACT_USER_ID, NOW);
     expect(repository.findOwnerRequests).toHaveBeenCalledWith(OWNER_ID);
     expect(repository.findAuditEvents).toHaveBeenCalledWith(REQUEST_ID);
   });

@@ -68,6 +68,7 @@ describe('Handover routes (/api/handover)', () => {
     ]);
     expect(res.body.data.summary).toEqual({
       contactCount: 2,
+      familyMemberCount: 0,
       locationCount: 2,
       documentedCount: 1
     });

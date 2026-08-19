@@ -4,6 +4,7 @@ import type {
   EmergencyAccessRequestModel as EmergencyAccessRequest
 } from '../generated/prisma/models';
 import { HttpError } from '../shared/http-error';
+import type { HandoverView } from '../handover/handover.types';
 import type { CreateEmergencyAccessRequestInput } from './emergency-access.schema';
 import type {
   EmergencyAccessRequestWithContact,
@@ -15,7 +16,7 @@ interface EmergencyAccessRepositoryLike {
     contactUserId: string,
     trustedContactId: string
   ): Promise<TrustedContactAccessAssignment | null>;
-  findAssignments(contactUserId: string): Promise<TrustedContactAccessAssignment[]>;
+  findAssignments(contactUserId: string, now?: Date): Promise<TrustedContactAccessAssignment[]>;
   findOpenForTrustedContact(
     trustedContactId: string
   ): Promise<EmergencyAccessRequest | null>;
@@ -30,6 +31,11 @@ interface EmergencyAccessRepositoryLike {
     contactUserId: string,
     id: string
   ): Promise<EmergencyAccessRequestWithContact | null>;
+  findActiveByIdForContact(
+    contactUserId: string,
+    id: string,
+    now: Date
+  ): Promise<EmergencyAccessRequestWithContact | null>;
   transitionStatus(
     id: string,
     actorUserId: string,
@@ -43,7 +49,17 @@ interface EmergencyAccessRepositoryLike {
     metadata?: Record<string, string>,
     allowedStatuses?: readonly EmergencyAccessStatus[]
   ): Promise<EmergencyAccessRequest | null>;
+  recordAuditEvent(
+    accessRequestId: string,
+    actorUserId: string,
+    eventType: string,
+    metadata?: Record<string, string>
+  ): Promise<EmergencyAccessAuditEvent>;
   findAuditEvents(accessRequestId: string): Promise<EmergencyAccessAuditEvent[]>;
+}
+
+interface HandoverServiceLike {
+  preview(ownerUserId: string, options?: { mode?: 'owner' | 'contact' }): Promise<HandoverView>;
 }
 
 const REQUEST_NOT_FOUND = 'Emergency access request not found';
@@ -78,11 +94,12 @@ function isClosable(status: EmergencyAccessStatus): boolean {
 export class EmergencyAccessService {
   constructor(
     private readonly repository: EmergencyAccessRepositoryLike,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    private readonly handoverService?: HandoverServiceLike
   ) {}
 
   listContactContext(contactUserId: string): Promise<TrustedContactAccessAssignment[]> {
-    return this.repository.findAssignments(contactUserId);
+    return this.repository.findAssignments(contactUserId, this.now());
   }
 
   async createRequest(
@@ -193,6 +210,23 @@ export class EmergencyAccessService {
     if (!isClosable(request.status)) {
       throw new HttpError(409, 'Only active emergency access can be closed');
     }
+    if (request.expiresAt && request.expiresAt <= this.now()) {
+      const expired = await this.repository.transitionStatus(
+        id,
+        contactUserId,
+        {
+          status: EmergencyAccessStatus.EXPIRED,
+          closedAt: this.now()
+        },
+        'ACCESS_EXPIRED',
+        {},
+        [EmergencyAccessStatus.ACTIVE]
+      );
+      if (!expired) {
+        throw new HttpError(409, 'Emergency access request cannot be expired now');
+      }
+      return expired;
+    }
     const updated = await this.repository.transitionStatus(
       id,
       contactUserId,
@@ -208,6 +242,28 @@ export class EmergencyAccessService {
       throw new HttpError(409, 'Only active emergency access can be closed');
     }
     return updated;
+  }
+
+  async getActiveContactHandover(
+    contactUserId: string,
+    id: string
+  ): Promise<HandoverView> {
+    if (!this.handoverService) {
+      throw new HttpError(500, 'Emergency handover service is not configured');
+    }
+    const request = await this.repository.findActiveByIdForContact(
+      contactUserId,
+      id,
+      this.now()
+    );
+    if (!request) {
+      throw new HttpError(403, 'Emergency access is not active');
+    }
+    const view = await this.handoverService.preview(request.ownerUserId, { mode: 'contact' });
+    await this.repository.recordAuditEvent(id, contactUserId, 'HANDOVER_VIEWED', {
+      ownerUserId: request.ownerUserId
+    });
+    return view;
   }
 
   async activateForReview(
