@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Share } from 'react-native';
 import TrustedContactsRoute from '../src/app/trusted-contacts';
 import TrustedContactForm from '../src/trusted-contacts/TrustedContactForm';
 import TrustedContactsScreen from '../src/trusted-contacts/TrustedContactsScreen';
@@ -26,6 +27,10 @@ function makeContact(overrides: Partial<TrustedContact> = {}): TrustedContact {
 }
 
 afterEach(() => jest.clearAllMocks());
+
+beforeEach(() => {
+  jest.spyOn(Share, 'share').mockResolvedValue({ action: Share.sharedAction });
+});
 
 describe('TrustedContactsScreen', () => {
   it('renders contacts with a verification badge and subtitle', async () => {
@@ -131,6 +136,64 @@ describe('TrustedContactsScreen', () => {
     expect(await screen.findByText(/No contacts yet/)).toBeTruthy();
     expect(screen.queryByText('Imran Rahman')).toBeNull();
     expect(mockedApi.deleteTrustedContact).toHaveBeenCalledWith('c1');
+  });
+
+  it('sends an invite and shows the one-time token for sharing', async () => {
+    const invitedContact = makeContact({
+      email: 'imran@example.com',
+      verificationStatus: 'PENDING',
+      inviteSentAt: '2026-08-25T00:00:00.000Z',
+      inviteTokenExpiresAt: '2099-09-08T00:00:00.000Z'
+    });
+    mockedApi.listTrustedContacts.mockResolvedValue([
+      makeContact({ email: 'imran@example.com', verificationStatus: 'PENDING' })
+    ]);
+    mockedApi.createTrustedContactInvite.mockResolvedValue({
+      contact: invitedContact,
+      inviteToken: 'one-time-token-12345678901234567890',
+      expiresAt: '2099-09-08T00:00:00.000Z'
+    });
+
+    render(<TrustedContactsScreen />);
+    expect(await screen.findByText('Pending')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Send invite to Imran Rahman'));
+
+    expect(await screen.findByText('one-time-token-12345678901234567890')).toBeTruthy();
+    expect(screen.getByText('Invite sent')).toBeTruthy();
+    expect(mockedApi.createTrustedContactInvite).toHaveBeenCalledWith('c1');
+
+    fireEvent.press(screen.getByLabelText('Share invite for Imran Rahman'));
+    await waitFor(() =>
+      expect(Share.share).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('one-time-token-12345678901234567890')
+        })
+      )
+    );
+  });
+
+  it('revokes an active invite and clears the invite status', async () => {
+    mockedApi.listTrustedContacts.mockResolvedValue([
+      makeContact({
+        email: 'imran@example.com',
+        verificationStatus: 'PENDING',
+        inviteSentAt: '2026-08-25T00:00:00.000Z',
+        inviteTokenExpiresAt: '2099-09-08T00:00:00.000Z'
+      })
+    ]);
+    mockedApi.revokeTrustedContactInvite.mockResolvedValue(
+      makeContact({ email: 'imran@example.com', verificationStatus: 'PENDING' })
+    );
+
+    render(<TrustedContactsScreen />);
+    expect(await screen.findByText('Invite sent')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Revoke invite for Imran Rahman'));
+
+    expect(await screen.findByText('Pending')).toBeTruthy();
+    expect(screen.getByText('Sent: Not sent')).toBeTruthy();
+    expect(mockedApi.revokeTrustedContactInvite).toHaveBeenCalledWith('c1');
   });
 
   it('is exposed through the trusted-contacts route', async () => {

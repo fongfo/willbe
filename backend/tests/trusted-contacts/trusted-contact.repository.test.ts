@@ -155,6 +155,33 @@ describe('TrustedContactRepository', () => {
     });
   });
 
+  describe('clearInvite', () => {
+    it('clears invite token fields for an owned trusted contact', async () => {
+      (prisma.trustedContact.update as jest.Mock).mockResolvedValue(sampleContact);
+
+      const result = await repository.clearInvite(userId, sampleContact.id);
+
+      expect(prisma.trustedContact.update).toHaveBeenCalledWith({
+        where: { id_userId: { id: sampleContact.id, userId } },
+        data: {
+          inviteTokenHash: null,
+          inviteTokenExpiresAt: null,
+          inviteTokenUsedAt: null,
+          inviteSentAt: null
+        }
+      });
+      expect(result).toBe(sampleContact);
+    });
+
+    it('returns null when clearing an invite for a missing contact', async () => {
+      (prisma.trustedContact.update as jest.Mock).mockRejectedValue(notFoundError());
+
+      const result = await repository.clearInvite(userId, 'missing-id');
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('delete', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.delete as jest.Mock).mockRejectedValue(notFoundError());

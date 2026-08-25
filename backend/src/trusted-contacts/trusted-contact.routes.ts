@@ -148,6 +148,24 @@ trustedContactRouter.post('/:id/invite', async (req: Request, res: Response) => 
   }
 });
 
+trustedContactRouter.post('/:id/invite/revoke', async (req: Request, res: Response) => {
+  const parsedParams = idParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ success: false, error: firstIssueMessage(parsedParams.error) });
+    return;
+  }
+
+  try {
+    const contact = await service.revokeInvite(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id
+    );
+    res.status(200).json({ success: true, data: toOwnerContactView(contact) });
+  } catch (error: unknown) {
+    handleError(error, res);
+  }
+});
+
 trustedContactRouter.get('/assigned-plans', async (req: Request, res: Response) => {
   try {
     const contacts = await service.listAssignments((req as AuthenticatedRequest).authUser.id);

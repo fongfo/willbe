@@ -24,6 +24,7 @@ export interface TrustedContactRepositoryLike {
     expiresAt: Date,
     sentAt: Date
   ): Promise<TrustedContact | null>;
+  clearInvite(userId: string, id: string): Promise<TrustedContact | null>;
   update(
     userId: string,
     id: string,
@@ -111,6 +112,22 @@ export class TrustedContactService {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
     return { contact: updated, inviteToken, expiresAt };
+  }
+
+  async revokeInvite(userId: string, id: string): Promise<TrustedContact> {
+    const contact = await this.repository.findById(userId, id);
+    if (!contact) {
+      throw new HttpError(404, NOT_FOUND_MESSAGE);
+    }
+    if (contact.verificationStatus === 'VERIFIED') {
+      throw new HttpError(409, 'Verified trusted contact invites cannot be revoked');
+    }
+
+    const updated = await this.repository.clearInvite(userId, id);
+    if (!updated) {
+      throw new HttpError(404, NOT_FOUND_MESSAGE);
+    }
+    return updated;
   }
 
   async update(

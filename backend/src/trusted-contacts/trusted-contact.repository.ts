@@ -79,6 +79,25 @@ export class TrustedContactRepository {
     }
   }
 
+  async clearInvite(userId: string, id: string): Promise<TrustedContact | null> {
+    try {
+      return await prisma.trustedContact.update({
+        where: { id_userId: { id, userId } },
+        data: {
+          inviteTokenHash: null,
+          inviteTokenExpiresAt: null,
+          inviteTokenUsedAt: null,
+          inviteSentAt: null
+        }
+      });
+    } catch (error: unknown) {
+      if (isRecordNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async update(
     userId: string,
     id: string,
