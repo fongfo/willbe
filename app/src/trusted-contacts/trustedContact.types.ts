@@ -20,9 +20,18 @@ export interface TrustedContact {
   phone: string;
   email: string | null;
   verificationStatus: VerificationStatus;
+  inviteTokenExpiresAt?: string | null;
+  inviteTokenUsedAt?: string | null;
+  inviteSentAt?: string | null;
   detail: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TrustedContactInvite {
+  contact: TrustedContact;
+  inviteToken: string;
+  expiresAt: string;
 }
 
 export interface AssignedTrustedContactPlan {

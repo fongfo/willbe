@@ -84,6 +84,10 @@ model TrustedContact {
   phone              String
   email              String?
   verificationStatus VerificationStatus @default(PENDING)
+  inviteTokenHash    String?
+  inviteTokenExpiresAt DateTime?
+  inviteTokenUsedAt  DateTime?
+  inviteSentAt       DateTime?
   detail             String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -94,6 +98,7 @@ model TrustedContact {
 
   @@unique([id, userId])
   @@index([contactUserId])
+  @@index([inviteTokenHash])
   @@index([userId])
   @@map("trusted_contacts")
 }

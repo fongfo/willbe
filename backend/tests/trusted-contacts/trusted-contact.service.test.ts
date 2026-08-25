@@ -13,6 +13,7 @@ interface MockTrustedContactRepository {
   findByIdForBinding: jest.Mock;
   findAssignmentsForContactUser: jest.Mock;
   create: jest.Mock;
+  storeInvite: jest.Mock;
   update: jest.Mock;
   delete: jest.Mock;
   bindToUser: jest.Mock;
@@ -25,6 +26,7 @@ function createMockRepository(): MockTrustedContactRepository {
     findByIdForBinding: jest.fn(),
     findAssignmentsForContactUser: jest.fn(),
     create: jest.fn(),
+    storeInvite: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     bindToUser: jest.fn()
@@ -40,6 +42,10 @@ const sampleContact = {
   phone: '+60123456789',
   email: 'imran@example.com',
   verificationStatus: 'PENDING',
+  inviteTokenHash: null,
+  inviteTokenExpiresAt: null,
+  inviteTokenUsedAt: null,
+  inviteSentAt: null,
   detail: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'
@@ -52,7 +58,11 @@ describe('TrustedContactService', () => {
 
   beforeEach(() => {
     repository = createMockRepository();
-    service = new TrustedContactService(repository);
+    service = new TrustedContactService(
+      repository,
+      () => new Date('2026-08-25T00:00:00.000Z'),
+      () => 'test-invite-token-12345678901234567890'
+    );
   });
 
   describe('list', () => {
@@ -116,6 +126,38 @@ describe('TrustedContactService', () => {
     });
   });
 
+  describe('createInvite', () => {
+    it('stores a hashed invite token and returns the plaintext token once', async () => {
+      repository.findById.mockResolvedValue(sampleContact);
+      repository.storeInvite.mockResolvedValue({
+        ...sampleContact,
+        inviteTokenHash: 'stored-hash',
+        inviteTokenExpiresAt: new Date('2026-09-08T00:00:00.000Z'),
+        inviteSentAt: new Date('2026-08-25T00:00:00.000Z')
+      });
+
+      const result = await service.createInvite(userId, sampleContact.id);
+
+      expect(repository.storeInvite).toHaveBeenCalledWith(
+        userId,
+        sampleContact.id,
+        expect.stringMatching(/^[a-f0-9]{64}$/),
+        new Date('2026-09-08T00:00:00.000Z'),
+        new Date('2026-08-25T00:00:00.000Z')
+      );
+      expect(result.inviteToken).toBe('test-invite-token-12345678901234567890');
+    });
+
+    it('rejects invite creation when the contact has no email address', async () => {
+      repository.findById.mockResolvedValue({ ...sampleContact, email: null });
+
+      await expect(service.createInvite(userId, sampleContact.id)).rejects.toMatchObject({
+        status: 400
+      });
+      expect(repository.storeInvite).not.toHaveBeenCalled();
+    });
+  });
+
   describe('update', () => {
     it('throws HttpError(404) when repository.update resolves to null (not-found signal)', async () => {
       repository.update.mockResolvedValue(null);
@@ -154,7 +196,13 @@ describe('TrustedContactService', () => {
 
   describe('bindAuthenticatedContact', () => {
     it('binds and verifies when the authenticated email matches the trusted contact email', async () => {
-      const contact = { ...sampleContact, email: 'IMRAN@example.com' };
+      const contact = {
+        ...sampleContact,
+        email: 'IMRAN@example.com',
+        inviteTokenHash:
+          '397a2a9c5bf5e2ccec38c2596b682bb1bd05fe6e4ecea6c10cf42755ff225403',
+        inviteTokenExpiresAt: new Date('2026-08-26T00:00:00.000Z')
+      };
       const bound = {
         ...contact,
         contactUserId: 'contact-user-1',
@@ -166,30 +214,120 @@ describe('TrustedContactService', () => {
       const result = await service.bindAuthenticatedContact(
         sampleContact.id,
         'contact-user-1',
-        'imran@example.com'
+        'imran@example.com',
+        'valid-token'
       );
 
-      expect(repository.bindToUser).toHaveBeenCalledWith(sampleContact.id, 'contact-user-1');
+      expect(repository.bindToUser).toHaveBeenCalledWith(
+        sampleContact.id,
+        'contact-user-1',
+        new Date('2026-08-25T00:00:00.000Z')
+      );
       expect(result).toBe(bound);
     });
 
-    it('returns the existing verified binding for the same authenticated user', async () => {
+    it('rejects a reused invite token even for the same authenticated user', async () => {
       const contact = {
         ...sampleContact,
         email: 'imran@example.com',
         contactUserId: 'contact-user-1',
-        verificationStatus: 'VERIFIED'
+        verificationStatus: 'VERIFIED',
+        inviteTokenUsedAt: new Date('2026-08-25T00:00:00.000Z')
       };
       repository.findByIdForBinding.mockResolvedValue(contact);
 
-      const result = await service.bindAuthenticatedContact(
-        sampleContact.id,
-        'contact-user-1',
-        'imran@example.com'
-      );
+      await expect(
+        service.bindAuthenticatedContact(
+          sampleContact.id,
+          'contact-user-1',
+          'imran@example.com',
+          'valid-token'
+        )
+      ).rejects.toMatchObject({ status: 409 });
 
       expect(repository.bindToUser).not.toHaveBeenCalled();
-      expect(result).toBe(contact);
+    });
+
+    it('rejects binding when the invite token is expired', async () => {
+      repository.findByIdForBinding.mockResolvedValue({
+        ...sampleContact,
+        email: 'imran@example.com',
+        inviteTokenHash: 'hash',
+        inviteTokenExpiresAt: new Date('2026-08-24T00:00:00.000Z')
+      });
+
+      await expect(
+        service.bindAuthenticatedContact(
+          sampleContact.id,
+          'contact-user-1',
+          'imran@example.com',
+          'valid-token'
+        )
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('rejects binding when the invite token does not match', async () => {
+      repository.findByIdForBinding.mockResolvedValue({
+        ...sampleContact,
+        email: 'imran@example.com',
+        inviteTokenHash: 'different-hash',
+        inviteTokenExpiresAt: new Date('2026-08-26T00:00:00.000Z')
+      });
+
+      await expect(
+        service.bindAuthenticatedContact(
+          sampleContact.id,
+          'contact-user-1',
+          'imran@example.com',
+          'invalid-token'
+        )
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('rejects binding when no invite has been issued', async () => {
+      repository.findByIdForBinding.mockResolvedValue({
+        ...sampleContact,
+        email: 'imran@example.com'
+      });
+
+      await expect(
+        service.bindAuthenticatedContact(
+          sampleContact.id,
+          'contact-user-1',
+          'imran@example.com',
+          'valid-token'
+        )
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('accepts the matching invite token hash', async () => {
+      const inviteService = new TrustedContactService(
+        repository,
+        () => new Date('2026-08-25T00:00:00.000Z'),
+        () => 'unused'
+      );
+      repository.findByIdForBinding.mockResolvedValue({
+        ...sampleContact,
+        email: 'imran@example.com',
+        inviteTokenHash:
+          '397a2a9c5bf5e2ccec38c2596b682bb1bd05fe6e4ecea6c10cf42755ff225403',
+        inviteTokenExpiresAt: new Date('2026-08-26T00:00:00.000Z')
+      });
+      const bound = {
+        ...sampleContact,
+        contactUserId: 'contact-user-1',
+        verificationStatus: 'VERIFIED'
+      };
+      repository.bindToUser.mockResolvedValue(bound);
+
+      const result = await inviteService.bindAuthenticatedContact(
+        sampleContact.id,
+        'contact-user-1',
+        'imran@example.com',
+        'valid-token'
+      );
+
+      expect(result).toBe(bound);
     });
 
     it('rejects binding when the authenticated email does not match', async () => {
@@ -199,7 +337,12 @@ describe('TrustedContactService', () => {
       });
 
       await expect(
-        service.bindAuthenticatedContact(sampleContact.id, 'contact-user-1', 'other@example.com')
+        service.bindAuthenticatedContact(
+          sampleContact.id,
+          'contact-user-1',
+          'other@example.com',
+          'valid-token'
+        )
       ).rejects.toMatchObject({ status: 403 });
     });
 
@@ -211,7 +354,12 @@ describe('TrustedContactService', () => {
       });
 
       await expect(
-        service.bindAuthenticatedContact(sampleContact.id, 'contact-user-1', 'imran@example.com')
+        service.bindAuthenticatedContact(
+          sampleContact.id,
+          'contact-user-1',
+          'imran@example.com',
+          'valid-token'
+        )
       ).rejects.toMatchObject({ status: 409 });
     });
   });

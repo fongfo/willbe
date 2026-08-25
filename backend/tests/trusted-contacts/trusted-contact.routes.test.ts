@@ -36,6 +36,7 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
       expect(res.body.data.verificationStatus).toBe('PENDING');
       expect(typeof res.body.data.id).toBe('string');
       expect(res.body.data.id.length).toBeGreaterThan(0);
+      expect(res.body.data).not.toHaveProperty('inviteTokenHash');
     });
 
     it('returns 400 with an error message when name is missing', async () => {
@@ -104,10 +105,13 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
         phone: '+60123456789',
         email: 'imran@example.com'
       });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${ownerContact.body.data.id}/invite`)
+      );
       await withAuth(
         request(app).post(`/api/trusted-contacts/${ownerContact.body.data.id}/bind`),
         IMRAN_ACCESS_TOKEN
-      );
+      ).send({ inviteToken: invite.body.data.inviteToken });
 
       const res = await withAuth(
         request(app).get('/api/trusted-contacts/assigned-plans'),
@@ -191,6 +195,74 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.name).toBe('Sara Abdullah');
+    });
+  });
+
+  describe('POST /api/trusted-contacts/:id/invite', () => {
+    it('creates a single-use invitation token for an owned trusted contact', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(typeof res.body.data.inviteToken).toBe('string');
+      expect(res.body.data.inviteToken.length).toBeGreaterThan(24);
+      expect(res.body.data.expiresAt).toEqual(expect.any(String));
+      expect(res.body.data.contact.inviteSentAt).toEqual(expect.any(String));
+      expect(res.body.data.contact.inviteTokenExpiresAt).toEqual(expect.any(String));
+      expect(res.body.data.contact).not.toHaveProperty('inviteTokenHash');
+
+      const stored = await prisma.trustedContact.findUnique({
+        where: { id: created.body.data.id }
+      });
+      expect(stored?.inviteTokenHash).toEqual(expect.stringMatching(/^[a-f0-9]{64}$/));
+      expect(stored?.inviteTokenHash).not.toBe(res.body.data.inviteToken);
+    });
+
+    it('rejects invite creation when the trusted contact has no email', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Nur Rahman',
+        relation: 'CHILD',
+        role: 'BACKUP',
+        phone: '+60112223333'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('does not allow another planner to invite a contact they do not own', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`),
+        'dev:other.owner%40example.com:Other%20Owner'
+      );
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
     });
   });
 
@@ -352,7 +424,7 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
   });
 
   describe('POST /api/trusted-contacts/:id/bind', () => {
-    it('binds and verifies a trusted contact when the authenticated email matches', async () => {
+    it('binds and verifies a trusted contact when the invite token and authenticated email match', async () => {
       const app = createApp();
       const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
         name: 'Imran Rahman',
@@ -361,11 +433,14 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
         phone: '+60123456789',
         email: 'imran@example.com'
       });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
 
       const res = await withAuth(
         request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
         IMRAN_ACCESS_TOKEN
-      );
+      ).send({ inviteToken: invite.body.data.inviteToken });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -373,6 +448,11 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
       expect(res.body.data.ownerUserId).toEqual(expect.any(String));
       expect(res.body.data).not.toHaveProperty('detail');
       expect(res.body.data).not.toHaveProperty('contactUserId');
+      expect(res.body.data).not.toHaveProperty('inviteTokenHash');
+      const stored = await prisma.trustedContact.findUnique({
+        where: { id: created.body.data.id }
+      });
+      expect(stored?.inviteTokenUsedAt).toBeTruthy();
     });
 
     it('rejects binding when the authenticated email does not match', async () => {
@@ -384,11 +464,14 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
         phone: '+60123456789',
         email: 'imran@example.com'
       });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
 
       const res = await withAuth(
         request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
         'dev:sara%40example.com:Sara%20Abdullah'
-      );
+      ).send({ inviteToken: invite.body.data.inviteToken });
 
       expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
@@ -403,6 +486,9 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
         phone: '+60123456789',
         email: 'imran@example.com'
       });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
       const otherUser = await prisma.user.create({
         data: {
           privyUserId: 'dev:other-imran-binding',
@@ -418,9 +504,102 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
       const res = await withAuth(
         request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
         IMRAN_ACCESS_TOKEN
-      );
+      ).send({ inviteToken: invite.body.data.inviteToken });
 
       expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects binding without an invite token', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      ).send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects a reused invite token after successful binding', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: invite.body.data.inviteToken });
+      const reused = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: invite.body.data.inviteToken });
+
+      expect(reused.status).toBe(409);
+      expect(reused.body.success).toBe(false);
+    });
+
+    it('rejects an expired invite token', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+      await prisma.trustedContact.update({
+        where: { id: created.body.data.id },
+        data: { inviteTokenExpiresAt: new Date('2000-01-01T00:00:00.000Z') }
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: invite.body.data.inviteToken });
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects an invalid invite token', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: 'invalid-token-value-that-is-long-enough' });
+
+      expect(res.status).toBe(403);
       expect(res.body.success).toBe(false);
     });
 
@@ -430,7 +609,7 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
       const res = await withAuth(
         request(app).post('/api/trusted-contacts/not-a-uuid/bind'),
         IMRAN_ACCESS_TOKEN
-      );
+      ).send({ inviteToken: 'valid-token-value-that-is-long-enough' });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);

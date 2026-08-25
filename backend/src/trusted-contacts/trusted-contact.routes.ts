@@ -6,6 +6,7 @@ import { HttpError } from '../shared/http-error';
 import { TrustedContactRepository } from './trusted-contact.repository';
 import { TrustedContactService } from './trusted-contact.service';
 import {
+  bindTrustedContactSchema,
   createTrustedContactSchema,
   updateTrustedContactSchema,
   idParamSchema
@@ -56,6 +57,40 @@ function toContactAccountView(contact: {
   };
 }
 
+function toOwnerContactView(contact: {
+  id: string;
+  userId: string;
+  name: string;
+  relation: string;
+  role: string;
+  phone: string;
+  email: string | null;
+  verificationStatus: string;
+  inviteTokenExpiresAt?: Date | null;
+  inviteTokenUsedAt?: Date | null;
+  inviteSentAt?: Date | null;
+  detail: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): Record<string, unknown> {
+  return {
+    id: contact.id,
+    userId: contact.userId,
+    name: contact.name,
+    relation: contact.relation,
+    role: contact.role,
+    phone: contact.phone,
+    email: contact.email,
+    verificationStatus: contact.verificationStatus,
+    inviteTokenExpiresAt: contact.inviteTokenExpiresAt ?? null,
+    inviteTokenUsedAt: contact.inviteTokenUsedAt ?? null,
+    inviteSentAt: contact.inviteSentAt ?? null,
+    detail: contact.detail,
+    createdAt: contact.createdAt,
+    updatedAt: contact.updatedAt
+  };
+}
+
 function handleError(error: unknown, res: Response): void {
   if (error instanceof HttpError) {
     res.status(error.status).json({ success: false, error: error.message });
@@ -73,7 +108,7 @@ trustedContactRouter.post('/', async (req: Request, res: Response) => {
 
   try {
     const contact = await service.create((req as AuthenticatedRequest).authUser.id, parsed.data);
-    res.status(201).json({ success: true, data: contact });
+    res.status(201).json({ success: true, data: toOwnerContactView(contact) });
   } catch (error: unknown) {
     handleError(error, res);
   }
@@ -82,7 +117,32 @@ trustedContactRouter.post('/', async (req: Request, res: Response) => {
 trustedContactRouter.get('/', async (req: Request, res: Response) => {
   try {
     const contacts = await service.list((req as AuthenticatedRequest).authUser.id);
-    res.status(200).json({ success: true, data: contacts });
+    res.status(200).json({ success: true, data: contacts.map(toOwnerContactView) });
+  } catch (error: unknown) {
+    handleError(error, res);
+  }
+});
+
+trustedContactRouter.post('/:id/invite', async (req: Request, res: Response) => {
+  const parsedParams = idParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ success: false, error: firstIssueMessage(parsedParams.error) });
+    return;
+  }
+
+  try {
+    const invite = await service.createInvite(
+      (req as AuthenticatedRequest).authUser.id,
+      parsedParams.data.id
+    );
+    res.status(200).json({
+      success: true,
+      data: {
+        contact: toOwnerContactView(invite.contact),
+        inviteToken: invite.inviteToken,
+        expiresAt: invite.expiresAt
+      }
+    });
   } catch (error: unknown) {
     handleError(error, res);
   }
@@ -126,7 +186,7 @@ trustedContactRouter.get('/:id', async (req: Request, res: Response) => {
       (req as AuthenticatedRequest).authUser.id,
       parsedParams.data.id
     );
-    res.status(200).json({ success: true, data: contact });
+    res.status(200).json({ success: true, data: toOwnerContactView(contact) });
   } catch (error: unknown) {
     handleError(error, res);
   }
@@ -151,7 +211,7 @@ trustedContactRouter.patch('/:id', async (req: Request, res: Response) => {
       parsedParams.data.id,
       parsedBody.data
     );
-    res.status(200).json({ success: true, data: contact });
+    res.status(200).json({ success: true, data: toOwnerContactView(contact) });
   } catch (error: unknown) {
     handleError(error, res);
   }
@@ -179,12 +239,19 @@ trustedContactRouter.post('/:id/bind', async (req: Request, res: Response) => {
     return;
   }
 
+  const parsedBody = bindTrustedContactSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ success: false, error: firstIssueMessage(parsedBody.error) });
+    return;
+  }
+
   try {
     const authUser = (req as AuthenticatedRequest).authUser;
     const contact = await service.bindAuthenticatedContact(
       parsedParams.data.id,
       authUser.id,
-      authUser.email
+      authUser.email,
+      parsedBody.data.inviteToken
     );
     res.status(200).json({ success: true, data: toContactAccountView(contact) });
   } catch (error: unknown) {
