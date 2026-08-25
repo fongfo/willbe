@@ -15,6 +15,8 @@ import * as planProgressApi from '../src/plan/planProgress.api';
 import * as reviewSettingsApi from '../src/check-in/reviewSettings.api';
 import * as handoverInstructionApi from '../src/handover-instructions/handoverInstruction.api';
 import type { HandoverInstruction } from '../src/handover-instructions/handoverInstruction.types';
+import * as emergencyApi from '../src/emergency-access/emergencyAccess.api';
+import type { ContactAccessAssignment } from '../src/emergency-access/emergencyAccess.types';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 import type {
   CreateTrustedContactInput,
@@ -27,6 +29,7 @@ jest.mock('../src/asset-references/assetReference.api');
 jest.mock('../src/plan/planProgress.api');
 jest.mock('../src/check-in/reviewSettings.api');
 jest.mock('../src/handover-instructions/handoverInstruction.api');
+jest.mock('../src/emergency-access/emergencyAccess.api');
 
 const mockedFamilyApi = familyApi as jest.Mocked<typeof familyApi>;
 const mockedContactApi = contactApi as jest.Mocked<typeof contactApi>;
@@ -34,6 +37,7 @@ const mockedAssetApi = assetApi as jest.Mocked<typeof assetApi>;
 const mockedPlanProgressApi = planProgressApi as jest.Mocked<typeof planProgressApi>;
 const mockedReviewSettingsApi = reviewSettingsApi as jest.Mocked<typeof reviewSettingsApi>;
 const mockedInstructionApi = handoverInstructionApi as jest.Mocked<typeof handoverInstructionApi>;
+const mockedEmergencyApi = emergencyApi as jest.Mocked<typeof emergencyApi>;
 
 let familyMembers: FamilyMember[] = [];
 let trustedContacts: TrustedContact[] = [];
@@ -73,6 +77,21 @@ function makeContact(
     detail: input.detail ?? null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-01T00:00:00.000Z'
+  };
+}
+
+function makeContactAssignment(contact: TrustedContact): ContactAccessAssignment {
+  return {
+    id: contact.id,
+    ownerUserId: 'owner-1',
+    name: contact.name,
+    relation: contact.relation,
+    role: contact.role,
+    phone: contact.phone,
+    email: contact.email,
+    verificationStatus: 'VERIFIED',
+    planner: { id: 'owner-1', name: 'Aisyah Rahman' },
+    latestRequest: null
   };
 }
 
@@ -127,6 +146,56 @@ beforeEach(() => {
     trustedContacts = [...trustedContacts, created];
     return created;
   });
+  mockedContactApi.createTrustedContactInvite.mockImplementation(async (id) => {
+    const updated = trustedContacts.find((contact) => contact.id === id);
+    if (!updated) {
+      throw new Error('Missing contact');
+    }
+    const invited = {
+      ...updated,
+      inviteSentAt: '2026-08-25T00:00:00.000Z',
+      inviteTokenExpiresAt: '2099-09-08T00:00:00.000Z'
+    };
+    trustedContacts = trustedContacts.map((contact) =>
+      contact.id === id ? invited : contact
+    );
+    return {
+      contact: invited,
+      inviteToken: 'journey-invite-token-12345678901234567890',
+      expiresAt: '2099-09-08T00:00:00.000Z'
+    };
+  });
+  mockedContactApi.bindTrustedContactInvite.mockImplementation(async (inviteToken) => {
+    if (inviteToken !== 'journey-invite-token-12345678901234567890') {
+      throw new Error('Invalid invite token');
+    }
+    const pending = trustedContacts.find(
+      (contact) => contact.verificationStatus === 'PENDING'
+    );
+    if (!pending) {
+      throw new Error('Missing pending contact');
+    }
+    const verified = {
+      ...pending,
+      verificationStatus: 'VERIFIED' as const,
+      inviteTokenUsedAt: '2026-08-25T00:01:00.000Z'
+    };
+    trustedContacts = trustedContacts.map((contact) =>
+      contact.id === verified.id ? verified : contact
+    );
+    return {
+      id: verified.id,
+      ownerUserId: 'owner-1',
+      name: verified.name,
+      relation: verified.relation,
+      role: verified.role,
+      phone: verified.phone,
+      email: verified.email,
+      verificationStatus: verified.verificationStatus,
+      createdAt: verified.createdAt,
+      updatedAt: verified.updatedAt
+    };
+  });
 
   mockedAssetApi.listAssetReferences.mockImplementation(async () => assetReferences);
   mockedAssetApi.createAssetReference.mockImplementation(async (input) => {
@@ -167,6 +236,12 @@ beforeEach(() => {
     };
     return handoverInstruction;
   });
+
+  mockedEmergencyApi.getContactAccessContext.mockImplementation(async () =>
+    trustedContacts
+      .filter((contact) => contact.verificationStatus === 'VERIFIED')
+      .map(makeContactAssignment)
+  );
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -241,5 +316,44 @@ describe('Pusaka E2E user journey', () => {
     expect(screen.getByText('Sara Abdullah')).toBeTruthy();
     expect(screen.getByText('Maybank main account')).toBeTruthy();
     expect(router.getPathname()).toBe('/emergency-handover');
+  }, 45000);
+
+  it('invites a trusted contact and lets the contact bind into emergency mode', async () => {
+    renderRouter('src/app', { initialUrl: '/trusted-contacts' });
+
+    await authenticate();
+    navigateTo('/trusted-contacts');
+
+    expect(await screen.findByText('Who should your family turn to?')).toBeTruthy();
+    fireEvent.changeText(screen.getByLabelText('Name'), 'Sara Abdullah');
+    fireEvent.changeText(screen.getByLabelText('Phone'), '+60123456789');
+    fireEvent.press(screen.getByText('Add trusted contact'));
+    expect(await screen.findByText('Sara Abdullah')).toBeTruthy();
+
+    fireEvent.changeText(screen.getByLabelText('Name'), 'Imran Rahman');
+    fireEvent.changeText(screen.getByLabelText('Email'), 'imran@example.com');
+    fireEvent.press(screen.getByText('Backup'));
+    fireEvent.changeText(screen.getByLabelText('Phone'), '+60129876543');
+    fireEvent.press(screen.getByText('Add trusted contact'));
+    expect(await screen.findByText('Imran Rahman')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Send invite to Imran Rahman'));
+    expect(await screen.findByText('journey-invite-token-12345678901234567890')).toBeTruthy();
+
+    trustedContacts = trustedContacts.filter((contact) => contact.name === 'Imran Rahman');
+    navigateTo('/contact-emergency');
+    expect(await screen.findByText('No verified assignment')).toBeTruthy();
+
+    fireEvent.changeText(
+      screen.getByLabelText('Trusted contact invite token'),
+      'journey-invite-token-12345678901234567890'
+    );
+    fireEvent.press(screen.getByText('Bind invite'));
+
+    expect(await screen.findByText('Contact Home')).toBeTruthy();
+    expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
+    expect(mockedContactApi.bindTrustedContactInvite).toHaveBeenCalledWith(
+      'journey-invite-token-12345678901234567890'
+    );
   }, 45000);
 });

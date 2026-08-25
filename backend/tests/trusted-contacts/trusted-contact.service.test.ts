@@ -11,6 +11,7 @@ interface MockTrustedContactRepository {
   findAll: jest.Mock;
   findById: jest.Mock;
   findByIdForBinding: jest.Mock;
+  findByInviteTokenHashForBinding: jest.Mock;
   findAssignmentsForContactUser: jest.Mock;
   create: jest.Mock;
   storeInvite: jest.Mock;
@@ -25,6 +26,7 @@ function createMockRepository(): MockTrustedContactRepository {
     findAll: jest.fn(),
     findById: jest.fn(),
     findByIdForBinding: jest.fn(),
+    findByInviteTokenHashForBinding: jest.fn(),
     findAssignmentsForContactUser: jest.fn(),
     create: jest.fn(),
     storeInvite: jest.fn(),
@@ -394,6 +396,54 @@ describe('TrustedContactService', () => {
           'valid-token'
         )
       ).rejects.toMatchObject({ status: 409 });
+    });
+  });
+
+  describe('bindAuthenticatedContactByInviteToken', () => {
+    it('finds the contact by invite token hash and binds the authenticated contact', async () => {
+      const contact = {
+        ...sampleContact,
+        email: 'imran@example.com',
+        inviteTokenHash:
+          '397a2a9c5bf5e2ccec38c2596b682bb1bd05fe6e4ecea6c10cf42755ff225403',
+        inviteTokenExpiresAt: new Date('2026-08-26T00:00:00.000Z')
+      };
+      const bound = {
+        ...contact,
+        contactUserId: 'contact-user-1',
+        verificationStatus: 'VERIFIED'
+      };
+      repository.findByInviteTokenHashForBinding.mockResolvedValue(contact);
+      repository.bindToUser.mockResolvedValue(bound);
+
+      const result = await service.bindAuthenticatedContactByInviteToken(
+        'contact-user-1',
+        'imran@example.com',
+        'valid-token'
+      );
+
+      expect(repository.findByInviteTokenHashForBinding).toHaveBeenCalledWith(
+        '397a2a9c5bf5e2ccec38c2596b682bb1bd05fe6e4ecea6c10cf42755ff225403'
+      );
+      expect(repository.bindToUser).toHaveBeenCalledWith(
+        sampleContact.id,
+        'contact-user-1',
+        new Date('2026-08-25T00:00:00.000Z')
+      );
+      expect(result).toBe(bound);
+    });
+
+    it('rejects when no contact exists for the invite token hash', async () => {
+      repository.findByInviteTokenHashForBinding.mockResolvedValue(null);
+
+      await expect(
+        service.bindAuthenticatedContactByInviteToken(
+          'contact-user-1',
+          'imran@example.com',
+          'valid-token'
+        )
+      ).rejects.toMatchObject({ status: 403 });
+      expect(repository.bindToUser).not.toHaveBeenCalled();
     });
   });
 });

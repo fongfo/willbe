@@ -15,6 +15,7 @@ export interface TrustedContactRepositoryLike {
   findAll(userId: string): Promise<TrustedContact[]>;
   findById(userId: string, id: string): Promise<TrustedContact | null>;
   findByIdForBinding(id: string): Promise<TrustedContact | null>;
+  findByInviteTokenHashForBinding(inviteTokenHash: string): Promise<TrustedContact | null>;
   findAssignmentsForContactUser(contactUserId: string): Promise<TrustedContactAssignment[]>;
   create(userId: string, data: CreateTrustedContactInput): Promise<TrustedContact>;
   storeInvite(
@@ -160,6 +161,30 @@ export class TrustedContactService {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }
 
+    return this.validateAndBindContact(contact, contactUserId, authenticatedEmail, inviteToken);
+  }
+
+  async bindAuthenticatedContactByInviteToken(
+    contactUserId: string,
+    authenticatedEmail: string | null | undefined,
+    inviteToken: string
+  ): Promise<TrustedContact> {
+    const contact = await this.repository.findByInviteTokenHashForBinding(
+      hashInviteToken(inviteToken)
+    );
+    if (!contact) {
+      throw new HttpError(403, 'Trusted contact invite token is invalid');
+    }
+
+    return this.validateAndBindContact(contact, contactUserId, authenticatedEmail, inviteToken);
+  }
+
+  private async validateAndBindContact(
+    contact: TrustedContact,
+    contactUserId: string,
+    authenticatedEmail: string | null | undefined,
+    inviteToken: string
+  ): Promise<TrustedContact> {
     const contactEmail = normalizeEmail(contact.email);
     const userEmail = normalizeEmail(authenticatedEmail);
     if (!contactEmail || !userEmail || contactEmail !== userEmail) {
@@ -186,7 +211,7 @@ export class TrustedContactService {
       throw new HttpError(403, 'Trusted contact invite token is invalid');
     }
 
-    const bound = await this.repository.bindToUser(id, contactUserId, this.now());
+    const bound = await this.repository.bindToUser(contact.id, contactUserId, this.now());
     if (!bound) {
       throw new HttpError(404, NOT_FOUND_MESSAGE);
     }

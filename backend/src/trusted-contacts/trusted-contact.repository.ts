@@ -34,6 +34,10 @@ export class TrustedContactRepository {
     return prisma.trustedContact.findUnique({ where: { id } });
   }
 
+  findByInviteTokenHashForBinding(inviteTokenHash: string): Promise<TrustedContact | null> {
+    return prisma.trustedContact.findFirst({ where: { inviteTokenHash } });
+  }
+
   findAssignmentsForContactUser(contactUserId: string): Promise<TrustedContactAssignment[]> {
     return prisma.trustedContact.findMany({
       where: { contactUserId, verificationStatus: VerificationStatus.VERIFIED },

@@ -1,6 +1,7 @@
 import { apiClient } from '../src/api';
 import {
   bindTrustedContact,
+  bindTrustedContactInvite,
   createTrustedContactInvite,
   createTrustedContact,
   deleteTrustedContact,
@@ -176,6 +177,39 @@ describe('bindTrustedContact', () => {
     mockedApi.post.mockResolvedValue(undefined);
 
     await expect(bindTrustedContact('c1', 'invite-token')).rejects.toThrow('no data');
+  });
+});
+
+describe('bindTrustedContactInvite', () => {
+  it('posts a token-only bind request and returns the bound contact', async () => {
+    const bound = {
+      id: contact.id,
+      ownerUserId: 'owner-1',
+      name: contact.name,
+      relation: contact.relation,
+      role: contact.role,
+      phone: contact.phone,
+      email: contact.email,
+      verificationStatus: contact.verificationStatus,
+      createdAt: contact.createdAt,
+      updatedAt: contact.updatedAt
+    };
+    mockedApi.post.mockResolvedValue(bound);
+
+    const result = await bindTrustedContactInvite('invite-token');
+
+    expect(result).toEqual(bound);
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/trusted-contacts/bind-invite',
+      { inviteToken: 'invite-token' },
+      undefined
+    );
+  });
+
+  it('throws when token-only bind returns no data', async () => {
+    mockedApi.post.mockResolvedValue(undefined);
+
+    await expect(bindTrustedContactInvite('invite-token')).rejects.toThrow('no data');
   });
 });
 

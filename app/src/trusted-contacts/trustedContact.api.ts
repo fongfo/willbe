@@ -95,6 +95,22 @@ export async function bindTrustedContact(
   return data;
 }
 
+/** Binds an invited trusted contact by one-time token without requiring a contact id. */
+export async function bindTrustedContactInvite(
+  inviteToken: string,
+  signal?: AbortSignal
+): Promise<BoundTrustedContact> {
+  const data = await apiClient.post<BoundTrustedContact>(
+    `${RESOURCE}/bind-invite`,
+    { inviteToken },
+    signal
+  );
+  if (!data) {
+    throw new Error('Trusted contact invite binding returned no data');
+  }
+  return data;
+}
+
 /** Deletes an existing trusted contact. */
 export async function deleteTrustedContact(
   id: string,
