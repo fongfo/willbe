@@ -66,6 +66,18 @@ export async function createTrustedContactInvite(
   return data;
 }
 
+/** Revokes the current unused invite token for a trusted contact. */
+export async function revokeTrustedContactInvite(
+  id: string,
+  signal?: AbortSignal
+): Promise<TrustedContact> {
+  const data = await apiClient.post<TrustedContact>(`${RESOURCE}/${id}/invite/revoke`, {}, signal);
+  if (!data) {
+    throw new Error('Trusted contact invite revoke returned no data');
+  }
+  return data;
+}
+
 /** Binds an invited trusted contact record to the authenticated contact account. */
 export async function bindTrustedContact(
   id: string,

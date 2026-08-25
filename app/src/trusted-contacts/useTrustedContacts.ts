@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../api';
 import {
+  createTrustedContactInvite,
   createTrustedContact,
   deleteTrustedContact,
   listTrustedContacts,
+  revokeTrustedContactInvite,
   updateTrustedContact
 } from './trustedContact.api';
 import type {
   CreateTrustedContactInput,
   TrustedContact,
+  TrustedContactInvite,
   UpdateTrustedContactInput
 } from './trustedContact.types';
 
@@ -20,6 +23,8 @@ interface UseTrustedContactsResult {
   add: (input: CreateTrustedContactInput) => Promise<TrustedContact>;
   update: (id: string, input: UpdateTrustedContactInput) => Promise<TrustedContact>;
   remove: (id: string) => Promise<void>;
+  invite: (id: string) => Promise<TrustedContactInvite>;
+  revokeInvite: (id: string) => Promise<TrustedContact>;
 }
 
 interface RefreshOptions {
@@ -97,5 +102,21 @@ export function useTrustedContacts(): UseTrustedContactsResult {
     setContacts((current) => current.filter((contact) => contact.id !== id));
   }, []);
 
-  return { contacts, loading, error, refresh, add, update, remove };
+  const invite = useCallback(async (id: string): Promise<TrustedContactInvite> => {
+    const created = await createTrustedContactInvite(id);
+    setContacts((current) =>
+      current.map((contact) => (contact.id === id ? created.contact : contact))
+    );
+    return created;
+  }, []);
+
+  const revokeInvite = useCallback(async (id: string): Promise<TrustedContact> => {
+    const updated = await revokeTrustedContactInvite(id);
+    setContacts((current) =>
+      current.map((contact) => (contact.id === id ? updated : contact))
+    );
+    return updated;
+  }, []);
+
+  return { contacts, loading, error, refresh, add, update, remove, invite, revokeInvite };
 }

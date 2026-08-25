@@ -1,6 +1,6 @@
 import { Href, router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../components';
 import Screen from '../components/Screen';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
@@ -21,21 +21,90 @@ function defaultContinue(route: Href): void {
 export default function TrustedContactsScreen({
   onContinue = defaultContinue
 }: TrustedContactsScreenProps = {}) {
-  const { contacts, loading, error, add, update, remove } = useTrustedContacts();
+  const { contacts, loading, error, add, update, remove, invite, revokeInvite } =
+    useTrustedContacts();
   const [editing, setEditing] = useState<TrustedContact | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [inviteTokens, setInviteTokens] = useState<Record<string, string>>({});
+  const [busyContactId, setBusyContactId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<'invite' | 'revoke' | null>(null);
   const evaluation = evaluateContacts(contacts);
 
   async function handleDelete(contact: TrustedContact): Promise<void> {
     setActionError(null);
     try {
       await remove(contact.id);
+      setInviteTokens((current) => {
+        const next = { ...current };
+        delete next[contact.id];
+        return next;
+      });
       if (editing?.id === contact.id) {
         setEditing(null);
       }
     } catch (err: unknown) {
       setActionError(err instanceof Error ? err.message : 'Could not delete contact');
     }
+  }
+
+  async function handleInvite(contact: TrustedContact): Promise<void> {
+    setActionError(null);
+    setBusyContactId(contact.id);
+    setBusyAction('invite');
+    try {
+      const created = await invite(contact.id);
+      setInviteTokens((current) => ({
+        ...current,
+        [contact.id]: created.inviteToken
+      }));
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not send invite');
+    } finally {
+      setBusyContactId(null);
+      setBusyAction(null);
+    }
+  }
+
+  async function handleRevokeInvite(contact: TrustedContact): Promise<void> {
+    setActionError(null);
+    setBusyContactId(contact.id);
+    setBusyAction('revoke');
+    try {
+      await revokeInvite(contact.id);
+      setInviteTokens((current) => {
+        const next = { ...current };
+        delete next[contact.id];
+        return next;
+      });
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Could not revoke invite');
+    } finally {
+      setBusyContactId(null);
+      setBusyAction(null);
+    }
+  }
+
+  async function handleShareInvite(contact: TrustedContact): Promise<void> {
+    const token = inviteTokens[contact.id];
+    if (!token) {
+      return;
+    }
+    const expires = contact.inviteTokenExpiresAt
+      ? new Intl.DateTimeFormat('en', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        }).format(new Date(contact.inviteTokenExpiresAt))
+      : 'soon';
+    await Share.share({
+      message: [
+        'You have been invited as an emergency contact for a Pusaka plan.',
+        `Use this one-time invite token after signing in with ${contact.email ?? 'your invited email'}:`,
+        token,
+        `Expires: ${expires}`
+      ].join('\n')
+    });
   }
 
   return (
@@ -89,9 +158,14 @@ export default function TrustedContactsScreen({
             {contacts.map((contact) => (
               <TrustedContactRow
                 key={contact.id}
+                busyLabel={busyContactId === contact.id ? busyAction ?? undefined : undefined}
                 contact={contact}
+                inviteToken={inviteTokens[contact.id]}
                 onDelete={(target) => void handleDelete(target)}
                 onEdit={setEditing}
+                onInvite={(target) => void handleInvite(target)}
+                onRevokeInvite={(target) => void handleRevokeInvite(target)}
+                onShareInvite={(target) => void handleShareInvite(target)}
               />
             ))}
           </View>
@@ -104,7 +178,14 @@ export default function TrustedContactsScreen({
           onSubmit={async (input) => {
             setActionError(null);
             if (editing) {
-              await update(editing.id, input);
+              const updated = await update(editing.id, input);
+              if (updated.email !== editing.email) {
+                setInviteTokens((current) => {
+                  const next = { ...current };
+                  delete next[editing.id];
+                  return next;
+                });
+              }
               setEditing(null);
               return;
             }

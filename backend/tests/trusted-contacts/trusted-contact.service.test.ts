@@ -14,6 +14,7 @@ interface MockTrustedContactRepository {
   findAssignmentsForContactUser: jest.Mock;
   create: jest.Mock;
   storeInvite: jest.Mock;
+  clearInvite: jest.Mock;
   update: jest.Mock;
   delete: jest.Mock;
   bindToUser: jest.Mock;
@@ -27,6 +28,7 @@ function createMockRepository(): MockTrustedContactRepository {
     findAssignmentsForContactUser: jest.fn(),
     create: jest.fn(),
     storeInvite: jest.fn(),
+    clearInvite: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
     bindToUser: jest.fn()
@@ -155,6 +157,37 @@ describe('TrustedContactService', () => {
         status: 400
       });
       expect(repository.storeInvite).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('revokeInvite', () => {
+    it('clears an unused invitation for a pending trusted contact', async () => {
+      const invited = {
+        ...sampleContact,
+        inviteTokenHash: 'stored-hash',
+        inviteTokenExpiresAt: new Date('2026-09-08T00:00:00.000Z'),
+        inviteSentAt: new Date('2026-08-25T00:00:00.000Z')
+      };
+      repository.findById.mockResolvedValue(invited);
+      repository.clearInvite.mockResolvedValue(sampleContact);
+
+      const result = await service.revokeInvite(userId, sampleContact.id);
+
+      expect(repository.clearInvite).toHaveBeenCalledWith(userId, sampleContact.id);
+      expect(result).toBe(sampleContact);
+    });
+
+    it('rejects revoking a verified trusted contact invite', async () => {
+      repository.findById.mockResolvedValue({
+        ...sampleContact,
+        verificationStatus: 'VERIFIED',
+        inviteTokenUsedAt: new Date('2026-08-25T00:00:00.000Z')
+      });
+
+      await expect(service.revokeInvite(userId, sampleContact.id)).rejects.toMatchObject({
+        status: 409
+      });
+      expect(repository.clearInvite).not.toHaveBeenCalled();
     });
   });
 

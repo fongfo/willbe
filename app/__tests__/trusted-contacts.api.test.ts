@@ -6,6 +6,7 @@ import {
   deleteTrustedContact,
   listAssignedTrustedContactPlans,
   listTrustedContacts,
+  revokeTrustedContactInvite,
   updateTrustedContact
 } from '../src/trusted-contacts/trustedContact.api';
 import type { TrustedContact } from '../src/trusted-contacts/trustedContact.types';
@@ -199,6 +200,25 @@ describe('createTrustedContactInvite', () => {
     mockedApi.post.mockResolvedValue(undefined);
 
     await expect(createTrustedContactInvite('c1')).rejects.toThrow('no data');
+  });
+});
+
+describe('revokeTrustedContactInvite', () => {
+  it('posts to the invite revoke endpoint and returns the updated contact', async () => {
+    mockedApi.post.mockResolvedValue(contact);
+
+    await expect(revokeTrustedContactInvite('c1')).resolves.toEqual(contact);
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/trusted-contacts/c1/invite/revoke',
+      {},
+      undefined
+    );
+  });
+
+  it('throws when the revoke API returns no data', async () => {
+    mockedApi.post.mockResolvedValue(undefined);
+
+    await expect(revokeTrustedContactInvite('c1')).rejects.toThrow('no data');
   });
 });
 

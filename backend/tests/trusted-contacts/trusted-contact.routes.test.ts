@@ -266,6 +266,83 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
     });
   });
 
+  describe('POST /api/trusted-contacts/:id/invite/revoke', () => {
+    it('revokes an unused invitation token for an owned trusted contact', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite/revoke`)
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.inviteSentAt).toBeNull();
+      expect(res.body.data.inviteTokenExpiresAt).toBeNull();
+      expect(res.body.data.inviteTokenUsedAt).toBeNull();
+      expect(res.body.data).not.toHaveProperty('inviteTokenHash');
+
+      const stored = await prisma.trustedContact.findUnique({
+        where: { id: created.body.data.id }
+      });
+      expect(stored?.inviteTokenHash).toBeNull();
+      expect(stored?.inviteSentAt).toBeNull();
+    });
+
+    it('does not allow another planner to revoke a contact invite they do not own', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite/revoke`),
+        'dev:other.owner%40example.com:Other%20Owner'
+      );
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects revoking an invite after the contact account is verified', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+      await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: invite.body.data.inviteToken });
+
+      const res = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite/revoke`)
+      );
+
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+    });
+  });
+
   describe('PATCH /api/trusted-contacts/:id', () => {
     it('returns 400 when the body is empty', async () => {
       const app = createApp();
