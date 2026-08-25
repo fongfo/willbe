@@ -4,6 +4,14 @@ import { AccountCenterView } from '../src/account/AccountScreen';
 import AuthScreen from '../src/account/AuthScreen';
 import { useAccountAuth } from '../src/account/AccountAuthContext';
 
+const mockReplace = jest.fn();
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({
+    replace: mockReplace
+  })
+}));
+
 jest.mock('../src/account/AccountAuthContext', () => ({
   useAccountAuth: jest.fn()
 }));
@@ -26,6 +34,7 @@ beforeEach(() => {
   verifyEmailCode.mockClear();
   retryWalletSync.mockClear();
   signOut.mockClear();
+  mockReplace.mockClear();
   mockedUseAccountAuth.mockReturnValue({
     status: 'unauthenticated',
     user: null,
@@ -47,6 +56,19 @@ describe('AuthScreen', () => {
     expect(screen.getByText('Protect your family plan')).toBeTruthy();
     expect(screen.getByText('Enter your email to continue.')).toBeTruthy();
     expect(button.props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByText('I am an emergency contact')).toBeTruthy();
+  });
+
+  it('lets emergency contacts choose contact mode before email verification', () => {
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByText('I am an emergency contact'));
+
+    expect(screen.getByText('Emergency contact sign-in')).toBeTruthy();
+    expect(
+      screen.getByText('Use the email your planner invited as a trusted contact.')
+    ).toBeTruthy();
+    expect(screen.getByText('Sign in as planner instead')).toBeTruthy();
   });
 
   it('validates email format before requesting a code', () => {
@@ -120,6 +142,26 @@ describe('AuthScreen', () => {
         code: '123456'
       });
     });
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('routes verified emergency contacts into contact emergency mode', async () => {
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByText('I am an emergency contact'));
+    fireEvent.changeText(screen.getByLabelText('Email'), 'imran@example.com');
+    fireEvent.press(screen.getByText('Continue with email'));
+    await screen.findByText('Verify and continue');
+    fireEvent.changeText(screen.getByLabelText('Verification code'), '123456');
+    fireEvent.press(screen.getByText('Verify and continue'));
+
+    await waitFor(() => {
+      expect(verifyEmailCode).toHaveBeenCalledWith({
+        email: 'imran@example.com',
+        code: '123456'
+      });
+    });
+    expect(mockReplace).toHaveBeenCalledWith('/contact-emergency');
   });
 
   it('keeps the user on the code step when verification fails', async () => {

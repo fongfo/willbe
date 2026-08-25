@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import {
   Pressable,
   ScrollView,
@@ -13,10 +15,12 @@ import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useAccountAuth } from './AccountAuthContext';
 
 type AuthStep = 'email' | 'code';
+type AuthMode = 'planner' | 'contact';
 type LoadingStep = 'send' | 'verify' | null;
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_COOLDOWN_SECONDS = 30;
+const CONTACT_EMERGENCY_ROUTE = '/contact-emergency' as Href;
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError && error.status === 429) {
@@ -27,7 +31,9 @@ function errorMessage(error: unknown, fallback: string): string {
 
 export default function AuthScreen() {
   const { error: sessionError, sendEmailCode, verifyEmailCode } = useAccountAuth();
+  const router = useRouter();
   const [step, setStep] = useState<AuthStep>('email');
+  const [authMode, setAuthMode] = useState<AuthMode>('planner');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
@@ -46,10 +52,18 @@ export default function AuthScreen() {
       return 'Use a valid email address, like aisyah@example.com.';
     }
     if (!normalizedEmail) {
-      return 'Enter your email to continue.';
+      return authMode === 'contact'
+        ? 'Use the email your planner invited as a trusted contact.'
+        : 'Enter your email to continue.';
     }
     return 'We will send a one-time verification code.';
-  }, [normalizedEmail, showEmailError]);
+  }, [authMode, normalizedEmail, showEmailError]);
+  const heading =
+    authMode === 'contact' ? 'Emergency contact sign-in' : 'Protect your family plan';
+  const lede =
+    authMode === 'contact'
+      ? 'Sign in with the email your planner invited. After verification, you will enter emergency contact mode.'
+      : 'Sign in or create an account with email. Pusaka prepares a secure proof wallet quietly, without seed phrases or crypto steps.';
 
   useEffect(() => {
     if (step !== 'code' || resendRemainingSeconds === 0) {
@@ -83,6 +97,9 @@ export default function AuthScreen() {
         email: normalizedEmail,
         code: code.trim()
       });
+      if (authMode === 'contact') {
+        router.replace(CONTACT_EMERGENCY_ROUTE);
+      }
     } catch (caughtError: unknown) {
       setError(
         errorMessage(
@@ -123,6 +140,22 @@ export default function AuthScreen() {
     }
   }
 
+  function handleSelectContactMode(): void {
+    setAuthMode('contact');
+    setStep('email');
+    setCode('');
+    setError(null);
+    setResendRemainingSeconds(0);
+  }
+
+  function handleSelectPlannerMode(): void {
+    setAuthMode('planner');
+    setStep('email');
+    setCode('');
+    setError(null);
+    setResendRemainingSeconds(0);
+  }
+
   return (
     <Screen>
       <ScrollView
@@ -131,11 +164,8 @@ export default function AuthScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.brand}>Pusaka</Text>
-          <Text style={styles.heading}>Protect your family plan</Text>
-          <Text style={styles.lede}>
-            Sign in or create an account with email. Pusaka prepares a secure proof
-            wallet quietly, without seed phrases or crypto steps.
-          </Text>
+          <Text style={styles.heading}>{heading}</Text>
+          <Text style={styles.lede}>{lede}</Text>
         </View>
 
         <Card style={styles.card}>
@@ -236,6 +266,22 @@ export default function AuthScreen() {
             }
             onPress={handleSubmit}
           />
+
+          {authMode === 'planner' ? (
+            <Button
+              label="I am an emergency contact"
+              onPress={handleSelectContactMode}
+              variant="secondary"
+            />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleSelectPlannerMode}
+              style={styles.modeBackButton}
+            >
+              <Text style={styles.linkText}>Sign in as planner instead</Text>
+            </Pressable>
+          )}
         </Card>
 
         <View style={styles.notice}>
@@ -348,6 +394,11 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: spacing.sm
+  },
+  modeBackButton: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   linkText: {
     fontSize: fontSizes.small,
