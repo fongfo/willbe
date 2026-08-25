@@ -54,6 +54,31 @@ export class TrustedContactRepository {
     return prisma.trustedContact.create({ data: { ...data, userId } });
   }
 
+  async storeInvite(
+    userId: string,
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+    sentAt: Date
+  ): Promise<TrustedContact | null> {
+    try {
+      return await prisma.trustedContact.update({
+        where: { id_userId: { id, userId } },
+        data: {
+          inviteTokenHash: tokenHash,
+          inviteTokenExpiresAt: expiresAt,
+          inviteTokenUsedAt: null,
+          inviteSentAt: sentAt
+        }
+      });
+    } catch (error: unknown) {
+      if (isRecordNotFoundError(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async update(
     userId: string,
     id: string,
@@ -80,13 +105,18 @@ export class TrustedContactRepository {
     }
   }
 
-  async bindToUser(id: string, contactUserId: string): Promise<TrustedContact | null> {
+  async bindToUser(
+    id: string,
+    contactUserId: string,
+    inviteTokenUsedAt: Date
+  ): Promise<TrustedContact | null> {
     try {
       return await prisma.trustedContact.update({
         where: { id },
         data: {
           contactUserId,
-          verificationStatus: VerificationStatus.VERIFIED
+          verificationStatus: VerificationStatus.VERIFIED,
+          inviteTokenUsedAt
         }
       });
     } catch (error: unknown) {

@@ -4,6 +4,7 @@ import type {
   BoundTrustedContact,
   CreateTrustedContactInput,
   TrustedContact,
+  TrustedContactInvite,
   UpdateTrustedContactInput
 } from './trustedContact.types';
 
@@ -53,12 +54,29 @@ export async function updateTrustedContact(
   return data;
 }
 
+/** Creates or refreshes a single-use invite token for a trusted contact. */
+export async function createTrustedContactInvite(
+  id: string,
+  signal?: AbortSignal
+): Promise<TrustedContactInvite> {
+  const data = await apiClient.post<TrustedContactInvite>(`${RESOURCE}/${id}/invite`, {}, signal);
+  if (!data) {
+    throw new Error('Trusted contact invite returned no data');
+  }
+  return data;
+}
+
 /** Binds an invited trusted contact record to the authenticated contact account. */
 export async function bindTrustedContact(
   id: string,
+  inviteToken: string,
   signal?: AbortSignal
 ): Promise<BoundTrustedContact> {
-  const data = await apiClient.post<BoundTrustedContact>(`${RESOURCE}/${id}/bind`, {}, signal);
+  const data = await apiClient.post<BoundTrustedContact>(
+    `${RESOURCE}/${id}/bind`,
+    { inviteToken },
+    signal
+  );
   if (!data) {
     throw new Error('Trusted contact binding returned no data');
   }

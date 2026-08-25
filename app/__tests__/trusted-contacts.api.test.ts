@@ -1,6 +1,7 @@
 import { apiClient } from '../src/api';
 import {
   bindTrustedContact,
+  createTrustedContactInvite,
   createTrustedContact,
   deleteTrustedContact,
   listAssignedTrustedContactPlans,
@@ -160,16 +161,44 @@ describe('bindTrustedContact', () => {
     };
     mockedApi.post.mockResolvedValue(bound);
 
-    const result = await bindTrustedContact('c1');
+    const result = await bindTrustedContact('c1', 'invite-token');
 
     expect(result).toEqual(bound);
-    expect(mockedApi.post).toHaveBeenCalledWith('/trusted-contacts/c1/bind', {}, undefined);
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/trusted-contacts/c1/bind',
+      { inviteToken: 'invite-token' },
+      undefined
+    );
   });
 
   it('throws when the bind API returns no data', async () => {
     mockedApi.post.mockResolvedValue(undefined);
 
-    await expect(bindTrustedContact('c1')).rejects.toThrow('no data');
+    await expect(bindTrustedContact('c1', 'invite-token')).rejects.toThrow('no data');
+  });
+});
+
+describe('createTrustedContactInvite', () => {
+  it('posts to the invite endpoint and returns the plaintext invite once', async () => {
+    const invite = {
+      contact: {
+        ...contact,
+        inviteSentAt: '2026-08-25T00:00:00.000Z',
+        inviteTokenExpiresAt: '2026-09-08T00:00:00.000Z'
+      },
+      inviteToken: 'invite-token',
+      expiresAt: '2026-09-08T00:00:00.000Z'
+    };
+    mockedApi.post.mockResolvedValue(invite);
+
+    await expect(createTrustedContactInvite('c1')).resolves.toEqual(invite);
+    expect(mockedApi.post).toHaveBeenCalledWith('/trusted-contacts/c1/invite', {}, undefined);
+  });
+
+  it('throws when the invite API returns no data', async () => {
+    mockedApi.post.mockResolvedValue(undefined);
+
+    await expect(createTrustedContactInvite('c1')).rejects.toThrow('no data');
   });
 });
 

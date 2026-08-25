@@ -1,4 +1,5 @@
 import {
+  bindTrustedContactSchema,
   createTrustedContactSchema,
   updateTrustedContactSchema,
   idParamSchema
@@ -311,6 +312,31 @@ describe('idParamSchema', () => {
   it('rejects a non-UUID string', () => {
     const result = idParamSchema.safeParse({
       id: 'not-a-uuid'
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('bindTrustedContactSchema', () => {
+  it('accepts a valid invite token body', () => {
+    const result = bindTrustedContactSchema.safeParse({
+      inviteToken: 'valid-token-value-that-is-long-enough'
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an empty body', () => {
+    const result = bindTrustedContactSchema.safeParse({});
+
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects unknown extra keys', () => {
+    const result = bindTrustedContactSchema.safeParse({
+      inviteToken: 'valid-token-value-that-is-long-enough',
+      contactUserId: 'user-1'
     });
 
     expect(result.success).toBe(false);

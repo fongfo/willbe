@@ -6,6 +6,7 @@ jest.mock('../../src/db/client', () => ({
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      create: jest.fn(),
       delete: jest.fn()
     }
   }
@@ -37,6 +38,10 @@ const sampleContact = {
   phone: '+60123456789',
   email: 'imran@example.com',
   verificationStatus: 'PENDING',
+  inviteTokenHash: null,
+  inviteTokenExpiresAt: null,
+  inviteTokenUsedAt: null,
+  inviteSentAt: null,
   detail: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z'
@@ -105,6 +110,51 @@ describe('TrustedContactRepository', () => {
     });
   });
 
+  describe('storeInvite', () => {
+    it('stores only the invite token hash and expiry metadata', async () => {
+      const updated = {
+        ...sampleContact,
+        inviteTokenHash: 'hash',
+        inviteTokenExpiresAt: new Date('2026-09-08T00:00:00.000Z'),
+        inviteSentAt: new Date('2026-08-25T00:00:00.000Z')
+      };
+      (prisma.trustedContact.update as jest.Mock).mockResolvedValue(updated);
+
+      const result = await repository.storeInvite(
+        userId,
+        sampleContact.id,
+        'hash',
+        new Date('2026-09-08T00:00:00.000Z'),
+        new Date('2026-08-25T00:00:00.000Z')
+      );
+
+      expect(prisma.trustedContact.update).toHaveBeenCalledWith({
+        where: { id_userId: { id: sampleContact.id, userId } },
+        data: {
+          inviteTokenHash: 'hash',
+          inviteTokenExpiresAt: new Date('2026-09-08T00:00:00.000Z'),
+          inviteTokenUsedAt: null,
+          inviteSentAt: new Date('2026-08-25T00:00:00.000Z')
+        }
+      });
+      expect(result).toBe(updated);
+    });
+
+    it('returns null when storing an invite for a missing contact', async () => {
+      (prisma.trustedContact.update as jest.Mock).mockRejectedValue(notFoundError());
+
+      const result = await repository.storeInvite(
+        userId,
+        'missing-id',
+        'hash',
+        new Date('2026-09-08T00:00:00.000Z'),
+        new Date('2026-08-25T00:00:00.000Z')
+      );
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('delete', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.delete as jest.Mock).mockRejectedValue(notFoundError());
@@ -132,13 +182,18 @@ describe('TrustedContactRepository', () => {
       };
       (prisma.trustedContact.update as jest.Mock).mockResolvedValue(bound);
 
-      const result = await repository.bindToUser(sampleContact.id, 'contact-user-1');
+      const result = await repository.bindToUser(
+        sampleContact.id,
+        'contact-user-1',
+        new Date('2026-08-25T00:00:00.000Z')
+      );
 
       expect(prisma.trustedContact.update).toHaveBeenCalledWith({
         where: { id: sampleContact.id },
         data: {
           contactUserId: 'contact-user-1',
-          verificationStatus: 'VERIFIED'
+          verificationStatus: 'VERIFIED',
+          inviteTokenUsedAt: new Date('2026-08-25T00:00:00.000Z')
         }
       });
       expect(result).toBe(bound);
@@ -147,7 +202,11 @@ describe('TrustedContactRepository', () => {
     it('returns null when Prisma throws a P2025 "record not found" error', async () => {
       (prisma.trustedContact.update as jest.Mock).mockRejectedValue(notFoundError());
 
-      const result = await repository.bindToUser('missing-id', 'contact-user-1');
+      const result = await repository.bindToUser(
+        'missing-id',
+        'contact-user-1',
+        new Date('2026-08-25T00:00:00.000Z')
+      );
 
       expect(result).toBeNull();
     });

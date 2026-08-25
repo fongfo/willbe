@@ -25,5 +25,12 @@ export const idParamSchema = z.object({
   id: z.string().uuid()
 });
 
+export const bindTrustedContactSchema = z
+  .object({
+    inviteToken: z.string().trim().min(24).max(256)
+  })
+  .strict();
+
 export type CreateTrustedContactInput = z.infer<typeof createTrustedContactSchema>;
 export type UpdateTrustedContactInput = z.infer<typeof updateTrustedContactSchema>;
+export type BindTrustedContactInput = z.infer<typeof bindTrustedContactSchema>;

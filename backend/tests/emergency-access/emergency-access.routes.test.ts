@@ -20,10 +20,14 @@ async function createVerifiedContact(app = createApp()) {
     phone: '+60123456789',
     email: 'wb54-contact@example.com'
   });
+  const invite = await withAuth(
+    request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`),
+    OWNER_ACCESS_TOKEN
+  );
   const bound = await withAuth(
     request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
     CONTACT_ACCESS_TOKEN
-  );
+  ).send({ inviteToken: invite.body.data.inviteToken });
   return {
     app,
     trustedContactId: bound.body.data.id as string,
@@ -42,10 +46,14 @@ async function createVerifiedBackupContact(app = createApp()) {
     phone: '+60132221188',
     email: 'wb54-backup@example.com'
   });
+  const invite = await withAuth(
+    request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`),
+    OWNER_ACCESS_TOKEN
+  );
   const bound = await withAuth(
     request(app).post(`/api/trusted-contacts/${created.body.data.id}/bind`),
     BACKUP_ACCESS_TOKEN
-  );
+  ).send({ inviteToken: invite.body.data.inviteToken });
   return {
     app,
     trustedContactId: bound.body.data.id as string,
