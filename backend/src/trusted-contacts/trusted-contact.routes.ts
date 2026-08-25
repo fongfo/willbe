@@ -192,6 +192,26 @@ trustedContactRouter.get('/assigned-plans', async (req: Request, res: Response) 
   }
 });
 
+trustedContactRouter.post('/bind-invite', async (req: Request, res: Response) => {
+  const parsedBody = bindTrustedContactSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    res.status(400).json({ success: false, error: firstIssueMessage(parsedBody.error) });
+    return;
+  }
+
+  try {
+    const authUser = (req as AuthenticatedRequest).authUser;
+    const contact = await service.bindAuthenticatedContactByInviteToken(
+      authUser.id,
+      authUser.email,
+      parsedBody.data.inviteToken
+    );
+    res.status(200).json({ success: true, data: toContactAccountView(contact) });
+  } catch (error: unknown) {
+    handleError(error, res);
+  }
+});
+
 trustedContactRouter.get('/:id', async (req: Request, res: Response) => {
   const parsedParams = idParamSchema.safeParse(req.params);
   if (!parsedParams.success) {

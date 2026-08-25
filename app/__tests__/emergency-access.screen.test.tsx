@@ -7,10 +7,13 @@ import type {
   ContactEmergencyHandover,
   EmergencyAccessRequestSummary
 } from '../src/emergency-access/emergencyAccess.types';
+import * as trustedContactApi from '../src/trusted-contacts/trustedContact.api';
 
 jest.mock('../src/emergency-access/emergencyAccess.api');
+jest.mock('../src/trusted-contacts/trustedContact.api');
 
 const mockedEmergencyApi = emergencyApi as jest.Mocked<typeof emergencyApi>;
+const mockedTrustedContactApi = trustedContactApi as jest.Mocked<typeof trustedContactApi>;
 
 const coolingOffRequest: EmergencyAccessRequestSummary = {
   id: 'req1',
@@ -290,6 +293,45 @@ describe('ContactEmergencyModeScreen', () => {
     render(<ContactEmergencyModeScreen />);
 
     expect(await screen.findByText('No verified assignment')).toBeTruthy();
+  });
+
+  it('binds an invite token from the no-assignment state and loads contact home', async () => {
+    let bound = false;
+    mockedEmergencyApi.getContactAccessContext.mockImplementation(async () =>
+      bound ? [makeAssignment()] : []
+    );
+    mockedTrustedContactApi.bindTrustedContactInvite.mockImplementation(async () => {
+      bound = true;
+      return {
+      id: 'tc1',
+      ownerUserId: 'owner-1',
+      name: 'Imran Rahman',
+      relation: 'SPOUSE',
+      role: 'PRIMARY',
+      phone: '+60123456789',
+      email: 'imran@example.com',
+      verificationStatus: 'VERIFIED',
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T00:00:00.000Z'
+      };
+    });
+
+    render(<ContactEmergencyModeScreen />);
+    expect(await screen.findByText('No verified assignment')).toBeTruthy();
+
+    fireEvent.changeText(
+      screen.getByLabelText('Trusted contact invite token'),
+      'one-time-token-12345678901234567890'
+    );
+    fireEvent.press(screen.getByText('Bind invite'));
+
+    await waitFor(() =>
+      expect(mockedTrustedContactApi.bindTrustedContactInvite).toHaveBeenCalledWith(
+        'one-time-token-12345678901234567890'
+      )
+    );
+    expect(await screen.findByText('Contact Home')).toBeTruthy();
+    expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
   });
 
   it('is exposed through the contact emergency route', async () => {

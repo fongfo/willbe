@@ -692,4 +692,66 @@ describe('Trusted Contact routes (/api/trusted-contacts)', () => {
       expect(res.body.success).toBe(false);
     });
   });
+
+  describe('POST /api/trusted-contacts/bind-invite', () => {
+    it('binds and verifies a trusted contact using only the invite token', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      const res = await withAuth(
+        request(app).post('/api/trusted-contacts/bind-invite'),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: invite.body.data.inviteToken });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.id).toBe(created.body.data.id);
+      expect(res.body.data.verificationStatus).toBe('VERIFIED');
+      expect(res.body.data.ownerUserId).toEqual(expect.any(String));
+      expect(res.body.data).not.toHaveProperty('inviteTokenHash');
+    });
+
+    it('rejects token-only binding when the authenticated email does not match', async () => {
+      const app = createApp();
+      const created = await withAuth(request(app).post('/api/trusted-contacts')).send({
+        name: 'Imran Rahman',
+        relation: 'SPOUSE',
+        role: 'PRIMARY',
+        phone: '+60123456789',
+        email: 'imran@example.com'
+      });
+      const invite = await withAuth(
+        request(app).post(`/api/trusted-contacts/${created.body.data.id}/invite`)
+      );
+
+      const res = await withAuth(
+        request(app).post('/api/trusted-contacts/bind-invite'),
+        'dev:sara%40example.com:Sara%20Abdullah'
+      ).send({ inviteToken: invite.body.data.inviteToken });
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+
+    it('rejects token-only binding with an invalid token', async () => {
+      const app = createApp();
+
+      const res = await withAuth(
+        request(app).post('/api/trusted-contacts/bind-invite'),
+        IMRAN_ACCESS_TOKEN
+      ).send({ inviteToken: 'invalid-token-value-that-is-long-enough' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.success).toBe(false);
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError } from '../api';
+import { bindTrustedContactInvite } from '../trusted-contacts/trustedContact.api';
 import {
   closeEmergencyAccessRequest,
   confirmBackupEmergencyAccessRequest,
@@ -33,6 +34,7 @@ interface UseContactEmergencyAccessResult {
   requestAccess: (
     input: Omit<CreateEmergencyAccessRequestInput, 'ownerUserId' | 'trustedContactId'>
   ) => Promise<void>;
+  bindInviteToken: (inviteToken: string) => Promise<void>;
   closeAccess: () => Promise<void>;
   confirmBackupReview: () => Promise<void>;
   denyBackupReview: () => Promise<void>;
@@ -173,6 +175,23 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
     [selectedAssignment]
   );
 
+  const bindInviteToken = useCallback(
+    async (inviteToken: string): Promise<void> => {
+      setSubmitting(true);
+      setError(null);
+      try {
+        await bindTrustedContactInvite(inviteToken);
+        await refresh();
+      } catch (err: unknown) {
+        setError(toMessage(err));
+        throw err;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [refresh]
+  );
+
   const closeAccess = useCallback(async (): Promise<void> => {
     if (!currentRequest) {
       return;
@@ -253,6 +272,7 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
     refresh,
     selectAssignment,
     requestAccess,
+    bindInviteToken,
     closeAccess,
     confirmBackupReview,
     denyBackupReview

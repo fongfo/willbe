@@ -85,6 +85,7 @@ export default function ContactEmergencyModeScreen() {
   const [reason, setReason] = useState<EmergencyAccessReason>('UNREACHABLE');
   const [reasonDetail, setReasonDetail] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [inviteToken, setInviteToken] = useState('');
   const assignment = emergency.selectedAssignment;
   const currentStatus = emergency.currentRequest?.status ?? null;
   const isWaiting = currentStatus ? WAITING_STATUSES.has(currentStatus) : false;
@@ -115,6 +116,19 @@ export default function ContactEmergencyModeScreen() {
     }
   }
 
+  async function submitInviteToken(): Promise<void> {
+    const token = inviteToken.trim();
+    if (token.length < 24) {
+      return;
+    }
+    try {
+      await emergency.bindInviteToken(token);
+      setInviteToken('');
+    } catch {
+      // The hook exposes the user-facing error.
+    }
+  }
+
   return (
     <Screen padded={false} safeStyle={styles.screen} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -137,6 +151,28 @@ export default function ContactEmergencyModeScreen() {
             <Text style={styles.panelText}>
               This account is not currently verified as a trusted contact for a Pusaka plan.
             </Text>
+            {emergency.error ? (
+              <Text accessibilityRole="alert" style={styles.errorText}>
+                {emergency.error}
+              </Text>
+            ) : null}
+            <View style={styles.form}>
+              <Text style={styles.fieldLabel}>Invite token</Text>
+              <TextInput
+                accessibilityLabel="Trusted contact invite token"
+                autoCapitalize="none"
+                onChangeText={setInviteToken}
+                placeholder="Paste the one-time token"
+                placeholderTextColor="#7c8f88"
+                style={styles.singleLineInput}
+                value={inviteToken}
+              />
+              <Button
+                disabled={inviteToken.trim().length < 24 || emergency.submitting}
+                label={emergency.submitting ? 'Binding invite...' : 'Bind invite'}
+                onPress={submitInviteToken}
+              />
+            </View>
           </View>
         ) : (
           <>
@@ -510,6 +546,17 @@ const styles = StyleSheet.create({
     color: emergencyText,
     backgroundColor: emergencyBg,
     textAlignVertical: 'top'
+  },
+  singleLineInput: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: emergencyBorder,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: fontSizes.body,
+    color: emergencyText,
+    backgroundColor: emergencyBg
   },
   checkboxRow: {
     minHeight: 48,

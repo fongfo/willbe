@@ -5,6 +5,7 @@ jest.mock('../../src/db/client', () => ({
     trustedContact: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
       delete: jest.fn()
@@ -63,6 +64,19 @@ describe('TrustedContactRepository', () => {
 
       expect(prisma.trustedContact.findUnique).toHaveBeenCalledWith({
         where: { id: sampleContact.id }
+      });
+      expect(result).toBe(sampleContact);
+    });
+  });
+
+  describe('findByInviteTokenHashForBinding', () => {
+    it('finds a trusted contact by stored invite token hash', async () => {
+      (prisma.trustedContact.findFirst as jest.Mock).mockResolvedValue(sampleContact);
+
+      const result = await repository.findByInviteTokenHashForBinding('stored-hash');
+
+      expect(prisma.trustedContact.findFirst).toHaveBeenCalledWith({
+        where: { inviteTokenHash: 'stored-hash' }
       });
       expect(result).toBe(sampleContact);
     });
