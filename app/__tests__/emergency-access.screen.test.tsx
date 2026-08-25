@@ -23,6 +23,7 @@ const coolingOffRequest: EmergencyAccessRequestSummary = {
   closedAt: null,
   createdAt: '2026-08-19T00:00:00.000Z'
 };
+const activeExpiresAt = '2026-09-22T01:00:00.000Z';
 
 function makeAssignment(
   latestRequest: EmergencyAccessRequestSummary | null = null
@@ -148,7 +149,7 @@ describe('ContactEmergencyModeScreen', () => {
       ...secondaryReviewRequest,
       status: 'ACTIVE',
       activatedAt: '2026-08-19T01:00:00.000Z',
-      expiresAt: '2026-08-22T01:00:00.000Z'
+      expiresAt: activeExpiresAt
     });
     mockedEmergencyApi.getContactEmergencyHandover.mockResolvedValue(makeHandover());
 
@@ -216,7 +217,7 @@ describe('ContactEmergencyModeScreen', () => {
         ...coolingOffRequest,
         status: 'ACTIVE',
         activatedAt: '2026-08-19T01:00:00.000Z',
-        expiresAt: '2026-08-22T01:00:00.000Z'
+        expiresAt: activeExpiresAt
       })
     ]);
     mockedEmergencyApi.getContactEmergencyHandover.mockResolvedValue(makeHandover());
@@ -246,7 +247,7 @@ describe('ContactEmergencyModeScreen', () => {
       id: 'req2',
       status: 'ACTIVE',
       activatedAt: '2026-08-19T01:00:00.000Z',
-      expiresAt: '2026-08-22T01:00:00.000Z'
+      expiresAt: activeExpiresAt
     };
     mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
       makeAssignment(null),
