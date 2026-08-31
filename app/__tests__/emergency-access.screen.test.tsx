@@ -276,6 +276,38 @@ describe('ContactEmergencyModeScreen', () => {
     ).toBe(true);
   });
 
+  it('shows invite token binding from the contact home state', async () => {
+    mockedEmergencyApi.getContactAccessContext.mockResolvedValue([makeAssignment()]);
+    mockedTrustedContactApi.bindTrustedContactInvite.mockResolvedValue({
+      id: 'tc2',
+      ownerUserId: 'owner-2',
+      name: 'Imran Rahman',
+      relation: 'SPOUSE',
+      role: 'BACKUP',
+      phone: '+60123456789',
+      email: 'imran@example.com',
+      verificationStatus: 'VERIFIED',
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T00:00:00.000Z'
+    });
+
+    render(<ContactEmergencyModeScreen />);
+
+    expect(await screen.findByText('Contact Home')).toBeTruthy();
+    expect(screen.getByText('Bind Invite Token')).toBeTruthy();
+    fireEvent.changeText(
+      screen.getByLabelText('Trusted contact invite token'),
+      'another-token-12345678901234567890'
+    );
+    fireEvent.press(screen.getByText('Bind invite'));
+
+    await waitFor(() =>
+      expect(mockedTrustedContactApi.bindTrustedContactInvite).toHaveBeenCalledWith(
+        'another-token-12345678901234567890'
+      )
+    );
+  });
+
   it('shows terminal expired state without fetching handover', async () => {
     mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
       makeAssignment({ ...coolingOffRequest, status: 'EXPIRED' })

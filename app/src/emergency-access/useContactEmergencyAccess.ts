@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../api';
 import { bindTrustedContactInvite } from '../trusted-contacts/trustedContact.api';
 import {
@@ -74,6 +74,7 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
   const [handoverLoading, setHandoverLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedAssignmentIdRef = useRef<string | null>(null);
   const selectedAssignment = useMemo(
     () =>
       assignments.find((assignment) => assignment.id === selectedAssignmentId) ??
@@ -81,6 +82,10 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
       null,
     [assignments, selectedAssignmentId]
   );
+
+  useEffect(() => {
+    selectedAssignmentIdRef.current = selectedAssignmentId;
+  }, [selectedAssignmentId]);
 
   const loadHandover = useCallback(
     async (request: EmergencyAccessRequestSummary, signal?: AbortSignal): Promise<void> => {
@@ -113,10 +118,14 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
         if (options.signal?.aborted) {
           return;
         }
+        const currentSelectedAssignmentId = selectedAssignmentIdRef.current;
         const selected =
-          data.find((assignment) => assignment.id === selectedAssignmentId) ?? data[0] ?? null;
+          data.find((assignment) => assignment.id === currentSelectedAssignmentId) ??
+          data[0] ??
+          null;
         const latest = effectiveRequest(selected?.latestRequest ?? null);
         setAssignments(data);
+        selectedAssignmentIdRef.current = selected?.id ?? null;
         setSelectedAssignmentId(selected?.id ?? null);
         setCurrentRequest(latest);
         setHandover(null);
@@ -134,7 +143,7 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
         }
       }
     },
-    [loadHandover, selectedAssignmentId]
+    [loadHandover]
   );
 
   useEffect(() => {
@@ -250,6 +259,7 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
   const selectAssignment = useCallback(
     async (assignmentId: string): Promise<void> => {
       const selected = assignments.find((assignment) => assignment.id === assignmentId) ?? null;
+      selectedAssignmentIdRef.current = assignmentId;
       setSelectedAssignmentId(assignmentId);
       setCurrentRequest(effectiveRequest(selected?.latestRequest ?? null));
       setHandover(null);

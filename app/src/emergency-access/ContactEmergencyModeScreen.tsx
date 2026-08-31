@@ -79,6 +79,38 @@ function Section({
   );
 }
 
+function InviteTokenForm({
+  inviteToken,
+  submitting,
+  onChangeInviteToken,
+  onSubmitInviteToken
+}: {
+  inviteToken: string;
+  submitting: boolean;
+  onChangeInviteToken: (value: string) => void;
+  onSubmitInviteToken: () => void;
+}) {
+  return (
+    <View style={styles.form}>
+      <Text style={styles.fieldLabel}>Invite token</Text>
+      <TextInput
+        accessibilityLabel="Trusted contact invite token"
+        autoCapitalize="none"
+        onChangeText={onChangeInviteToken}
+        placeholder="Paste the one-time token"
+        placeholderTextColor="#7c8f88"
+        style={styles.singleLineInput}
+        value={inviteToken}
+      />
+      <Button
+        disabled={inviteToken.trim().length < 24 || submitting}
+        label={submitting ? 'Binding invite...' : 'Bind invite'}
+        onPress={onSubmitInviteToken}
+      />
+    </View>
+  );
+}
+
 export default function ContactEmergencyModeScreen() {
   const emergency = useContactEmergencyAccess();
   const [showRequestForm, setShowRequestForm] = useState(false);
@@ -156,23 +188,12 @@ export default function ContactEmergencyModeScreen() {
                 {emergency.error}
               </Text>
             ) : null}
-            <View style={styles.form}>
-              <Text style={styles.fieldLabel}>Invite token</Text>
-              <TextInput
-                accessibilityLabel="Trusted contact invite token"
-                autoCapitalize="none"
-                onChangeText={setInviteToken}
-                placeholder="Paste the one-time token"
-                placeholderTextColor="#7c8f88"
-                style={styles.singleLineInput}
-                value={inviteToken}
-              />
-              <Button
-                disabled={inviteToken.trim().length < 24 || emergency.submitting}
-                label={emergency.submitting ? 'Binding invite...' : 'Bind invite'}
-                onPress={submitInviteToken}
-              />
-            </View>
+            <InviteTokenForm
+              inviteToken={inviteToken}
+              onChangeInviteToken={setInviteToken}
+              onSubmitInviteToken={submitInviteToken}
+              submitting={emergency.submitting}
+            />
           </View>
         ) : (
           <>
@@ -225,6 +246,19 @@ export default function ContactEmergencyModeScreen() {
                 {emergency.error}
               </Text>
             ) : null}
+
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>Bind Invite Token</Text>
+              <Text style={styles.panelText}>
+                Add another planner invitation to this emergency contact account.
+              </Text>
+              <InviteTokenForm
+                inviteToken={inviteToken}
+                onChangeInviteToken={setInviteToken}
+                onSubmitInviteToken={submitInviteToken}
+                submitting={emergency.submitting}
+              />
+            </View>
 
             {canRequest ? (
               <View style={styles.panel}>
