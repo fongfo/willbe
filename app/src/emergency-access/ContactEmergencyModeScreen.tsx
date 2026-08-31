@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { getCategoryLabel } from '../asset-references/categories';
+import { useAccountAuth } from '../account/AccountAuthContext';
 import { Button, Screen } from '../components';
 import { getRelationLabel } from '../family-members/relations';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
@@ -112,6 +113,7 @@ function InviteTokenForm({
 }
 
 export default function ContactEmergencyModeScreen() {
+  const { signOut } = useAccountAuth();
   const emergency = useContactEmergencyAccess();
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [reason, setReason] = useState<EmergencyAccessReason>('UNREACHABLE');
@@ -165,7 +167,16 @@ export default function ContactEmergencyModeScreen() {
     <Screen padded={false} safeStyle={styles.screen} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Text style={styles.kicker}>Pusaka emergency contact</Text>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.kicker}>Pusaka emergency contact</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void signOut()}
+              style={styles.signOutButton}
+            >
+              <Text style={styles.signOutButtonText}>Sign out</Text>
+            </Pressable>
+          </View>
           <Text style={styles.heading}>Emergency mode</Text>
           <Text style={styles.lede}>
             A read-only space for contacting the right people and finding where to look.
@@ -453,11 +464,30 @@ const styles = StyleSheet.create({
   hero: {
     gap: spacing.sm
   },
+  heroTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between'
+  },
   kicker: {
+    flex: 1,
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: colors.goldLight,
     textTransform: 'uppercase'
+  },
+  signOutButton: {
+    borderWidth: 1,
+    borderColor: emergencyBorder,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  signOutButtonText: {
+    color: emergencyText,
+    fontSize: fontSizes.caption,
+    fontWeight: '800'
   },
   heading: {
     fontSize: 32,

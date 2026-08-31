@@ -1,4 +1,5 @@
 import { useRouter, useSegments } from 'expo-router';
+import type { Href } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { colors, fontSizes, spacing } from '../theme/tokens';
@@ -14,13 +15,14 @@ function AuthCheckingScreen() {
 }
 
 export default function AuthGate() {
-  const { status } = useAccountAuth();
+  const { authMode, authModeReady, status } = useAccountAuth();
   const router = useRouter();
   const segments = useSegments();
   const isAuthRoute = segments[0] === 'auth';
+  const isContactEmergencyRoute = String(segments[0]) === 'contact-emergency';
 
   useEffect(() => {
-    if (status === 'checking') {
+    if (status === 'checking' || !authModeReady) {
       return;
     }
 
@@ -30,11 +32,20 @@ export default function AuthGate() {
     }
 
     if (status === 'authenticated' && isAuthRoute) {
-      router.replace('/home');
+      router.replace((authMode === 'contact' ? '/contact-emergency' : '/home') as Href);
+      return;
     }
-  }, [isAuthRoute, router, status]);
 
-  return status === 'checking' ? <AuthCheckingScreen /> : null;
+    if (
+      status === 'authenticated' &&
+      authMode === 'contact' &&
+      !isContactEmergencyRoute
+    ) {
+      router.replace('/contact-emergency' as Href);
+    }
+  }, [authMode, authModeReady, isAuthRoute, isContactEmergencyRoute, router, status]);
+
+  return status === 'checking' || !authModeReady ? <AuthCheckingScreen /> : null;
 }
 
 const styles = StyleSheet.create({

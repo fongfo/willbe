@@ -1,6 +1,7 @@
-import { fireEvent } from '@testing-library/react-native';
+import { fireEvent, waitFor } from '@testing-library/react-native';
 import { renderRouter, screen, testRouter } from 'expo-router/testing-library';
 import { resetDevAccountAuth } from '../src/account/AccountAuthContext';
+import { writeAuthModePreference } from '../src/account/authModePreference';
 import * as assetApi from '../src/asset-references/assetReference.api';
 import type {
   AssetReference,
@@ -22,6 +23,15 @@ import type {
   CreateTrustedContactInput,
   TrustedContact
 } from '../src/trusted-contacts/trustedContact.types';
+
+const mockSecureStoreData = new Map<string, string>();
+
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(async (key: string) => mockSecureStoreData.get(key) ?? null),
+  setItemAsync: jest.fn(async (key: string, value: string) => {
+    mockSecureStoreData.set(key, value);
+  })
+}));
 
 jest.mock('../src/family-members/familyMember.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
@@ -115,15 +125,21 @@ function navigateTo(path: string): void {
 }
 
 async function authenticate(): Promise<void> {
-  fireEvent.changeText(screen.getByLabelText('Email'), 'aisyah.rahman@gmail.com');
+  await screen.findByLabelText('Email');
+  await waitFor(() => {
+    fireEvent.changeText(screen.getByLabelText('Email'), 'aisyah.rahman@gmail.com');
+    expect(screen.getByDisplayValue('aisyah.rahman@gmail.com')).toBeTruthy();
+  });
   fireEvent.press(screen.getByText('Continue with email'));
   expect(await screen.findByText('Verify and continue')).toBeTruthy();
   fireEvent.changeText(screen.getByLabelText('Verification code'), '123456');
   fireEvent.press(screen.getByText('Verify and continue'));
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   resetDevAccountAuth();
+  mockSecureStoreData.clear();
+  await writeAuthModePreference('planner');
   familyMembers = [];
   trustedContacts = [];
   assetReferences = [];

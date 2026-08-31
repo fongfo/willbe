@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import {
@@ -13,9 +13,9 @@ import { ApiError } from '../api/errors';
 import { Button, Card, Screen } from '../components';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useAccountAuth } from './AccountAuthContext';
+import type { AuthMode } from './authModePreference';
 
 type AuthStep = 'email' | 'code';
-type AuthMode = 'planner' | 'contact';
 type LoadingStep = 'send' | 'verify' | null;
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -30,10 +30,17 @@ function errorMessage(error: unknown, fallback: string): string {
 }
 
 export default function AuthScreen() {
-  const { error: sessionError, sendEmailCode, verifyEmailCode } = useAccountAuth();
+  const {
+    authMode,
+    error: sessionError,
+    sendEmailCode,
+    setAuthMode,
+    verifyEmailCode
+  } = useAccountAuth();
   const router = useRouter();
   const [step, setStep] = useState<AuthStep>('email');
-  const [authMode, setAuthMode] = useState<AuthMode>('planner');
+  const [selectedAuthMode, setSelectedAuthMode] = useState<AuthMode>(authMode);
+  const userSelectedAuthModeRef = useRef(false);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
@@ -52,18 +59,24 @@ export default function AuthScreen() {
       return 'Use a valid email address, like aisyah@example.com.';
     }
     if (!normalizedEmail) {
-      return authMode === 'contact'
+      return selectedAuthMode === 'contact'
         ? 'Use the email your planner invited as a trusted contact.'
         : 'Enter your email to continue.';
     }
     return 'We will send a one-time verification code.';
-  }, [authMode, normalizedEmail, showEmailError]);
+  }, [normalizedEmail, selectedAuthMode, showEmailError]);
   const heading =
-    authMode === 'contact' ? 'Emergency contact sign-in' : 'Protect your family plan';
+    selectedAuthMode === 'contact' ? 'Emergency contact sign-in' : 'Protect your family plan';
   const lede =
-    authMode === 'contact'
+    selectedAuthMode === 'contact'
       ? 'Sign in with the email your planner invited. After verification, you will enter emergency contact mode.'
       : 'Sign in or create an account with email. Pusaka prepares a secure proof wallet quietly, without seed phrases or crypto steps.';
+
+  useEffect(() => {
+    if (!userSelectedAuthModeRef.current) {
+      setSelectedAuthMode(authMode);
+    }
+  }, [authMode]);
 
   useEffect(() => {
     if (step !== 'code' || resendRemainingSeconds === 0) {
@@ -97,7 +110,7 @@ export default function AuthScreen() {
         email: normalizedEmail,
         code: code.trim()
       });
-      if (authMode === 'contact') {
+      if (selectedAuthMode === 'contact') {
         router.replace(CONTACT_EMERGENCY_ROUTE);
       }
     } catch (caughtError: unknown) {
@@ -141,19 +154,23 @@ export default function AuthScreen() {
   }
 
   function handleSelectContactMode(): void {
-    setAuthMode('contact');
+    userSelectedAuthModeRef.current = true;
+    setSelectedAuthMode('contact');
     setStep('email');
     setCode('');
     setError(null);
     setResendRemainingSeconds(0);
+    void setAuthMode('contact');
   }
 
   function handleSelectPlannerMode(): void {
-    setAuthMode('planner');
+    userSelectedAuthModeRef.current = true;
+    setSelectedAuthMode('planner');
     setStep('email');
     setCode('');
     setError(null);
     setResendRemainingSeconds(0);
+    void setAuthMode('planner');
   }
 
   return (
@@ -267,7 +284,7 @@ export default function AuthScreen() {
             onPress={handleSubmit}
           />
 
-          {authMode === 'planner' ? (
+          {selectedAuthMode === 'planner' ? (
             <Button
               label="I am an emergency contact"
               onPress={handleSelectContactMode}
