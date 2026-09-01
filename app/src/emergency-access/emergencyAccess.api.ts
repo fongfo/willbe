@@ -47,6 +47,20 @@ export async function getContactEmergencyHandover(
   return data;
 }
 
+export async function getContactAssignmentHandover(
+  assignmentId: string,
+  signal?: AbortSignal
+): Promise<ContactEmergencyHandover> {
+  const data = await apiClient.get<ContactEmergencyHandover>(
+    `${RESOURCE}/contact/assignments/${assignmentId}/handover`,
+    signal
+  );
+  if (!data) {
+    throw new Error('Emergency handover returned no data');
+  }
+  return data;
+}
+
 export async function closeEmergencyAccessRequest(
   requestId: string,
   signal?: AbortSignal

@@ -1,6 +1,7 @@
 import { EmergencyAccessStatus, NotificationChannel } from '../generated/prisma/enums';
 import type {
   EmergencyAccessAuditEventModel as EmergencyAccessAuditEvent,
+  ContactHandoverViewAuditEventModel as ContactHandoverViewAuditEvent,
   EmergencyAccessNotificationEventModel as EmergencyAccessNotificationEvent,
   EmergencyAccessRequestModel as EmergencyAccessRequest
 } from '../generated/prisma/models';
@@ -90,6 +91,13 @@ interface EmergencyAccessRepositoryLike {
     eventType: string,
     metadata?: Record<string, string>
   ): Promise<EmergencyAccessAuditEvent>;
+  recordContactHandoverView(input: {
+    ownerUserId: string;
+    trustedContactId: string;
+    actorUserId: string | null;
+    eventType: string;
+    metadata?: Record<string, string>;
+  }): Promise<ContactHandoverViewAuditEvent>;
   findAuditEvents(accessRequestId: string): Promise<EmergencyAccessAuditEvent[]>;
   findNotificationEvents(accessRequestId: string): Promise<EmergencyAccessNotificationEvent[]>;
 }
@@ -337,6 +345,34 @@ export class EmergencyAccessService {
     const view = await this.handoverService.preview(request.ownerUserId, { mode: 'contact' });
     await this.repository.recordAuditEvent(id, contactUserId, 'HANDOVER_VIEWED', {
       ownerUserId: request.ownerUserId
+    });
+    return view;
+  }
+
+  async getVerifiedContactHandover(
+    contactUserId: string,
+    trustedContactId: string
+  ): Promise<HandoverView> {
+    if (!this.handoverService) {
+      throw new HttpError(500, 'Emergency handover service is not configured');
+    }
+    const assignment = await this.repository.findVerifiedAssignment(
+      contactUserId,
+      trustedContactId
+    );
+    if (!assignment) {
+      throw new HttpError(403, 'Trusted contact is not verified for this plan');
+    }
+    const view = await this.handoverService.preview(assignment.userId, { mode: 'contact' });
+    await this.repository.recordContactHandoverView({
+      ownerUserId: assignment.userId,
+      trustedContactId: assignment.id,
+      actorUserId: contactUserId,
+      eventType: 'HANDOVER_VIEWED',
+      metadata: {
+        ownerUserId: assignment.userId,
+        trustedContactId: assignment.id
+      }
     });
     return view;
   }

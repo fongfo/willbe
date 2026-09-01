@@ -15,15 +15,7 @@ import { Button, Screen } from '../components';
 import { getRelationLabel } from '../family-members/relations';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
 import { useContactEmergencyAccess } from './useContactEmergencyAccess';
-import type { EmergencyAccessReason, EmergencyAccessStatus } from './emergencyAccess.types';
-
-const REASON_OPTIONS: { value: EmergencyAccessReason; label: string }[] = [
-  { value: 'ACCIDENT', label: 'Accident' },
-  { value: 'DEATH', label: 'Death' },
-  { value: 'SERIOUS_ILLNESS', label: 'Serious illness' },
-  { value: 'UNREACHABLE', label: 'Unreachable' },
-  { value: 'OTHER', label: 'Other' }
-];
+import type { EmergencyAccessStatus } from './emergencyAccess.types';
 
 const WAITING_STATUSES = new Set<EmergencyAccessStatus>([
   'REQUESTED',
@@ -115,10 +107,6 @@ function InviteTokenForm({
 export default function ContactEmergencyModeScreen() {
   const { signOut } = useAccountAuth();
   const emergency = useContactEmergencyAccess();
-  const [showRequestForm, setShowRequestForm] = useState(false);
-  const [reason, setReason] = useState<EmergencyAccessReason>('UNREACHABLE');
-  const [reasonDetail, setReasonDetail] = useState('');
-  const [confirmed, setConfirmed] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
   const assignment = emergency.selectedAssignment;
   const currentStatus = emergency.currentRequest?.status ?? null;
@@ -127,28 +115,8 @@ export default function ContactEmergencyModeScreen() {
     assignment?.role === 'BACKUP' &&
     currentStatus === 'SECONDARY_REVIEW' &&
     emergency.currentRequest?.reviewRole === 'BACKUP_REVIEWER';
-  const canRequest =
-    !currentStatus ||
-    ['DENIED', 'REJECTED_BY_OWNER', 'SUSPENDED', 'CLOSED', 'EXPIRED'].includes(
-      currentStatus
-    );
   const isActive = currentStatus === 'ACTIVE';
-
-  async function submitRequest(): Promise<void> {
-    if (!confirmed) {
-      return;
-    }
-    try {
-      await emergency.requestAccess({
-        reason,
-        reasonDetail: reasonDetail.trim() || undefined,
-        confirmed: true
-      });
-      setShowRequestForm(false);
-    } catch {
-      // The hook already exposes the user-facing error and keeps the form open.
-    }
-  }
+  const shouldShowHandover = Boolean(assignment);
 
   async function submitInviteToken(): Promise<void> {
     const token = inviteToken.trim();
@@ -217,7 +185,7 @@ export default function ContactEmergencyModeScreen() {
                 <Text style={styles.statusPillText}>{statusLabel(currentStatus)}</Text>
               </View>
               <Text style={styles.panelText}>
-                Planner data stays hidden until emergency access is active.
+                Your read-only emergency handover is available now.
               </Text>
               {emergency.assignments.length > 1 ? (
                 <View style={styles.assignmentList}>
@@ -271,71 +239,6 @@ export default function ContactEmergencyModeScreen() {
               />
             </View>
 
-            {canRequest ? (
-              <View style={styles.panel}>
-                <Text style={styles.panelTitle}>Request Emergency Access</Text>
-                <Text style={styles.panelText}>
-                  Use this only when the planner cannot handle urgent family matters.
-                </Text>
-                {showRequestForm ? (
-                  <View style={styles.form}>
-                    <Text style={styles.fieldLabel}>Reason</Text>
-                    <View style={styles.reasonGrid}>
-                      {REASON_OPTIONS.map((option) => {
-                        const selected = option.value === reason;
-                        return (
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ selected }}
-                            key={option.value}
-                            onPress={() => setReason(option.value)}
-                            style={[styles.reasonButton, selected && styles.reasonButtonSelected]}
-                          >
-                            <Text
-                              style={[
-                                styles.reasonButtonText,
-                                selected && styles.reasonButtonTextSelected
-                              ]}
-                            >
-                              {option.label}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                    <Text style={styles.fieldLabel}>Short note</Text>
-                    <TextInput
-                      accessibilityLabel="Emergency access reason detail"
-                      multiline
-                      onChangeText={setReasonDetail}
-                      placeholder="What happened?"
-                      placeholderTextColor="#7c8f88"
-                      style={styles.input}
-                      value={reasonDetail}
-                    />
-                    <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: confirmed }}
-                      onPress={() => setConfirmed((value) => !value)}
-                      style={styles.checkboxRow}
-                    >
-                      <View style={[styles.checkbox, confirmed && styles.checkboxChecked]} />
-                      <Text style={styles.checkboxText}>
-                        I confirm this is an emergency and the planner cannot respond.
-                      </Text>
-                    </Pressable>
-                    <Button
-                      disabled={!confirmed || emergency.submitting}
-                      label={emergency.submitting ? 'Sending request...' : 'Send access request'}
-                      onPress={submitRequest}
-                    />
-                  </View>
-                ) : (
-                  <Button label="Request emergency access" onPress={() => setShowRequestForm(true)} />
-                )}
-              </View>
-            ) : null}
-
             {isWaiting ? (
               <View style={styles.panel}>
                 <Text style={styles.panelTitle}>Waiting for Review</Text>
@@ -371,7 +274,7 @@ export default function ContactEmergencyModeScreen() {
               </View>
             ) : null}
 
-            {isActive ? (
+            {shouldShowHandover ? (
               <View style={styles.activeArea}>
                 {emergency.handoverLoading ? (
                   <ActivityIndicator color={colors.goldLight} accessibilityLabel="Loading handover" />
@@ -422,18 +325,20 @@ export default function ContactEmergencyModeScreen() {
                       ))}
                     </Section>
 
-                    <View style={styles.panel}>
-                      <Text style={styles.panelTitle}>Close Access</Text>
-                      <Text style={styles.panelText}>
-                        Close this access when the urgent coordination is complete.
-                      </Text>
-                      <Button
-                        disabled={emergency.submitting}
-                        label={emergency.submitting ? 'Closing access...' : 'Close emergency access'}
-                        onPress={emergency.closeAccess}
-                        variant="danger"
-                      />
-                    </View>
+                    {isActive ? (
+                      <View style={styles.panel}>
+                        <Text style={styles.panelTitle}>Close Access</Text>
+                        <Text style={styles.panelText}>
+                          Close this access when the urgent coordination is complete.
+                        </Text>
+                        <Button
+                          disabled={emergency.submitting}
+                          label={emergency.submitting ? 'Closing access...' : 'Close emergency access'}
+                          onPress={emergency.closeAccess}
+                          variant="danger"
+                        />
+                      </View>
+                    ) : null}
                   </>
                 ) : null}
               </View>
@@ -573,44 +478,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: emergencyText
   },
-  reasonGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm
-  },
-  reasonButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: emergencyBorder,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: emergencyBg
-  },
-  reasonButtonSelected: {
-    borderColor: colors.goldLight,
-    backgroundColor: '#2b4b3a'
-  },
-  reasonButtonText: {
-    fontSize: fontSizes.small,
-    fontWeight: '700',
-    color: emergencyMuted
-  },
-  reasonButtonTextSelected: {
-    color: emergencyText
-  },
-  input: {
-    minHeight: 92,
-    borderWidth: 1,
-    borderColor: emergencyBorder,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSizes.body,
-    color: emergencyText,
-    backgroundColor: emergencyBg,
-    textAlignVertical: 'top'
-  },
   singleLineInput: {
     minHeight: 52,
     borderWidth: 1,
@@ -621,28 +488,6 @@ const styles = StyleSheet.create({
     fontSize: fontSizes.body,
     color: emergencyText,
     backgroundColor: emergencyBg
-  },
-  checkboxRow: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: colors.goldLight,
-    borderRadius: radii.sm
-  },
-  checkboxChecked: {
-    backgroundColor: colors.goldLight
-  },
-  checkboxText: {
-    flex: 1,
-    fontSize: fontSizes.small,
-    lineHeight: 20,
-    color: emergencyMuted
   },
   detailLine: {
     fontSize: fontSizes.small,

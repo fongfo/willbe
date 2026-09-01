@@ -96,6 +96,7 @@ describe('Emergency access routes (/api/emergency-access)', () => {
   beforeEach(async () => {
     await prisma.emergencyAccessNotificationEvent.deleteMany();
     await prisma.emergencyAccessAuditEvent.deleteMany();
+    await prisma.contactHandoverViewAuditEvent.deleteMany();
     await prisma.emergencyAccessRequest.deleteMany();
     await prisma.emergencyAccessSetting.deleteMany();
     await prisma.trustedContact.deleteMany();
@@ -122,6 +123,51 @@ describe('Emergency access routes (/api/emergency-access)', () => {
     expect(res.body.data[0].planner).not.toHaveProperty('email');
     expect(res.body.data[0]).not.toHaveProperty('detail');
     expect(res.body.data[0]).not.toHaveProperty('contactUserId');
+  });
+
+  it('lets a verified contact read handover immediately after invite binding', async () => {
+    const app = createApp();
+    const { trustedContactId } = await createVerifiedContact(app);
+    await withAuth(request(app).post('/api/family-members'), OWNER_ACCESS_TOKEN).send({
+      name: 'Amina Rahman',
+      relation: 'CHILD',
+      detail: 'School pickup is usually at 3pm.'
+    });
+    await withAuth(request(app).put('/api/handover-instruction'), OWNER_ACCESS_TOKEN).send({
+      message: 'Take a breath, then call Sara.',
+      firstSteps: ['Call Sara', 'Open Drive / Family']
+    });
+    await withAuth(request(app).post('/api/asset-references'), OWNER_ACCESS_TOKEN).send({
+      name: 'Maybank main account',
+      category: 'BANK',
+      locationHint: 'Drive / Family / Banking',
+      detail: 'Account 1234, balance RM250k'
+    });
+
+    const res = await withAuth(
+      request(app).get(`/api/emergency-access/contact/assignments/${trustedContactId}/handover`),
+      CONTACT_ACCESS_TOKEN
+    );
+    const requestCount = await prisma.emergencyAccessRequest.count();
+    const auditEvents = await prisma.contactHandoverViewAuditEvent.findMany({
+      where: { trustedContactId },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.instruction.message).toBe('Take a breath, then call Sara.');
+    expect(res.body.data.family[0]).toEqual({
+      name: 'Amina Rahman',
+      relation: 'CHILD',
+      detail: null
+    });
+    expect(res.body.data.contacts[0].name).toBe('Imran Rahman');
+    expect(res.body.data.locations[0]).not.toHaveProperty('detail');
+    expect(JSON.stringify(res.body.data)).not.toContain('School pickup');
+    expect(JSON.stringify(res.body.data)).not.toContain('RM250k');
+    expect(requestCount).toBe(0);
+    expect(auditEvents.map((event) => event.eventType)).toEqual(['HANDOVER_VIEWED']);
   });
 
   it('creates a cooling-off request and audit events for a verified contact', async () => {
@@ -589,6 +635,7 @@ describe('Emergency access routes (/api/emergency-access)', () => {
   });
 
   it.each([
+    ['GET', '/api/emergency-access/contact/assignments/not-a-uuid/handover'],
     ['GET', '/api/emergency-access/contact/requests/not-a-uuid'],
     ['GET', '/api/emergency-access/contact/requests/not-a-uuid/handover'],
     ['POST', '/api/emergency-access/contact/requests/not-a-uuid/close'],

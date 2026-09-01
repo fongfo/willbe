@@ -83,6 +83,7 @@ function makeHandover(): ContactEmergencyHandover {
 }
 
 beforeEach(() => {
+  mockedEmergencyApi.getContactAssignmentHandover.mockResolvedValue(makeHandover());
   mockedUseAccountAuth.mockReturnValue({
     status: 'authenticated',
     authMode: 'contact',
@@ -108,54 +109,39 @@ beforeEach(() => {
 afterEach(() => jest.clearAllMocks());
 
 describe('ContactEmergencyModeScreen', () => {
-  it('shows contact home and starts a request flow', async () => {
+  it('shows contact home and directly loads planner handover', async () => {
     mockedEmergencyApi.getContactAccessContext.mockResolvedValue([makeAssignment()]);
-    mockedEmergencyApi.createEmergencyAccessRequest.mockResolvedValue(coolingOffRequest);
 
     render(<ContactEmergencyModeScreen />);
 
     expect(await screen.findByText('Contact Home')).toBeTruthy();
     expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
+    expect(await screen.findByText('Contacts & First Steps')).toBeTruthy();
+    expect(screen.getByText('Take a breath, then call Sara.')).toBeTruthy();
+    expect(screen.queryByText('Request Emergency Access')).toBeNull();
+    expect(mockedEmergencyApi.getContactAssignmentHandover).toHaveBeenCalledWith(
+      'tc1',
+      expect.any(AbortSignal)
+    );
+    expect(mockedEmergencyApi.createEmergencyAccessRequest).not.toHaveBeenCalled();
     fireEvent.press(screen.getByText('Sign out'));
     expect(signOut).toHaveBeenCalledTimes(1);
-    fireEvent.press(screen.getByText('Request emergency access'));
-    fireEvent.changeText(
-      screen.getByLabelText('Emergency access reason detail'),
-      'Aisyah has been unreachable.'
-    );
-    fireEvent.press(screen.getByText(/I confirm this is an emergency/));
-    fireEvent.press(screen.getByText('Send access request'));
-
-    await waitFor(() =>
-      expect(mockedEmergencyApi.createEmergencyAccessRequest).toHaveBeenCalledWith({
-        ownerUserId: 'owner-1',
-        trustedContactId: 'tc1',
-        reason: 'UNREACHABLE',
-        reasonDetail: 'Aisyah has been unreachable.',
-        confirmed: true
-      })
-    );
-    expect(await screen.findByText('Waiting for Review')).toBeTruthy();
   });
 
-  it('keeps the request form open when submission fails', async () => {
+  it('shows a handover loading error without showing a request form', async () => {
     mockedEmergencyApi.getContactAccessContext.mockResolvedValue([makeAssignment()]);
-    mockedEmergencyApi.createEmergencyAccessRequest.mockRejectedValue(
-      new Error('Unable to create request')
+    mockedEmergencyApi.getContactAssignmentHandover.mockRejectedValue(
+      new Error('Unable to load handover')
     );
 
     render(<ContactEmergencyModeScreen />);
 
     await screen.findByText('Contact Home');
-    fireEvent.press(screen.getByText('Request emergency access'));
-    fireEvent.press(screen.getByText(/I confirm this is an emergency/));
-    fireEvent.press(screen.getByText('Send access request'));
-
-    expect(await screen.findByText('Unable to create request')).toBeTruthy();
-    expect(screen.getByLabelText('Emergency access reason detail')).toBeTruthy();
+    expect(await screen.findByText('Unable to load handover')).toBeTruthy();
+    expect(screen.queryByText('Request emergency access')).toBeNull();
   });
 
-  it('shows waiting state without exposing handover before activation', async () => {
+  it('shows waiting state while still exposing verified handover', async () => {
     mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
       makeAssignment(coolingOffRequest)
     ]);
@@ -163,8 +149,12 @@ describe('ContactEmergencyModeScreen', () => {
     render(<ContactEmergencyModeScreen />);
 
     expect(await screen.findByText('Waiting for Review')).toBeTruthy();
-    expect(screen.queryByText('Where to Look')).toBeNull();
+    expect(await screen.findByText('Where to Look')).toBeTruthy();
     expect(mockedEmergencyApi.getContactEmergencyHandover).not.toHaveBeenCalled();
+    expect(mockedEmergencyApi.getContactAssignmentHandover).toHaveBeenCalledWith(
+      'tc1',
+      expect.any(AbortSignal)
+    );
   });
 
   it('lets a backup contact confirm secondary review and enters emergency mode', async () => {
@@ -339,7 +329,7 @@ describe('ContactEmergencyModeScreen', () => {
     );
   });
 
-  it('shows terminal expired state without fetching handover', async () => {
+  it('shows terminal expired state and still fetches verified handover', async () => {
     mockedEmergencyApi.getContactAccessContext.mockResolvedValue([
       makeAssignment({ ...coolingOffRequest, status: 'EXPIRED' })
     ]);
@@ -347,7 +337,12 @@ describe('ContactEmergencyModeScreen', () => {
     render(<ContactEmergencyModeScreen />);
 
     expect(await screen.findByText('Access expired')).toBeTruthy();
+    expect(await screen.findByText('Where to Look')).toBeTruthy();
     expect(mockedEmergencyApi.getContactEmergencyHandover).not.toHaveBeenCalled();
+    expect(mockedEmergencyApi.getContactAssignmentHandover).toHaveBeenCalledWith(
+      'tc1',
+      expect.any(AbortSignal)
+    );
   });
 
   it('shows unauthorized contact state', async () => {
@@ -395,6 +390,7 @@ describe('ContactEmergencyModeScreen', () => {
     );
     expect(await screen.findByText('Contact Home')).toBeTruthy();
     expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
+    expect(await screen.findByText('Contacts & First Steps')).toBeTruthy();
   });
 
   it('is exposed through the contact emergency route', async () => {
