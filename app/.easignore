@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+coverage/
+dist/
+web-build/
+builds/
+.claude/
+
+.env
+.env.*
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+*.tsbuildinfo

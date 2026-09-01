@@ -11,6 +11,11 @@ import {
 import { setApiAccessTokenProvider } from '../api/client';
 import { shouldUsePrivyRuntime } from '../privy/privyConfig';
 import { createPrivyAccountSession } from './auth.api';
+import {
+  readAuthModePreference,
+  writeAuthModePreference
+} from './authModePreference';
+import type { AuthMode } from './authModePreference';
 import type { AccountUser, AuthSession } from './auth.types';
 
 type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated';
@@ -23,10 +28,13 @@ interface VerifyEmailCodeInput {
 
 interface AccountAuthContextValue {
   status: AuthStatus;
+  authMode: AuthMode;
+  authModeReady: boolean;
   user: AccountUser | null;
   error: string | null;
   walletStatus: WalletStatus;
   walletError: string | null;
+  setAuthMode(mode: AuthMode): Promise<void>;
   sendEmailCode(email: string): Promise<void>;
   verifyEmailCode(input: VerifyEmailCodeInput): Promise<void>;
   retryWalletSync(): Promise<void>;
@@ -55,6 +63,38 @@ const PRIVY_REQUEST_TIMEOUT_MS = 20000;
 const WALLET_DISCOVERY_ATTEMPTS = 5;
 const WALLET_DISCOVERY_DELAY_MS = 50;
 let devSession: AuthSession | null = null;
+
+function useAuthModePreference() {
+  const [authMode, setAuthModeState] = useState<AuthMode>('planner');
+  const [authModeReady, setAuthModeReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    readAuthModePreference()
+      .then((storedMode) => {
+        if (!cancelled) {
+          setAuthModeState(storedMode);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAuthModeReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const setAuthMode = useCallback(async (mode: AuthMode): Promise<void> => {
+    setAuthModeState(mode);
+    await writeAuthModePreference(mode);
+  }, []);
+
+  return { authMode, authModeReady, setAuthMode };
+}
 
 function messageFromError(error: unknown): string {
   if (error instanceof Error && error.message.trim()) {
@@ -137,6 +177,7 @@ async function waitForDiscoverableWallet(
 function DevAccountAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(devSession);
   const sessionRef = useRef<AuthSession | null>(devSession);
+  const { authMode, authModeReady, setAuthMode } = useAuthModePreference();
 
   function setSession(nextSession: AuthSession | null): void {
     devSession = nextSession;
@@ -155,10 +196,13 @@ function DevAccountAuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AccountAuthContextValue>(
     () => ({
       status: session ? 'authenticated' : 'unauthenticated',
+      authMode,
+      authModeReady,
       user: session?.user ?? null,
       error: null,
       walletStatus: session?.user.walletAddress ? 'ready' : 'pending',
       walletError: null,
+      setAuthMode,
       sendEmailCode: async () => undefined,
       verifyEmailCode: async ({ email }) => {
         setSession({
@@ -174,7 +218,7 @@ function DevAccountAuthProvider({ children }: { children: ReactNode }) {
       retryWalletSync: async () => undefined,
       signOut: async () => setSession(null)
     }),
-    [session]
+    [authMode, authModeReady, session, setAuthMode]
   );
 
   return <AccountAuthContext.Provider value={value}>{children}</AccountAuthContext.Provider>;
@@ -198,6 +242,7 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
   const [walletStatus, setWalletStatus] = useState<WalletStatus>('pending');
   const [walletError, setWalletError] = useState<string | null>(null);
   const sessionRequestRef = useRef<Promise<AuthSession> | null>(null);
+  const { authMode, authModeReady, setAuthMode } = useAuthModePreference();
   const shouldRestore =
     isReady &&
     Boolean(privyUser) &&
@@ -212,9 +257,12 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
   const currentUser = status === 'authenticated' ? session?.user ?? null : null;
 
   useEffect(() => {
-    setApiAccessTokenProvider(() => getAccessToken());
+    setApiAccessTokenProvider(async () => ({
+      accessToken: await getAccessToken(),
+      identityToken: await getIdentityToken()
+    }));
     return () => setApiAccessTokenProvider(null);
-  }, [getAccessToken]);
+  }, [getAccessToken, getIdentityToken]);
 
   useEffect(() => {
     walletsRef.current = wallets;
@@ -340,10 +388,13 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AccountAuthContextValue>(
     () => ({
       status,
+      authMode,
+      authModeReady,
       user: currentUser,
       error: error ?? privyError?.message ?? null,
       walletStatus,
       walletError,
+      setAuthMode,
       sendEmailCode: async (email: string) => {
         setError(null);
         await withTimeout(
@@ -375,6 +426,8 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
       }
     }),
     [
+      authMode,
+      authModeReady,
       error,
       establishSession,
       currentUser,
@@ -384,6 +437,7 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
       privyUser,
       sendCode,
       session,
+      setAuthMode,
       status,
       syncWalletAddress,
       walletError,

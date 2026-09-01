@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { useAccountAuth } from '../src/account/AccountAuthContext';
 import ContactEmergencyRoute from '../src/app/contact-emergency';
 import * as emergencyApi from '../src/emergency-access/emergencyAccess.api';
 import ContactEmergencyModeScreen from '../src/emergency-access/ContactEmergencyModeScreen';
@@ -11,9 +12,14 @@ import * as trustedContactApi from '../src/trusted-contacts/trustedContact.api';
 
 jest.mock('../src/emergency-access/emergencyAccess.api');
 jest.mock('../src/trusted-contacts/trustedContact.api');
+jest.mock('../src/account/AccountAuthContext', () => ({
+  useAccountAuth: jest.fn()
+}));
 
+const mockedUseAccountAuth = useAccountAuth as jest.MockedFunction<typeof useAccountAuth>;
 const mockedEmergencyApi = emergencyApi as jest.Mocked<typeof emergencyApi>;
 const mockedTrustedContactApi = trustedContactApi as jest.Mocked<typeof trustedContactApi>;
+const signOut = jest.fn().mockResolvedValue(undefined);
 
 const coolingOffRequest: EmergencyAccessRequestSummary = {
   id: 'req1',
@@ -76,6 +82,29 @@ function makeHandover(): ContactEmergencyHandover {
   };
 }
 
+beforeEach(() => {
+  mockedUseAccountAuth.mockReturnValue({
+    status: 'authenticated',
+    authMode: 'contact',
+    authModeReady: true,
+    user: {
+      id: 'dev-user-1',
+      privyUserId: 'dev:imran@example.com',
+      email: 'imran@example.com',
+      name: null,
+      walletAddress: '0x9a1f8e3b72c441056a9f2d4c7f86a61252d0b91e'
+    },
+    error: null,
+    walletStatus: 'ready',
+    walletError: null,
+    setAuthMode: jest.fn().mockResolvedValue(undefined),
+    sendEmailCode: jest.fn().mockResolvedValue(undefined),
+    verifyEmailCode: jest.fn().mockResolvedValue(undefined),
+    retryWalletSync: jest.fn().mockResolvedValue(undefined),
+    signOut
+  });
+});
+
 afterEach(() => jest.clearAllMocks());
 
 describe('ContactEmergencyModeScreen', () => {
@@ -87,6 +116,8 @@ describe('ContactEmergencyModeScreen', () => {
 
     expect(await screen.findByText('Contact Home')).toBeTruthy();
     expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
+    fireEvent.press(screen.getByText('Sign out'));
+    expect(signOut).toHaveBeenCalledTimes(1);
     fireEvent.press(screen.getByText('Request emergency access'));
     fireEvent.changeText(
       screen.getByLabelText('Emergency access reason detail'),
@@ -274,6 +305,38 @@ describe('ContactEmergencyModeScreen', () => {
         ([requestId]) => requestId === 'req2'
       )
     ).toBe(true);
+  });
+
+  it('shows invite token binding from the contact home state', async () => {
+    mockedEmergencyApi.getContactAccessContext.mockResolvedValue([makeAssignment()]);
+    mockedTrustedContactApi.bindTrustedContactInvite.mockResolvedValue({
+      id: 'tc2',
+      ownerUserId: 'owner-2',
+      name: 'Imran Rahman',
+      relation: 'SPOUSE',
+      role: 'BACKUP',
+      phone: '+60123456789',
+      email: 'imran@example.com',
+      verificationStatus: 'VERIFIED',
+      createdAt: '2026-08-25T00:00:00.000Z',
+      updatedAt: '2026-08-25T00:00:00.000Z'
+    });
+
+    render(<ContactEmergencyModeScreen />);
+
+    expect(await screen.findByText('Contact Home')).toBeTruthy();
+    expect(screen.getByText('Bind Invite Token')).toBeTruthy();
+    fireEvent.changeText(
+      screen.getByLabelText('Trusted contact invite token'),
+      'another-token-12345678901234567890'
+    );
+    fireEvent.press(screen.getByText('Bind invite'));
+
+    await waitFor(() =>
+      expect(mockedTrustedContactApi.bindTrustedContactInvite).toHaveBeenCalledWith(
+        'another-token-12345678901234567890'
+      )
+    );
   });
 
   it('shows terminal expired state without fetching handover', async () => {

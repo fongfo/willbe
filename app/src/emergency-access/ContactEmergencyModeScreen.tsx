@@ -10,6 +10,7 @@ import {
   View
 } from 'react-native';
 import { getCategoryLabel } from '../asset-references/categories';
+import { useAccountAuth } from '../account/AccountAuthContext';
 import { Button, Screen } from '../components';
 import { getRelationLabel } from '../family-members/relations';
 import { colors, fontSizes, radii, spacing } from '../theme/tokens';
@@ -79,7 +80,40 @@ function Section({
   );
 }
 
+function InviteTokenForm({
+  inviteToken,
+  submitting,
+  onChangeInviteToken,
+  onSubmitInviteToken
+}: {
+  inviteToken: string;
+  submitting: boolean;
+  onChangeInviteToken: (value: string) => void;
+  onSubmitInviteToken: () => void;
+}) {
+  return (
+    <View style={styles.form}>
+      <Text style={styles.fieldLabel}>Invite token</Text>
+      <TextInput
+        accessibilityLabel="Trusted contact invite token"
+        autoCapitalize="none"
+        onChangeText={onChangeInviteToken}
+        placeholder="Paste the one-time token"
+        placeholderTextColor="#7c8f88"
+        style={styles.singleLineInput}
+        value={inviteToken}
+      />
+      <Button
+        disabled={inviteToken.trim().length < 24 || submitting}
+        label={submitting ? 'Binding invite...' : 'Bind invite'}
+        onPress={onSubmitInviteToken}
+      />
+    </View>
+  );
+}
+
 export default function ContactEmergencyModeScreen() {
+  const { signOut } = useAccountAuth();
   const emergency = useContactEmergencyAccess();
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [reason, setReason] = useState<EmergencyAccessReason>('UNREACHABLE');
@@ -133,7 +167,16 @@ export default function ContactEmergencyModeScreen() {
     <Screen padded={false} safeStyle={styles.screen} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.hero}>
-          <Text style={styles.kicker}>Pusaka emergency contact</Text>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.kicker}>Pusaka emergency contact</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void signOut()}
+              style={styles.signOutButton}
+            >
+              <Text style={styles.signOutButtonText}>Sign out</Text>
+            </Pressable>
+          </View>
           <Text style={styles.heading}>Emergency mode</Text>
           <Text style={styles.lede}>
             A read-only space for contacting the right people and finding where to look.
@@ -156,23 +199,12 @@ export default function ContactEmergencyModeScreen() {
                 {emergency.error}
               </Text>
             ) : null}
-            <View style={styles.form}>
-              <Text style={styles.fieldLabel}>Invite token</Text>
-              <TextInput
-                accessibilityLabel="Trusted contact invite token"
-                autoCapitalize="none"
-                onChangeText={setInviteToken}
-                placeholder="Paste the one-time token"
-                placeholderTextColor="#7c8f88"
-                style={styles.singleLineInput}
-                value={inviteToken}
-              />
-              <Button
-                disabled={inviteToken.trim().length < 24 || emergency.submitting}
-                label={emergency.submitting ? 'Binding invite...' : 'Bind invite'}
-                onPress={submitInviteToken}
-              />
-            </View>
+            <InviteTokenForm
+              inviteToken={inviteToken}
+              onChangeInviteToken={setInviteToken}
+              onSubmitInviteToken={submitInviteToken}
+              submitting={emergency.submitting}
+            />
           </View>
         ) : (
           <>
@@ -225,6 +257,19 @@ export default function ContactEmergencyModeScreen() {
                 {emergency.error}
               </Text>
             ) : null}
+
+            <View style={styles.panel}>
+              <Text style={styles.panelTitle}>Bind Invite Token</Text>
+              <Text style={styles.panelText}>
+                Add another planner invitation to this emergency contact account.
+              </Text>
+              <InviteTokenForm
+                inviteToken={inviteToken}
+                onChangeInviteToken={setInviteToken}
+                onSubmitInviteToken={submitInviteToken}
+                submitting={emergency.submitting}
+              />
+            </View>
 
             {canRequest ? (
               <View style={styles.panel}>
@@ -419,11 +464,30 @@ const styles = StyleSheet.create({
   hero: {
     gap: spacing.sm
   },
+  heroTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between'
+  },
   kicker: {
+    flex: 1,
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: colors.goldLight,
     textTransform: 'uppercase'
+  },
+  signOutButton: {
+    borderWidth: 1,
+    borderColor: emergencyBorder,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  signOutButtonText: {
+    color: emergencyText,
+    fontSize: fontSizes.caption,
+    fontWeight: '800'
   },
   heading: {
     fontSize: 32,

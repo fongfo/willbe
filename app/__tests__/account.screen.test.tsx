@@ -1,15 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { AccountCenterView } from '../src/account/AccountScreen';
+import AuthGate from '../src/account/AuthGate';
 import AuthScreen from '../src/account/AuthScreen';
 import { useAccountAuth } from '../src/account/AccountAuthContext';
 
 const mockReplace = jest.fn();
+let mockSegments: string[] = ['auth'];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
     replace: mockReplace
-  })
+  }),
+  useSegments: () => mockSegments
 }));
 
 jest.mock('../src/account/AccountAuthContext', () => ({
@@ -21,6 +24,7 @@ const sendEmailCode = jest.fn().mockResolvedValue(undefined);
 const verifyEmailCode = jest.fn().mockResolvedValue(undefined);
 const retryWalletSync = jest.fn().mockResolvedValue(undefined);
 const signOut = jest.fn().mockResolvedValue(undefined);
+const setAuthMode = jest.fn().mockResolvedValue(undefined);
 const accountUser = {
   id: 'user-1',
   privyUserId: 'did:privy:user-1',
@@ -34,17 +38,88 @@ beforeEach(() => {
   verifyEmailCode.mockClear();
   retryWalletSync.mockClear();
   signOut.mockClear();
+  setAuthMode.mockClear();
   mockReplace.mockClear();
+  mockSegments = ['auth'];
   mockedUseAccountAuth.mockReturnValue({
     status: 'unauthenticated',
+    authMode: 'planner',
+    authModeReady: true,
     user: null,
     error: null,
     walletStatus: 'pending',
     walletError: null,
+    setAuthMode,
     sendEmailCode,
     verifyEmailCode,
     retryWalletSync,
     signOut
+  });
+});
+
+describe('AuthGate', () => {
+  it('routes authenticated emergency contacts away from auth into contact mode', () => {
+    mockedUseAccountAuth.mockReturnValue({
+      status: 'authenticated',
+      authMode: 'contact',
+      authModeReady: true,
+      user: accountUser,
+      error: null,
+      walletStatus: 'ready',
+      walletError: null,
+      setAuthMode,
+      sendEmailCode,
+      verifyEmailCode,
+      retryWalletSync,
+      signOut
+    });
+
+    render(<AuthGate />);
+
+    expect(mockReplace).toHaveBeenCalledWith('/contact-emergency');
+  });
+
+  it('keeps authenticated emergency contacts out of planner home', () => {
+    mockSegments = ['home'];
+    mockedUseAccountAuth.mockReturnValue({
+      status: 'authenticated',
+      authMode: 'contact',
+      authModeReady: true,
+      user: accountUser,
+      error: null,
+      walletStatus: 'ready',
+      walletError: null,
+      setAuthMode,
+      sendEmailCode,
+      verifyEmailCode,
+      retryWalletSync,
+      signOut
+    });
+
+    render(<AuthGate />);
+
+    expect(mockReplace).toHaveBeenCalledWith('/contact-emergency');
+  });
+
+  it('routes authenticated planners from auth into planner home', () => {
+    mockedUseAccountAuth.mockReturnValue({
+      status: 'authenticated',
+      authMode: 'planner',
+      authModeReady: true,
+      user: accountUser,
+      error: null,
+      walletStatus: 'ready',
+      walletError: null,
+      setAuthMode,
+      sendEmailCode,
+      verifyEmailCode,
+      retryWalletSync,
+      signOut
+    });
+
+    render(<AuthGate />);
+
+    expect(mockReplace).toHaveBeenCalledWith('/home');
   });
 });
 
@@ -64,6 +139,7 @@ describe('AuthScreen', () => {
 
     fireEvent.press(screen.getByText('I am an emergency contact'));
 
+    expect(setAuthMode).toHaveBeenCalledWith('contact');
     expect(screen.getByText('Emergency contact sign-in')).toBeTruthy();
     expect(
       screen.getByText('Use the email your planner invited as a trusted contact.')
