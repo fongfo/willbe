@@ -95,6 +95,7 @@ model TrustedContact {
   contactUser        User?              @relation("TrustedContactLogin", fields: [contactUserId], references: [id], onDelete: SetNull)
   emergencyAccessRequests EmergencyAccessRequest[]
   emergencyAccessNotificationEvents EmergencyAccessNotificationEvent[]
+  contactHandoverViewAuditEvents ContactHandoverViewAuditEvent[]
 
   @@unique([id, userId])
   @@index([contactUserId])
@@ -241,6 +242,27 @@ model EmergencyAccessNotificationEvent {
   @@map("emergency_access_notification_events")
 }
 
+model ContactHandoverViewAuditEvent {
+  id               String         @id @default(uuid())
+  ownerUserId      String
+  trustedContactId String
+  actorUserId      String?
+  eventType        String
+  metadata         Json?
+  proofVersion     String         @default("audit-proof-v1")
+  proofHash        String?
+  createdAt        DateTime       @default(now())
+  owner            User           @relation("ContactHandoverAuditOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  trustedContact   TrustedContact @relation(fields: [trustedContactId, ownerUserId], references: [id, userId], onDelete: Cascade)
+  actor            User?          @relation("ContactHandoverAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId, createdAt])
+  @@index([trustedContactId, createdAt])
+  @@index([actorUserId])
+  @@index([proofHash])
+  @@map("contact_handover_view_audit_events")
+}
+
 model User {
   id            String   @id @default(uuid())
   privyUserId   String   @unique
@@ -260,6 +282,8 @@ model User {
   requestedEmergencyAccessRequests EmergencyAccessRequest[] @relation("EmergencyAccessRequester")
   emergencyAccessAuditEvents EmergencyAccessAuditEvent[] @relation("EmergencyAccessAuditActor")
   emergencyAccessNotificationEvents EmergencyAccessNotificationEvent[] @relation("EmergencyAccessNotificationRecipient")
+  contactHandoverAuditEvents ContactHandoverViewAuditEvent[] @relation("ContactHandoverAuditActor")
+  ownedContactHandoverAuditEvents ContactHandoverViewAuditEvent[] @relation("ContactHandoverAuditOwner")
 
   @@map("users")
 }

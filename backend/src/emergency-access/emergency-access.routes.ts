@@ -113,6 +113,26 @@ emergencyAccessRouter.get('/contact/context', async (req: Request, res: Response
   }
 });
 
+emergencyAccessRouter.get(
+  '/contact/assignments/:id/handover',
+  async (req: Request, res: Response) => {
+    const id = parseId(req, res);
+    if (!id) {
+      return;
+    }
+
+    try {
+      const view = await service.getVerifiedContactHandover(
+        (req as AuthenticatedRequest).authUser.id,
+        id
+      );
+      res.status(200).json({ success: true, data: view });
+    } catch (error: unknown) {
+      handleError(error, res);
+    }
+  }
+);
+
 emergencyAccessRouter.get('/owner/settings', async (req: Request, res: Response) => {
   try {
     const settings = await service.getSettings((req as AuthenticatedRequest).authUser.id);

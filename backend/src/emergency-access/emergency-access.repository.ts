@@ -9,6 +9,7 @@ import {
 import { Prisma } from '../generated/prisma/client';
 import type {
   EmergencyAccessAuditEventModel as EmergencyAccessAuditEvent,
+  ContactHandoverViewAuditEventModel as ContactHandoverViewAuditEvent,
   EmergencyAccessNotificationEventModel as EmergencyAccessNotificationEvent,
   EmergencyAccessRequestModel as EmergencyAccessRequest,
   EmergencyAccessSettingModel as EmergencyAccessSetting,
@@ -117,6 +118,24 @@ function proofHash(input: {
   const payload = normalizeForHash({
     version: 'audit-proof-v1',
     accessRequestId: input.accessRequestId,
+    actorUserId: input.actorUserId,
+    eventType: input.eventType,
+    metadata: input.metadata
+  });
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
+function contactHandoverProofHash(input: {
+  ownerUserId: string;
+  trustedContactId: string;
+  actorUserId: string | null;
+  eventType: string;
+  metadata: EmergencyAccessAuditMetadata;
+}): string {
+  const payload = normalizeForHash({
+    version: 'audit-proof-v1',
+    ownerUserId: input.ownerUserId,
+    trustedContactId: input.trustedContactId,
     actorUserId: input.actorUserId,
     eventType: input.eventType,
     metadata: input.metadata
@@ -507,6 +526,34 @@ export class EmergencyAccessRepository {
   ): Promise<EmergencyAccessAuditEvent> {
     return prisma.emergencyAccessAuditEvent.create({
       data: auditEventData(accessRequestId, actorUserId, eventType, metadata)
+    });
+  }
+
+  async recordContactHandoverView(
+    input: {
+      ownerUserId: string;
+      trustedContactId: string;
+      actorUserId: string | null;
+      eventType: string;
+      metadata?: EmergencyAccessAuditMetadata;
+    }
+  ): Promise<ContactHandoverViewAuditEvent> {
+    const metadata = input.metadata ?? {};
+    return prisma.contactHandoverViewAuditEvent.create({
+      data: {
+        ownerUserId: input.ownerUserId,
+        trustedContactId: input.trustedContactId,
+        actorUserId: input.actorUserId,
+        eventType: input.eventType,
+        metadata,
+        proofHash: contactHandoverProofHash({
+          ownerUserId: input.ownerUserId,
+          trustedContactId: input.trustedContactId,
+          actorUserId: input.actorUserId,
+          eventType: input.eventType,
+          metadata
+        })
+      }
     });
   }
 

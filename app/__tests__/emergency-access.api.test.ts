@@ -4,6 +4,7 @@ import {
   confirmBackupEmergencyAccessRequest,
   createEmergencyAccessRequest,
   denyBackupEmergencyAccessRequest,
+  getContactAssignmentHandover,
   getContactAccessContext,
   getContactEmergencyHandover
 } from '../src/emergency-access/emergencyAccess.api';
@@ -55,6 +56,18 @@ describe('emergencyAccess.api', () => {
     });
     expect(mockedApi.get).toHaveBeenCalledWith(
       '/emergency-access/contact/requests/req1/handover',
+      undefined
+    );
+  });
+
+  it('loads the verified assignment handover payload', async () => {
+    mockedApi.get.mockResolvedValue({ steps: ['Call Sara'] });
+
+    await expect(getContactAssignmentHandover('tc1')).resolves.toEqual({
+      steps: ['Call Sara']
+    });
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      '/emergency-access/contact/assignments/tc1/handover',
       undefined
     );
   });

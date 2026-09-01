@@ -34,6 +34,7 @@ interface MockRepository {
   transitionStatus: jest.Mock;
   transitionStatusWithEvents: jest.Mock;
   recordAuditEvent: jest.Mock;
+  recordContactHandoverView: jest.Mock;
   findAuditEvents: jest.Mock;
   findNotificationEvents: jest.Mock;
 }
@@ -139,6 +140,7 @@ function createRepository(): MockRepository {
     transitionStatus: jest.fn().mockResolvedValue(makeRequest()),
     transitionStatusWithEvents: jest.fn().mockResolvedValue(makeRequest()),
     recordAuditEvent: jest.fn().mockResolvedValue(undefined),
+    recordContactHandoverView: jest.fn().mockResolvedValue(undefined),
     findAuditEvents: jest.fn().mockResolvedValue([] as EmergencyAccessAuditEventModel[]),
     findNotificationEvents: jest.fn().mockResolvedValue([])
   };
@@ -516,6 +518,37 @@ describe('EmergencyAccessService', () => {
       service.getActiveContactHandover(CONTACT_USER_ID, REQUEST_ID)
     ).rejects.toMatchObject({ status: 403 });
     expect(handoverService.preview).not.toHaveBeenCalled();
+  });
+
+  it('returns handover data for a verified assignment without an access request', async () => {
+    const result = await service.getVerifiedContactHandover(CONTACT_USER_ID, CONTACT_ID);
+
+    expect(repository.findVerifiedAssignment).toHaveBeenCalledWith(
+      CONTACT_USER_ID,
+      CONTACT_ID
+    );
+    expect(handoverService.preview).toHaveBeenCalledWith(OWNER_ID, { mode: 'contact' });
+    expect(repository.recordContactHandoverView).toHaveBeenCalledWith({
+      ownerUserId: OWNER_ID,
+      trustedContactId: CONTACT_ID,
+      actorUserId: CONTACT_USER_ID,
+      eventType: 'HANDOVER_VIEWED',
+      metadata: {
+        ownerUserId: OWNER_ID,
+        trustedContactId: CONTACT_ID
+      }
+    });
+    expect(result.locations[0]?.name).toBe('Maybank folder');
+  });
+
+  it('blocks direct assignment handover reads for unverified contacts', async () => {
+    repository.findVerifiedAssignment.mockResolvedValue(null);
+
+    await expect(
+      service.getVerifiedContactHandover(CONTACT_USER_ID, CONTACT_ID)
+    ).rejects.toMatchObject({ status: 403 });
+    expect(handoverService.preview).not.toHaveBeenCalled();
+    expect(repository.recordContactHandoverView).not.toHaveBeenCalled();
   });
 
   it('returns 500 when the handover service is not configured', async () => {

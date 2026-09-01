@@ -17,7 +17,10 @@ import * as reviewSettingsApi from '../src/check-in/reviewSettings.api';
 import * as handoverInstructionApi from '../src/handover-instructions/handoverInstruction.api';
 import type { HandoverInstruction } from '../src/handover-instructions/handoverInstruction.types';
 import * as emergencyApi from '../src/emergency-access/emergencyAccess.api';
-import type { ContactAccessAssignment } from '../src/emergency-access/emergencyAccess.types';
+import type {
+  ContactAccessAssignment,
+  ContactEmergencyHandover
+} from '../src/emergency-access/emergencyAccess.types';
 import * as contactApi from '../src/trusted-contacts/trustedContact.api';
 import type {
   CreateTrustedContactInput,
@@ -117,6 +120,51 @@ function makeAsset(
     detail: input.detail ?? null,
     createdAt: '2026-07-01T00:00:00.000Z',
     updatedAt: '2026-07-01T00:00:00.000Z'
+  };
+}
+
+function makeContactHandover(): ContactEmergencyHandover {
+  const verifiedContacts = trustedContacts.filter(
+    (contact) => contact.verificationStatus === 'VERIFIED'
+  );
+  const documentedCount = assetReferences.filter(
+    (reference) => reference.locationHint
+  ).length;
+
+  return {
+    instruction: handoverInstruction,
+    family: familyMembers.map((member) => ({
+      name: member.name,
+      relation: member.relation,
+      detail: null
+    })),
+    contacts: verifiedContacts.map((contact) => ({
+      name: contact.name,
+      relation: contact.relation,
+      role: contact.role,
+      phone: contact.phone,
+      email: contact.email
+    })),
+    locations: assetReferences.map((reference) => ({
+      name: reference.name,
+      category: reference.category,
+      locationHint: reference.locationHint,
+      documented: Boolean(reference.locationHint)
+    })),
+    steps:
+      handoverInstruction.firstSteps.length > 0
+        ? handoverInstruction.firstSteps
+        : [
+            'Contact the primary trusted contact.',
+            'Review family context.',
+            'Locate key asset references.'
+          ],
+    summary: {
+      contactCount: verifiedContacts.length,
+      familyMemberCount: familyMembers.length,
+      locationCount: assetReferences.length,
+      documentedCount
+    }
   };
 }
 
@@ -258,6 +306,9 @@ beforeEach(async () => {
       .filter((contact) => contact.verificationStatus === 'VERIFIED')
       .map(makeContactAssignment)
   );
+  mockedEmergencyApi.getContactAssignmentHandover.mockImplementation(
+    async () => makeContactHandover()
+  );
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -368,6 +419,13 @@ describe('Pusaka E2E user journey', () => {
 
     expect(await screen.findByText('Contact Home')).toBeTruthy();
     expect(await screen.findByText(/trusted contact for Aisyah Rahman/)).toBeTruthy();
+    expect(await screen.findByText('Contacts & First Steps')).toBeTruthy();
+    expect(await screen.findByText('Imran Rahman')).toBeTruthy();
+    expect(mockedEmergencyApi.getContactAssignmentHandover).toHaveBeenCalledWith(
+      'contact-2',
+      undefined
+    );
+    expect(mockedEmergencyApi.createEmergencyAccessRequest).not.toHaveBeenCalled();
     expect(mockedContactApi.bindTrustedContactInvite).toHaveBeenCalledWith(
       'journey-invite-token-12345678901234567890'
     );

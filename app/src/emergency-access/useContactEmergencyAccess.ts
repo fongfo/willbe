@@ -6,6 +6,7 @@ import {
   confirmBackupEmergencyAccessRequest,
   createEmergencyAccessRequest,
   denyBackupEmergencyAccessRequest,
+  getContactAssignmentHandover,
   getContactAccessContext,
   getContactEmergencyHandover
 } from './emergencyAccess.api';
@@ -110,6 +111,29 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
     []
   );
 
+  const loadAssignmentHandover = useCallback(
+    async (assignmentId: string, signal?: AbortSignal): Promise<void> => {
+      setHandoverLoading(true);
+      try {
+        const data = await getContactAssignmentHandover(assignmentId, signal);
+        if (!signal?.aborted) {
+          setHandover(data);
+          setError(null);
+        }
+      } catch (err: unknown) {
+        if (!signal?.aborted) {
+          setHandover(null);
+          setError(toMessage(err));
+        }
+      } finally {
+        if (!signal?.aborted) {
+          setHandoverLoading(false);
+        }
+      }
+    },
+    []
+  );
+
   const refresh = useCallback(
     async (options: RefreshOptions = {}): Promise<void> => {
       setLoading(true);
@@ -132,6 +156,8 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
         setError(null);
         if (latest && shouldFetchHandover(latest)) {
           await loadHandover(latest, options.signal);
+        } else if (selected) {
+          await loadAssignmentHandover(selected.id, options.signal);
         }
       } catch (err: unknown) {
         if (!options.signal?.aborted) {
@@ -143,7 +169,7 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
         }
       }
     },
-    [loadHandover]
+    [loadAssignmentHandover, loadHandover]
   );
 
   useEffect(() => {
@@ -172,8 +198,14 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
           ownerUserId: selectedAssignment.ownerUserId,
           trustedContactId: selectedAssignment.id
         });
-        setCurrentRequest(effectiveRequest(request));
+        const effective = effectiveRequest(request);
+        setCurrentRequest(effective);
         setHandover(null);
+        if (effective && shouldFetchHandover(effective)) {
+          await loadHandover(effective);
+        } else {
+          await loadAssignmentHandover(selectedAssignment.id);
+        }
       } catch (err: unknown) {
         setError(toMessage(err));
         throw err;
@@ -181,7 +213,7 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
         setSubmitting(false);
       }
     },
-    [selectedAssignment]
+    [loadAssignmentHandover, loadHandover, selectedAssignment]
   );
 
   const bindInviteToken = useCallback(
@@ -209,14 +241,22 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
     setError(null);
     try {
       const request = await closeEmergencyAccessRequest(currentRequest.id);
-      setCurrentRequest(effectiveRequest(request));
+      const effective = effectiveRequest(request);
+      setCurrentRequest(effective);
       setHandover(null);
+      if (selectedAssignment) {
+        if (effective && shouldFetchHandover(effective)) {
+          await loadHandover(effective);
+        } else {
+          await loadAssignmentHandover(selectedAssignment.id);
+        }
+      }
     } catch (err: unknown) {
       setError(toMessage(err));
     } finally {
       setSubmitting(false);
     }
-  }, [currentRequest]);
+  }, [currentRequest, loadAssignmentHandover, loadHandover, selectedAssignment]);
 
   const confirmBackupReview = useCallback(async (): Promise<void> => {
     if (!currentRequest) {
@@ -231,13 +271,15 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
       setHandover(null);
       if (effective && shouldFetchHandover(effective)) {
         await loadHandover(effective);
+      } else if (selectedAssignment) {
+        await loadAssignmentHandover(selectedAssignment.id);
       }
     } catch (err: unknown) {
       setError(toMessage(err));
     } finally {
       setSubmitting(false);
     }
-  }, [currentRequest, loadHandover]);
+  }, [currentRequest, loadAssignmentHandover, loadHandover, selectedAssignment]);
 
   const denyBackupReview = useCallback(async (): Promise<void> => {
     if (!currentRequest) {
@@ -249,12 +291,15 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
       const request = await denyBackupEmergencyAccessRequest(currentRequest.id);
       setCurrentRequest(effectiveRequest(request));
       setHandover(null);
+      if (selectedAssignment) {
+        await loadAssignmentHandover(selectedAssignment.id);
+      }
     } catch (err: unknown) {
       setError(toMessage(err));
     } finally {
       setSubmitting(false);
     }
-  }, [currentRequest]);
+  }, [currentRequest, loadAssignmentHandover, selectedAssignment]);
 
   const selectAssignment = useCallback(
     async (assignmentId: string): Promise<void> => {
@@ -265,9 +310,11 @@ export function useContactEmergencyAccess(): UseContactEmergencyAccessResult {
       setHandover(null);
       if (selected?.latestRequest && shouldFetchHandover(effectiveRequest(selected.latestRequest))) {
         await loadHandover(selected.latestRequest);
+      } else if (selected) {
+        await loadAssignmentHandover(selected.id);
       }
     },
-    [assignments, loadHandover]
+    [assignments, loadAssignmentHandover, loadHandover]
   );
 
   return {
