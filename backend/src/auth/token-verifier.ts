@@ -22,6 +22,7 @@ interface PrivyIdentity {
 export interface PrivyAuthClientLike {
   verifyAccessToken(accessToken: string): Promise<unknown>;
   verifyIdentityToken(identityToken: string): Promise<unknown>;
+  getUser?(userId: string): Promise<unknown>;
 }
 
 function stableWalletAddress(seed: string): string {
@@ -129,6 +130,15 @@ function extractWalletAddress(accounts: PrivyLinkedAccount[]): string | undefine
   return account ? readString(account, 'address') : undefined;
 }
 
+function assertIdentityMatchesUser(identity: PrivyIdentity | undefined, privyUserId: string): void {
+  if (identity?.id && identity.id !== privyUserId) {
+    throw new HttpError(401, 'Privy identity token does not match access token');
+  }
+  if (identity?.userId && identity.userId !== privyUserId) {
+    throw new HttpError(401, 'Privy identity token does not match access token');
+  }
+}
+
 export class PrivyTokenVerifier implements TokenVerifier {
   constructor(private readonly authClient: PrivyAuthClientLike) {}
 
@@ -140,19 +150,22 @@ export class PrivyTokenVerifier implements TokenVerifier {
         ? asPrivyIdentity(await this.authClient.verifyIdentityToken(identityToken))
         : undefined;
 
-      if (identity?.id && identity.id !== privyUserId) {
-        throw new HttpError(401, 'Privy identity token does not match access token');
-      }
-      if (identity?.userId && identity.userId !== privyUserId) {
-        throw new HttpError(401, 'Privy identity token does not match access token');
-      }
+      assertIdentityMatchesUser(identity, privyUserId);
 
       const linkedAccounts = identity ? getLinkedAccounts(identity) : [];
+      const email = extractEmail(linkedAccounts);
+      const fullIdentity =
+        identityToken && !email && this.authClient.getUser
+          ? asPrivyIdentity(await this.authClient.getUser(privyUserId))
+          : undefined;
+      assertIdentityMatchesUser(fullIdentity, privyUserId);
+      const fullLinkedAccounts = fullIdentity ? getLinkedAccounts(fullIdentity) : [];
       const parsed = verifiedAuthUserSchema.safeParse({
         privyUserId,
-        email: extractEmail(linkedAccounts),
-        name: extractName(linkedAccounts),
-        walletAddress: extractWalletAddress(linkedAccounts)
+        email: email ?? extractEmail(fullLinkedAccounts),
+        name: extractName(linkedAccounts) ?? extractName(fullLinkedAccounts),
+        walletAddress:
+          extractWalletAddress(linkedAccounts) ?? extractWalletAddress(fullLinkedAccounts)
       });
 
       if (!parsed.success) {
@@ -184,7 +197,12 @@ export function createTokenVerifier(): TokenVerifier {
       appSecret,
       jwtVerificationKey: process.env.PRIVY_JWT_VERIFICATION_KEY
     });
-    return new PrivyTokenVerifier(client.utils().auth());
+    const auth = client.utils().auth();
+    return new PrivyTokenVerifier({
+      verifyAccessToken: (accessToken: string) => auth.verifyAccessToken(accessToken),
+      verifyIdentityToken: (identityToken: string) => auth.verifyIdentityToken(identityToken),
+      getUser: (userId: string) => client.users()._get(userId)
+    });
   }
 
   return new DevTokenVerifier();
