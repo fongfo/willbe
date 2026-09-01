@@ -97,8 +97,11 @@ describe('PrivyTokenVerifier', () => {
     });
   });
 
-  it('accepts a valid access token when no identity token is supplied', async () => {
-    const verifier = new PrivyTokenVerifier(authClient);
+  it('accepts a valid access token when no full user lookup is available', async () => {
+    const verifier = new PrivyTokenVerifier({
+      verifyAccessToken: authClient.verifyAccessToken,
+      verifyIdentityToken: authClient.verifyIdentityToken
+    });
 
     const result = await verifier.verify('privy-access-token');
 
@@ -107,6 +110,28 @@ describe('PrivyTokenVerifier', () => {
     });
     expect(authClient.verifyIdentityToken).not.toHaveBeenCalled();
     expect(authClient.getUser).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the full Privy user when no identity token is supplied', async () => {
+    authClient.getUser.mockResolvedValue({
+      id: 'did:privy:user-1',
+      linked_accounts: [
+        {
+          type: 'email',
+          address: 'imran@example.com'
+        }
+      ]
+    });
+    const verifier = new PrivyTokenVerifier(authClient);
+
+    const result = await verifier.verify('privy-access-token');
+
+    expect(authClient.verifyIdentityToken).not.toHaveBeenCalled();
+    expect(authClient.getUser).toHaveBeenCalledWith('did:privy:user-1');
+    expect(result).toMatchObject({
+      privyUserId: 'did:privy:user-1',
+      email: 'imran@example.com'
+    });
   });
 
   it('falls back to the full Privy user when the identity token omits email', async () => {
