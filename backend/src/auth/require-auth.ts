@@ -33,13 +33,14 @@ export async function requireAuth(
   next: NextFunction
 ): Promise<void> {
   const accessToken = extractBearerToken(req.header('Authorization'));
+  const identityToken = req.header('X-Privy-Identity-Token')?.trim() || undefined;
   if (!accessToken) {
     res.status(401).json({ success: false, error: 'Missing access token' });
     return;
   }
 
   try {
-    const session = await service.createSession(accessToken);
+    const session = await service.createSession(accessToken, identityToken);
     (req as AuthenticatedRequest).authUser = session.user;
     next();
   } catch (error: unknown) {

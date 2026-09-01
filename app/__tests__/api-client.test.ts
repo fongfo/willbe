@@ -127,6 +127,26 @@ describe('apiClient', () => {
     );
   });
 
+  it('adds the current Privy identity token when one is available', async () => {
+    const fetchFn = mockFetch({ json: async () => ({ success: true, data: [] }) });
+    setApiAccessTokenProvider(async () => ({
+      accessToken: 'privy-access-token',
+      identityToken: 'privy-identity-token'
+    }));
+
+    await apiClient.get('/trusted-contacts/assignments');
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:4000/api/trusted-contacts/assignments',
+      expect.objectContaining({
+        headers: {
+          Authorization: 'Bearer privy-access-token',
+          'X-Privy-Identity-Token': 'privy-identity-token'
+        }
+      })
+    );
+  });
+
   it('can target an alternate service base URL', async () => {
     const fetchFn = mockFetch({
       json: async () => ({ success: true, data: { ok: true } })

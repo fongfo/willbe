@@ -257,9 +257,12 @@ function PrivyAccountAuthProvider({ children }: { children: ReactNode }) {
   const currentUser = status === 'authenticated' ? session?.user ?? null : null;
 
   useEffect(() => {
-    setApiAccessTokenProvider(() => getAccessToken());
+    setApiAccessTokenProvider(async () => ({
+      accessToken: await getAccessToken(),
+      identityToken: await getIdentityToken()
+    }));
     return () => setApiAccessTokenProvider(null);
-  }, [getAccessToken]);
+  }, [getAccessToken, getIdentityToken]);
 
   useEffect(() => {
     walletsRef.current = wallets;

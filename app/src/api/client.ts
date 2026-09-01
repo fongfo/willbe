@@ -25,12 +25,33 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
-type AccessTokenProvider = () => Promise<string | null | undefined>;
+type ApiAuthTokens =
+  | string
+  | {
+      accessToken?: string | null;
+      identityToken?: string | null;
+    };
+type AccessTokenProvider = () => Promise<ApiAuthTokens | null | undefined>;
 
 let accessTokenProvider: AccessTokenProvider | null = null;
 
 export function setApiAccessTokenProvider(provider: AccessTokenProvider | null): void {
   accessTokenProvider = provider;
+}
+
+function authHeaders(authTokens: ApiAuthTokens | null | undefined): Record<string, string> {
+  if (!authTokens) {
+    return {};
+  }
+  if (typeof authTokens === 'string') {
+    return authTokens ? { Authorization: `Bearer ${authTokens}` } : {};
+  }
+  return {
+    ...(authTokens.accessToken ? { Authorization: `Bearer ${authTokens.accessToken}` } : {}),
+    ...(authTokens.identityToken
+      ? { 'X-Privy-Identity-Token': authTokens.identityToken }
+      : {})
+  };
 }
 
 function buildUrl(path: string, baseUrl: string): string {
@@ -78,14 +99,14 @@ export async function request<T>(
     headers
   } = options;
   const shouldAttachAccessToken = baseUrl === getApiBaseUrl() && !headers?.Authorization;
-  const accessToken = shouldAttachAccessToken ? await accessTokenProvider?.() : undefined;
+  const authTokens = shouldAttachAccessToken ? await accessTokenProvider?.() : undefined;
 
   const response = await fetch(buildUrl(path, baseUrl), {
     method,
     signal,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : undefined),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined),
+      ...authHeaders(authTokens),
       ...headers
     },
     body: body ? JSON.stringify(body) : undefined
