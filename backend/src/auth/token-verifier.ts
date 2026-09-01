@@ -155,7 +155,7 @@ export class PrivyTokenVerifier implements TokenVerifier {
       const linkedAccounts = identity ? getLinkedAccounts(identity) : [];
       const email = extractEmail(linkedAccounts);
       const fullIdentity =
-        identityToken && !email && this.authClient.getUser
+        !email && this.authClient.getUser
           ? asPrivyIdentity(await this.authClient.getUser(privyUserId))
           : undefined;
       assertIdentityMatchesUser(fullIdentity, privyUserId);
