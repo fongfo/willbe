@@ -50,7 +50,8 @@ describe('DevTokenVerifier', () => {
 describe('PrivyTokenVerifier', () => {
   const authClient = {
     verifyAccessToken: jest.fn(),
-    verifyIdentityToken: jest.fn()
+    verifyIdentityToken: jest.fn(),
+    getUser: jest.fn()
   };
 
   beforeEach(() => {
@@ -72,6 +73,10 @@ describe('PrivyTokenVerifier', () => {
         }
       ]
     });
+    authClient.getUser.mockResolvedValue({
+      id: 'did:privy:user-1',
+      linked_accounts: []
+    });
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -83,6 +88,7 @@ describe('PrivyTokenVerifier', () => {
 
     expect(authClient.verifyAccessToken).toHaveBeenCalledWith('privy-access-token');
     expect(authClient.verifyIdentityToken).toHaveBeenCalledWith('privy-id-token');
+    expect(authClient.getUser).not.toHaveBeenCalled();
     expect(result).toEqual({
       privyUserId: 'did:privy:user-1',
       email: 'aisyah.rahman@gmail.com',
@@ -100,6 +106,34 @@ describe('PrivyTokenVerifier', () => {
       privyUserId: 'did:privy:user-1'
     });
     expect(authClient.verifyIdentityToken).not.toHaveBeenCalled();
+    expect(authClient.getUser).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the full Privy user when the identity token omits email', async () => {
+    authClient.verifyIdentityToken.mockResolvedValue({
+      id: 'did:privy:user-1',
+      linked_accounts: []
+    });
+    authClient.getUser.mockResolvedValue({
+      id: 'did:privy:user-1',
+      linked_accounts: [
+        {
+          type: 'email',
+          address: 'imran@example.com',
+          name: 'Imran Rahman'
+        }
+      ]
+    });
+    const verifier = new PrivyTokenVerifier(authClient);
+
+    const result = await verifier.verify('privy-access-token', 'privy-id-token');
+
+    expect(authClient.getUser).toHaveBeenCalledWith('did:privy:user-1');
+    expect(result).toMatchObject({
+      privyUserId: 'did:privy:user-1',
+      email: 'imran@example.com',
+      name: 'Imran Rahman'
+    });
   });
 
   it('rejects mismatched Privy identity tokens', async () => {
